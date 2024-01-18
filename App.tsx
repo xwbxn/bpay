@@ -18,6 +18,7 @@ export default function App() {
   const [globalState, setGlobalState] = useState<IGlobalContext>({
     ready: true,
     categories: [],
+
     setCategories(state) {
       setGlobalState({
         ...globalState,

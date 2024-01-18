@@ -6,5 +6,4 @@ export interface IGlobalContext {
     setCategories: (state: any) => void
 }
 
-export const GlobalContext = createContext({ready: false} as IGlobalContext)
-  
+export const GlobalContext = createContext({ ready: false } as IGlobalContext)

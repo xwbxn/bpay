@@ -1,21 +1,30 @@
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useCallback, useContext, useEffect, useState } from 'react';
+import { FlatList, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Tab, TabView, Button, Icon, Text } from '@rneui/themed';
-import { useContext, useEffect, useState } from 'react';
-import { SearchBar } from '@rneui/themed';
-import { useTheme } from '@rneui/themed';
+import { Button, Icon, SearchBar, Tab, TabView, Text, useTheme } from '@rneui/themed';
+import RenderHtml from 'react-native-render-html';
+
 import { getPosts } from '../../service/wordpress';
 import { GlobalContext } from '../../store/globalContext';
 
-const getSubCates = (id, cates) => {
-    const data = [...cates]
+const getSubCates = (root, cates) => {
     const result = []
-    const subs = data.filter(v => v.parent === id)
-    subs.forEach(v => {
-        result.push(v)
-    });
+    const stack = [root]
+    while (stack.length > 0) {
+        const cate = stack.pop()
+        result.push(cate)
+        const subs = cates.filter(v => v.parent === cate.id)
+        subs.forEach(v => {
+            stack.push(v)
+        });
+    }
+    return result
 }
+
+const keyExtractor = (item, index) => index.toString()
+
+
 
 export default function PostList({ route, navigation }) {
 
@@ -31,6 +40,13 @@ export default function PostList({ route, navigation }) {
 
     const [index, setIndex] = useState(0)
 
+    const renderItem = useCallback(({ item }) => {
+        return <View key={item.id}>
+            <Text>{item.title.rendered}</Text>
+            <RenderHtml source={{ html: item.excerpt.rendered }} contentWidth={screenSize.width}></RenderHtml>
+        </View>
+    }, [screenSize])
+
     useEffect(() => {
         const data = categories.filter(v => v.parent === id)
         data.forEach(v => {
@@ -39,11 +55,11 @@ export default function PostList({ route, navigation }) {
         })
         const root = categories.find(v => v.id === id)
         if (root) {
-            root.title = '全部'
+            root.title = '最新'
             data.unshift(root)
             setCurrentCate(data)
             setFilter({
-                categories: [id]
+                categories: getSubCates(root, categories).map(v => v.id)
             })
         }
     }, [id, categories])
@@ -55,6 +71,7 @@ export default function PostList({ route, navigation }) {
     }, [index])
 
     useEffect(() => {
+        console.log('filter', filter)
         if (filter.categories.length > 0) {
             getPosts({
                 categories: filter.categories.join(',')
@@ -83,23 +100,25 @@ export default function PostList({ route, navigation }) {
                 {currentCate.map(v =>
                     <Tab.Item key={v.id} title={v.title} titleStyle={{ color: theme.colors.black }}></Tab.Item>)}
             </Tab>
-            <TabView containerStyle={{ flex: 1 }} value={index} onChange={(e) => { setIndex(e) }}>
-                {currentCate.map(v =>
-                    <TabView.Item key={v.id} >
-                        <View>
-                            <ScrollView horizontal>
-                                {currentSubCate.map(i =>
-                                    <Button containerStyle={{ padding: 5 }} key={i.id} type='outline' title={i.name}></Button >)}
-                            </ScrollView>
-                            <View style={{ flex: 1, backgroundColor: 'red', height: 500 }}>
-                                {posts.map(p => <Text key={p.id}>{p.name}</Text>)}
+            <View style={{ flex: 1 }}>
+                <TabView value={index} onChange={(e) => { setIndex(e) }}>
+                    {currentCate.map(v =>
+                        <TabView.Item key={v.id}>
+                            <View style={{ flex: 1 }}>
+                                <View>
+                                    <ScrollView horizontal>
+                                        {currentSubCate.map(i =>
+                                            <Button containerStyle={{ padding: 5 }} key={i.id} type='outline' title={i.name}></Button >)}
+                                    </ScrollView>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <FlatList data={posts} renderItem={renderItem} keyExtractor={keyExtractor}>
+                                    </FlatList>
+                                </View>
                             </View>
-                            <View>
-                                <Text>bottom {posts.length}</Text>
-                            </View>
-                        </View>
-                    </TabView.Item>)}
-            </TabView>
+                        </TabView.Item>)}
+                </TabView>
+            </View>
         </SafeAreaView>
     </>
 }
