@@ -5,3 +5,9 @@ export function getCategories(params?) {
         params
     })
 }
+
+export function getPosts(params?) {
+    return request.get('/wp-json/wp/v2/posts?context=embed&status=publish', {
+        params
+    })
+}
