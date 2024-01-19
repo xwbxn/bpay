@@ -7,7 +7,7 @@ export function getCategories(params?) {
 }
 
 export function getPosts(params?) {
-    return request.get('/wp-json/wp/v2/posts?context=embed&status=publish', {
+    return request.get('/wp-json/wp/v2/posts?context=embed&status=publish&_embed=true', {
         params
     })
 }
