@@ -24,8 +24,6 @@ const getSubCates = (root, cates) => {
 
 const keyExtractor = (item, index) => index.toString()
 
-
-
 export default function PostList({ route, navigation }) {
 
     const { theme } = useTheme()
@@ -33,10 +31,10 @@ export default function PostList({ route, navigation }) {
 
     const { id } = route.params
     const { categories } = useContext(GlobalContext)
-    const [currentCate, setCurrentCate] = useState([])
-    const [currentSubCate, setCurrentSubCate] = useState([])
+    const [navItems, setNavItems] = useState([])
+    const [subNavItems, setSubNavItems] = useState([])
     const [filter, setFilter] = useState({ categories: [] })
-    const [posts, setPosts] = useState([])
+    const [posts, setPosts] = useState({})
 
     const [index, setIndex] = useState(0)
 
@@ -48,16 +46,16 @@ export default function PostList({ route, navigation }) {
     }, [screenSize])
 
     useEffect(() => {
-        const data = categories.filter(v => v.parent === id)
-        data.forEach(v => {
+        const topNavItems = categories.filter(v => v.parent === id)
+        topNavItems.forEach(v => {
             v.title = v.name
             v.children = categories.filter(i => i.parent === v.id)
         })
         const root = categories.find(v => v.id === id)
         if (root) {
             root.title = '最新'
-            data.unshift(root)
-            setCurrentCate(data)
+            topNavItems.unshift(root)
+            setNavItems(topNavItems)
             setFilter({
                 categories: getSubCates(root, categories).map(v => v.id)
             })
@@ -65,18 +63,24 @@ export default function PostList({ route, navigation }) {
     }, [id, categories])
 
     useEffect(() => {
-        if (currentCate[index]) {
-            setCurrentSubCate(currentCate[index].children || [])
+        if (navItems[index]) {
+            setSubNavItems(navItems[index].children || [])
+            setFilter({
+                categories: getSubCates(navItems[index], categories).map(v => v.id)
+            })
         }
     }, [index])
 
     useEffect(() => {
-        console.log('filter', filter)
+        console.log('object', Object.keys(posts))
         if (filter.categories.length > 0) {
             getPosts({
                 categories: filter.categories.join(',')
             }).then(res => {
-                setPosts(res)
+                posts[index] = res
+                setPosts({
+                    ...posts,
+                })
             })
         }
     }, [filter])
@@ -97,22 +101,22 @@ export default function PostList({ route, navigation }) {
                 </SearchBar>
             </View>
             <Tab value={index} onChange={(e) => { setIndex(e) }} scrollable dense indicatorStyle={{ backgroundColor: theme.colors.primary }}>
-                {currentCate.map(v =>
+                {navItems.map(v =>
                     <Tab.Item key={v.id} title={v.title} titleStyle={{ color: theme.colors.black }}></Tab.Item>)}
             </Tab>
             <View style={{ flex: 1 }}>
                 <TabView value={index} onChange={(e) => { setIndex(e) }}>
-                    {currentCate.map(v =>
+                    {navItems.map(v =>
                         <TabView.Item key={v.id}>
                             <View style={{ flex: 1 }}>
                                 <View>
                                     <ScrollView horizontal>
-                                        {currentSubCate.map(i =>
+                                        {subNavItems.map(i =>
                                             <Button containerStyle={{ padding: 5 }} key={i.id} type='outline' title={i.name}></Button >)}
                                     </ScrollView>
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <FlatList data={posts} renderItem={renderItem} keyExtractor={keyExtractor}>
+                                    <FlatList data={posts[index] || []} renderItem={renderItem} keyExtractor={keyExtractor}>
                                     </FlatList>
                                 </View>
                             </View>
