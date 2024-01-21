@@ -1,11 +1,12 @@
+import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createTheme, ThemeProvider } from '@rneui/themed';
-import { StatusBar } from 'expo-status-bar';
+import { createTheme, FAB, Icon, ThemeProvider } from '@rneui/themed';
 
 import HomeScreen from './screens/home';
+// import PostDetail from './screens/posts/webDetail';
 import PostDetail from './screens/posts/detail';
 import { GlobalContext, IGlobalContext } from './store/globalContext';
 
@@ -32,11 +33,14 @@ export default function App() {
       <ThemeProvider theme={theme}>
         {globalState.ready &&
           <NavigationContainer>
-            <Stack.Navigator>
-              <Stack.Screen options={{ headerShown: false }} name="Home" component={HomeScreen} />
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="PostDetail" component={PostDetail} />
             </Stack.Navigator>
           </NavigationContainer>}
+        <FAB placement="right" size='small' color={theme.lightColors.primary}
+          style={{ top: 250, right: -10 }}
+          icon={<Icon name="chatbubbles-outline" type='ionicon' color={theme.lightColors.background}></Icon>}></FAB>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
       </ThemeProvider>
     </GlobalContext.Provider>

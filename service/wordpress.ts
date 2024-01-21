@@ -12,6 +12,6 @@ export function getPosts(params?) {
     })
 }
 
-export function getMedia(id) {
-    return request.get(`/wp-json/wp/v2/media/${id}`)
+export function getPost(id) {
+    return request.get(`/wp-json/wp/v2/posts/${id}?context=view`)
 }

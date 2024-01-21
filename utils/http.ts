@@ -14,4 +14,9 @@ request.interceptors.request.use((url: string, options: RequestOptionsInit) => {
     }
 })
 
+request.interceptors.response.use((response: Response, options: RequestOptionsInit) => {
+    console.log('response: ', response.url, response.status)
+    return response
+})
+
 export default request
