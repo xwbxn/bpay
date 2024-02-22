@@ -27,7 +27,8 @@ export default function PostList({ route, navigation }) {
     const { theme } = useTheme()
     const screenSize = useWindowDimensions()
 
-    const { id } = route.params
+    // const { id } = route.params
+    const id = 0
     const { categories } = useContext(GlobalContext)
     const [navItems, setNavItems] = useState([])
     const [subNavItems, setSubNavItems] = useState([])
@@ -35,18 +36,36 @@ export default function PostList({ route, navigation }) {
 
     useEffect(() => {
         const topNavItems = categories.filter(v => v.parent === id)
+        console.log('topNavItems', topNavItems.map(v => v.name))
         topNavItems.forEach(v => {
             v.title = v.name
             v.children = categories.filter(i => i.parent === v.id)
             v.categories = getSubCateIds(v, categories)
         })
-        const root = categories.find(v => v.id === id)
-        if (root) {
-            root.title = '最新'
-            root.categories = getSubCateIds(root, categories)
-            topNavItems.unshift(root)
-            setNavItems(topNavItems)
-        }
+        // const root = categories.find(v => v.id === id)
+        // if (root) {
+        //     root.title = '最新'
+        //     root.categories = getSubCateIds(root, categories)
+        //     topNavItems.unshift(root)
+        // }
+        topNavItems.unshift({
+            id: 0,
+            title: "最新",
+            categories: []
+        })
+
+        topNavItems.push({
+            id: 500,
+            title: "视频",
+            categories: []
+        })
+        topNavItems.push({
+            id: 600,
+            title: "课程",
+            categories: []
+        })
+
+        setNavItems(topNavItems)
     }, [id, categories])
 
     useEffect(() => {
@@ -61,11 +80,13 @@ export default function PostList({ route, navigation }) {
 
     return <>
         <SafeAreaView style={{ flex: 1 }}>
+            {/* 頂部搜索 */}
             <View style={{ flexDirection: "row", backgroundColor: theme.colors.primary, alignItems: "center", height: 60 }}>
                 <Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
                     name="user" type="font-awesome"></Icon>
                 <Searchbar width={screenSize.width - 70} />
             </View>
+            {/* 滚动菜单 */}
             <Tab value={tabIndex} onChange={(e) => { setTabIndex(e) }}
                 scrollable dense
                 style={{ backgroundColor: theme.colors.background }}
@@ -73,6 +94,7 @@ export default function PostList({ route, navigation }) {
                 {navItems.map(v =>
                     <Tab.Item key={v.id} title={v.title} titleStyle={{ color: theme.colors.black }}></Tab.Item>)}
             </Tab>
+            {/* 文章列表 */}
             <View style={{ flex: 1 }}>
                 <TabView value={tabIndex} onChange={(e) => { setTabIndex(e) }}>
                     {navItems.map((v, i) =>
@@ -88,6 +110,7 @@ export default function PostList({ route, navigation }) {
                                     </ScrollView>
                                 </View>
                                 <View style={{ flex: 1 }}>
+                                    {/* 文章条目 */}
                                     <PostFlatList
                                         active={i === tabIndex}
                                         onPress={onPress}

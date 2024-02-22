@@ -5,6 +5,7 @@ import RenderHtml from 'react-native-render-html';
 import { Image, Skeleton, Text, useTheme } from '@rneui/themed';
 
 import { getPosts } from '../../../service/wordpress';
+import moment from 'moment';
 
 interface IProps {
     active: boolean,
@@ -23,35 +24,28 @@ const PostFlatList = (props: IProps) => {
     const screenSize = useWindowDimensions()
 
     const renderItem = useCallback(({ item }) => {
+
+        const category = item._embedded['wp:term'][0][0].name || ''
+
         return (
             <TouchableOpacity activeOpacity={1} onPress={() => { onPress && onPress(item) }}>
                 <View key={item.id} style={{
-                    marginVertical: 4, paddingHorizontal: 8,
-                    paddingVertical: 4, backgroundColor: theme.colors.background
+                    marginVertical: 1, paddingHorizontal: 12,
+                    paddingVertical: 8, backgroundColor: theme.colors.background
                 }}
                 >
-                    <Text style={{ fontSize: 18, fontWeight: 'bold', paddingBottom: 4 }}>{item.title.rendered}</Text>
                     <View style={{ flexDirection: 'row' }}>
-                        <View style={{ width: "66%" }}>
-                            <View style={{ paddingBottom: 2, flexDirection: 'row' }}>
-                                {item._embedded.author[0].avatar_urls['24'] &&
-                                    <Image style={{ width: 20, height: 20, borderRadius: 10, marginRight: 8 }}
-                                        source={{ uri: item._embedded.author[0].avatar_urls['24'] }}
-                                        PlaceholderContent={<Skeleton circle width={20} height={20} />}></Image>}
-                                <Text>{item._embedded.author[0].name}</Text>
-                            </View>
+                        <View style={{ width: "78%" }}>
+
                             <View style={{ flex: 1 }}>
-                                <View>
-                                    <RenderHtml tagsStyles={{ p: { margin: 0 } }}
-                                        source={{ html: item.excerpt.rendered }} contentWidth={screenSize.width}></RenderHtml>
-                                </View>
+                                <Text style={{ fontSize: 18, fontWeight: 'bold', paddingBottom: 4 }}>{item.title.rendered}</Text>
                             </View>
                             <View style={{ paddingBottom: 2 }}>
-                                <Text style={{ fontSize: 12, color: theme.colors.grey0 }}>收藏 评论</Text>
+                                <Text style={{ color: theme.colors.grey3 }}>{category} {item._embedded.author[0].name} | {moment(item.date).format("YYYY-MM-DD")}</Text>
                             </View>
                         </View>
-                        <View style={{ width: screenSize.width / 3 }}>
-                            <Image style={{ width: '100%', aspectRatio: 1.1, borderRadius: 10 }}
+                        <View style={{ width: "22%" }}>
+                            <Image style={{ width: '100%', aspectRatio: 1.1, borderRadius: 0 }}
                                 source={{ uri: item._embedded['wp:featuredmedia'][0].media_details.sizes.thumbnail.source_url }}></Image>
                         </View>
                     </View>
@@ -61,7 +55,7 @@ const PostFlatList = (props: IProps) => {
 
     const refreshData = useCallback(() => {
         getPosts({
-            categories: categories.join(','),
+            categories: categories.join(',') || ' ',
             page: 1,
             per_page: 10
         }).then(res => {
@@ -72,18 +66,20 @@ const PostFlatList = (props: IProps) => {
 
     const loadMoreData = useCallback(() => {
         getPosts({
-            categories: categories.join(','),
+            categories: categories.join(',') || ' ',
             page: page + 1,
             per_page: 10
         }).then(res => {
-            setData(data.concat(res))
+            const moreData = data.concat(res)
+            console.log('moreData.length', moreData.length)
+            setData(moreData)
             setPage(page + 1)
         }).catch(res => {
             if (res.response && res.response.status === 400) {
                 console.log('no more')
             }
         })
-    }, [])
+    }, [page])
 
     useEffect(() => {
         if (active && data.length === 0) {
