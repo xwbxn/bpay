@@ -15,3 +15,11 @@ export function getPosts(params?) {
 export function getPost(id) {
     return request.get(`/wp-json/wp/v2/posts/${id}?context=view`)
 }
+
+export function getAuth(token) {
+    return request.get(`/wp-json/wp/v2/users/me`, {
+        headers: {
+            authorization: token
+        }
+    })
+}

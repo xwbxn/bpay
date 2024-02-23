@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Icon, useTheme, Text } from '@rneui/themed';
 import VideoPlayer from 'expo-video-player'
+// import VideoPlayer from 'expo-fullscreen-video-player';
+
 import Searchbar from '../../components/searchbar';
 import { getPost } from '../../service/wordpress';
 
@@ -23,26 +25,6 @@ const customElementModels = {
     }),
 };
 
-const VideoRenderer: CustomBlockRenderer = ({
-    tnode,
-    style,
-}) => {
-    const width = useWindowDimensions().width;
-    return (
-        <VideoPlayer
-            videoProps={{
-                resizeMode: ResizeMode.CONTAIN,
-                source: { uri: tnode.attributes.src }
-            }}
-            style={{
-                ...style,
-                width: width,
-                height: width / (16 / 9),
-            }}
-        />
-    );
-};
-
 const AudioRenderer: CustomBlockRenderer = ({
     tnode,
     style,
@@ -52,12 +34,34 @@ const AudioRenderer: CustomBlockRenderer = ({
         <VideoPlayer
             videoProps={{
                 resizeMode: ResizeMode.CONTAIN,
-                source: { uri: tnode.attributes.src }
+                source: { uri: tnode.attributes.src },
+                useNativeControls: true
             }}
             style={{
                 ...style,
                 width: width,
                 height: 100,
+            }}
+        />
+    );
+};
+
+const VideoRenderer: CustomBlockRenderer = ({
+    tnode,
+    style,
+}) => {
+    const width = useWindowDimensions().width;
+    return (
+        <VideoPlayer
+            videoProps={{
+                resizeMode: ResizeMode.CONTAIN,
+                source: { uri: tnode.attributes.src },
+                useNativeControls: true
+            }}
+            style={{
+                ...style,
+                width: width,
+                height: width / (16 / 9),
             }}
         />
     );

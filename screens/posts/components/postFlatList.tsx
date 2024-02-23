@@ -2,7 +2,7 @@ import React, { memo, useCallback, useEffect, useState } from 'react';
 import { FlatList, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import RenderHtml from 'react-native-render-html';
 
-import { Image, Skeleton, Text, useTheme } from '@rneui/themed';
+import { Image, Text, useTheme } from '@rneui/themed';
 
 import { getPosts } from '../../../service/wordpress';
 import moment from 'moment';
@@ -15,13 +15,11 @@ interface IProps {
 
 const keyExtractor = (item, index) => index.toString()
 const PostFlatList = (props: IProps) => {
-    console.log('props', props)
     const { active, categories, onPress } = props
     const [page, setPage] = useState(1)
     const [data, setData] = useState([])
 
     const { theme } = useTheme()
-    const screenSize = useWindowDimensions()
 
     const renderItem = useCallback(({ item }) => {
 

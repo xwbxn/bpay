@@ -10,6 +10,7 @@ import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import { GlobalContext, IGlobalContext } from './store/globalContext';
 import { Chat } from './screens/chat';
+import Login from './screens/profile/login';
 
 const theme = createTheme({
 });
@@ -27,6 +28,13 @@ export default function App() {
         categories: state
       })
     },
+
+    profile: {
+      id: 0,
+      name: '游客',
+      avatar: ''
+    },
+    setProfiles(state) { }
   })
 
   return (
@@ -38,6 +46,7 @@ export default function App() {
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="PostDetail" component={PostDetail} />
               <Stack.Screen name="Chat" component={Chat} />
+              <Stack.Screen name="Login" component={Login} />
             </Stack.Navigator>
           </NavigationContainer>}
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
