@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import React, { useContext, useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Icon, Tab, TabView, useTheme } from '@rneui/themed';
+import { Button, Icon, Image, Tab, TabView, useTheme } from '@rneui/themed';
 
-import { GlobalContext } from '../../store/globalContext';
+import { GlobalContext, useProfile } from '../../store/globalContext';
 import PostFlatList from './components/postFlatList';
 
 const getSubCateIds = (root, cates) => {
@@ -24,17 +24,14 @@ const getSubCateIds = (root, cates) => {
 export default function PostList({ route, navigation }) {
 
     const { theme } = useTheme()
-    const screenSize = useWindowDimensions()
-
     const { id } = route.params
     const { categories } = useContext(GlobalContext)
     const [navItems, setNavItems] = useState([])
-    // const [subNavItems, setSubNavItems] = useState([])
     const [tabIndex, setTabIndex] = useState(0)
+    const profile = useProfile((state: any) => state.profile)
 
     useEffect(() => {
         const topNavItems = categories.filter(v => v.parent === id)
-        console.log('topNavItems', topNavItems.map(v => v.name))
         topNavItems.forEach(v => {
             v.title = v.name
             v.children = categories.filter(i => i.parent === v.id)
@@ -50,26 +47,25 @@ export default function PostList({ route, navigation }) {
         setNavItems(topNavItems)
     }, [id, categories])
 
-    // useEffect(() => {
-    //     if (navItems[tabIndex]) {
-    //         setSubNavItems(navItems[tabIndex].children || [])
-    //     }
-    // }, [tabIndex])
-
-    const onPostPress = useCallback((item) => {
+    const onPostPress = (item) => {
         navigation.push('PostDetail', { id: item.id, link: item.link })
-    }, [])
+    }
 
-    const onProfilePress = useCallback(() => {
+    const onLoginPress = () => {
         navigation.push('Login')
-    }, [])
+    }
 
     return <>
         <SafeAreaView style={{ flex: 1 }}>
             {/* 頂部搜索 */}
             <View style={{ flexDirection: "row", backgroundColor: theme.colors.primary, alignItems: "center", height: 50 }}>
-                <View><Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
-                    name="user" type="font-awesome" onPress={() => { onProfilePress() }}></Icon></View>
+                <View>
+                    {profile.authenticated && <Image style={{ width: 44, aspectRatio: 1, borderRadius: 22, marginLeft: 4 }}
+                        source={{ uri: profile.avatar }}></Image>}
+                    {!profile.authenticated &&
+                        <Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
+                            name="user" type="font-awesome" onPress={() => { onLoginPress() }}></Icon>}
+                </View>
                 <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
                     <Button type='clear' titleStyle={{ color: theme.colors.background, fontWeight: 'bold' }} title={"首页"}></Button>
                     <Button type='clear' titleStyle={{ color: theme.colors.background, fontWeight: 'bold' }} title={"视频"}></Button>
@@ -94,15 +90,6 @@ export default function PostList({ route, navigation }) {
                     {navItems.map((v, i) =>
                         <TabView.Item key={v.id}>
                             <View style={{ flex: 1 }}>
-                                {/* <View style={{ backgroundColor: theme.colors.background }}>
-                                    <ScrollView horizontal>
-                                        {subNavItems.map(i =>
-                                            <Button containerStyle={{ padding: 5 }}
-                                                key={i.id} type='outline'
-                                                size='sm'
-                                                title={i.name}></Button >)}
-                                    </ScrollView>
-                                </View> */}
                                 <View style={{ flex: 1 }}>
                                     {/* 文章条目 */}
                                     <PostFlatList

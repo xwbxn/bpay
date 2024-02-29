@@ -51,7 +51,7 @@ const PostFlatList = (props: IProps) => {
             </TouchableOpacity>)
     }, [])
 
-    const refreshData = useCallback(() => {
+    const refreshData = () => {
         getPosts({
             categories: categories.join(',') || ' ',
             page: 1,
@@ -60,9 +60,9 @@ const PostFlatList = (props: IProps) => {
             setData(res)
             setPage(1)
         })
-    }, [])
+    }
 
-    const loadMoreData = useCallback(() => {
+    const loadMoreData = () => {
         getPosts({
             categories: categories.join(',') || ' ',
             page: page + 1,
@@ -77,7 +77,7 @@ const PostFlatList = (props: IProps) => {
                 console.log('no more')
             }
         })
-    }, [page])
+    }
 
     useEffect(() => {
         if (active && data.length === 0) {

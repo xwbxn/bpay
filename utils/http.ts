@@ -1,5 +1,6 @@
 import { extend, RequestOptionsInit } from 'umi-request';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert } from 'react-native';
 
 const request = extend({
     prefix: process.env.EXPO_PUBLIC_API_URL,
@@ -9,6 +10,7 @@ const request = extend({
         if (error.data.code === "invalid_username") {
             AsyncStorage.removeItem("TOKEN")
         }
+        throw error
     },
 });
 
@@ -20,7 +22,6 @@ request.use(async (ctx, next) => {
         ctx.req.options.headers = { ...ctx.req.options.headers, authorization: token }
     }
     console.log('request: ', ctx.req.options.method, ctx.req.url, ctx.req.options.params, ctx.req.options.headers)
-
     await next()
     return
 })

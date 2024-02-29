@@ -28,13 +28,6 @@ export default function App() {
         categories: state
       })
     },
-
-    profile: {
-      id: 0,
-      name: '游客',
-      avatar: ''
-    },
-    setProfiles(state) { }
   })
 
   return (

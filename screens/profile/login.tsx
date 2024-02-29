@@ -1,32 +1,37 @@
 import { decode as base64_decode, encode as base64_encode } from 'base-64';
 import React, { useContext, useState } from 'react';
-import { useWindowDimensions, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Image, Input, Text } from '@rneui/themed';
 import { getAuth } from '../../service/wordpress';
-import { GlobalContext } from '../../store/globalContext';
+import { GlobalContext, useProfile } from '../../store/globalContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function Login() {
+export default function Login({ route, navigation }) {
 
-    const { height } = useWindowDimensions()
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
-
-    const { setProfiles } = useContext(GlobalContext)
+    const setProfile = useProfile((state: any) => state.setProfile)
 
     const onLoginPress = () => {
-        console.log('username', username)
-        const token = `Basic ${base64_encode(`${username}:${password}`)}`
-        getAuth(token).then(res => {
-            console.log('res', res)
-            setProfiles({
-                id: res.id,
-                name: res.name,
-                avatar: res.avatar_urls["24"]
+        AsyncStorage.removeItem("TOKEN").then(() => {
+            const token = `Basic ${base64_encode(`${username}:${password}`)}`
+            return getAuth(token).then(res => {
+                const profile = {
+                    id: res.id,
+                    name: res.name,
+                    avatar: res.avatar_urls["24"],
+                    authenticated: true
+                }
+                setProfile(profile)
+                AsyncStorage.setItem("TOKEN", token)
+                navigation.push('Home')
             })
-            AsyncStorage.setItem("TOKEN", token)
+        }).catch(res => {
+            if (res.data?.code === "invalid_username") {
+                Alert.alert("用户名或密码错")
+            }
         })
     }
 

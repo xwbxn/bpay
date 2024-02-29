@@ -4,6 +4,9 @@ import { Badge, Divider, Icon, Image, Text, useTheme } from '@rneui/themed'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import moment from 'moment'
 import 'moment/locale/zh-cn'
+import * as sdk from "matrix-js-sdk";
+import { ClientEvent } from 'matrix-js-sdk'
+
 
 const Session = ({ route, navigation }) => {
 
@@ -18,7 +21,7 @@ const Session = ({ route, navigation }) => {
                 avatar: 'http://47.98.235.243:4880/wp-content/uploads/avatars/7/1705296704-bpthumb.jpg',
                 label: "欢迎大家来到数字部落",
                 unread: 5,
-                updateAt: '2024-2-16 18:33:23'
+                updateAt: '2024-02-16 18:33:23'
             },
             {
                 id: 2,
@@ -26,7 +29,7 @@ const Session = ({ route, navigation }) => {
                 avatar: 'http://47.98.235.243:4880/wp-content/uploads/avatars/9/1705653207-bpthumb.png',
                 label: "这里是聊聊天的",
                 unread: 0,
-                updateAt: '2024-2-15 18:33:23'
+                updateAt: '2024-02-15 18:33:23'
             },
             {
                 id: 3,
@@ -34,10 +37,24 @@ const Session = ({ route, navigation }) => {
                 label: "谁知道这是什么？",
                 avatar: "http://47.98.235.243:4880/wp-content/uploads/2024/01/4b1eaf5c410549159a5d5f4d953dafd8.jpeg",
                 unread: 0,
-                updateAt: '2024-2-13 18:33:23'
+                updateAt: '2024-02-13 18:33:23'
             }
         ]
         setData(sessions)
+    }, [])
+
+    useEffect(() => {
+        const myUserId = "@admin:chat.b-pay.life";
+        const myAccessToken = "syt_YWRtaW4_deSSmMRjVEdTnzglDEBB_0wK3He";
+        const matrixClient = sdk.createClient({
+            baseUrl: "https://chat.b-pay.life",
+            accessToken: myAccessToken,
+            userId: myUserId,
+            useAuthorizationHeader: true
+        });
+        matrixClient.whoami().then(r => {
+            console.log('r', r.user_id)
+        })
     }, [])
 
     const onPress = (item) => {
