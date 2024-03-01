@@ -1,12 +1,10 @@
 import React, { useContext, useEffect } from 'react';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon, useTheme } from '@rneui/themed';
+import { Icon } from '@rneui/themed';
 
-import { getAuth, getCategories } from '../../service/wordpress';
+import { getCategories } from '../../service/wordpress';
 import { GlobalContext } from '../../store/globalContext';
-import { Chat } from '../chat';
 import Session from '../chat/sessions';
 import PostList from '../posts/list';
 

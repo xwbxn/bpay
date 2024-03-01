@@ -4,14 +4,15 @@ import { Badge, Divider, Icon, Image, Text, useTheme } from '@rneui/themed'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import moment from 'moment'
 import 'moment/locale/zh-cn'
-import * as sdk from "matrix-js-sdk";
-import { ClientEvent } from 'matrix-js-sdk'
+import { useChatClient } from '../../store/globalContext'
+import { ClientEvent, MatrixClient } from 'matrix-js-sdk'
 
 
 const Session = ({ route, navigation }) => {
 
     const { theme } = useTheme()
     const [data, setData] = useState([])
+    const client: MatrixClient = useChatClient((state: any) => state.chatClient)
 
     useEffect(() => {
         const sessions = [
@@ -44,21 +45,26 @@ const Session = ({ route, navigation }) => {
     }, [])
 
     useEffect(() => {
-        const myUserId = "@admin:chat.b-pay.life";
-        const myAccessToken = "syt_YWRtaW4_deSSmMRjVEdTnzglDEBB_0wK3He";
-        const matrixClient = sdk.createClient({
-            baseUrl: "https://chat.b-pay.life",
-            accessToken: myAccessToken,
-            userId: myUserId,
-            useAuthorizationHeader: true
-        });
-        matrixClient.whoami().then(r => {
-            console.log('r', r.user_id)
-        })
+        (async () => {
+            // await client.initCrypto()
+            await client.setGlobalErrorOnUnknownDevices(false)
+            await client.startClient()
+            client.publicRooms().then(r => {
+                r.chunk.forEach(v => {
+                    console.log('v', v.name)
+                })
+            })
+        })()
+
+        return () => {
+            client.stopClient()
+        }
     }, [])
 
     const onPress = (item) => {
-        navigation.push('Chat')
+        // navigation.push('Chat')
+        console.log('client.', client.getRooms())
+        client.sendTextMessage("!lwZVGSNaKBwDEUonAd:chat.b-pay.life", "this is a test")
     }
 
     const renderItem = ({ item }) => (

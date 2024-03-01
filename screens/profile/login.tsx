@@ -1,14 +1,14 @@
-import { decode as base64_decode, encode as base64_encode } from 'base-64';
-import React, { useContext, useState } from 'react';
+import { encode as base64_encode } from 'base-64';
+import React, { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Image, Input, Text } from '@rneui/themed';
 import { getAuth } from '../../service/wordpress';
-import { GlobalContext, useProfile } from '../../store/globalContext';
+import { useProfile } from '../../store/globalContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function Login({ route, navigation }) {
+export default function Login({ navigation }) {
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')

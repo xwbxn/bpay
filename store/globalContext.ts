@@ -1,3 +1,4 @@
+import { createClient, MatrixClient } from "matrix-js-sdk";
 import { createContext } from "react";
 import { create } from 'zustand'
 
@@ -28,4 +29,15 @@ export const useProfile = create((set) => ({
         authenticated: false
     },
     setProfile: (newState) => set(() => ({ profile: newState })),
+}))
+
+export const useChatClient = create((set) => ({
+    chatClient: createClient({
+        baseUrl: 'https://chat.b-pay.life',
+        useAuthorizationHeader: true,
+        userId: "@admin:chat.b-pay.life",
+        accessToken: "syt_YWRtaW4_QUAdKRdXtXFhHHMNUKWY_3uebAn",
+        deviceId: 'mydevice'
+    }),
+    setChatClient: (newState) => set(() => ({ chatClient: newState }))
 }))
