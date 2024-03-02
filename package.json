@@ -9,7 +9,6 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@matrix-org/olm": "^3.2.15",
     "@react-native-async-storage/async-storage": "1.21.0",
     "@react-native-community/slider": "4.4.2",
     "@react-navigation/bottom-tabs": "^6.5.11",
@@ -21,10 +20,8 @@
     "@rneui/themed": "^4.0.0-rc.8",
     "@types/react": "~18.2.14",
     "base-64": "^1.0.0",
-    "crypto": "npm:expo-crypto@^12.8.1",
     "expo": "^50.0.8",
     "expo-av": "~13.10.5",
-    "expo-crypto": "~12.8.1",
     "expo-image-picker": "~14.7.1",
     "expo-linking": "~6.2.2",
     "expo-location": "~16.5.5",
@@ -33,7 +30,6 @@
     "expo-video-player": "^2.2.0",
     "matrix-js-sdk": "^31.4.0",
     "moment": "^2.30.1",
-    "olm": "https://packages.matrix.org/npm/olm/olm-3.2.1.tgz",
     "react": "18.2.0",
     "react-native": "0.73.4",
     "react-native-gifted-chat": "^2.4.0",

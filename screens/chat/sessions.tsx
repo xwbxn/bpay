@@ -4,32 +4,32 @@ import { Avatar, Badge, Divider, Icon, Image, Text, useTheme } from '@rneui/them
 import { SafeAreaView } from 'react-native-safe-area-context'
 import moment from 'moment'
 import 'moment/locale/zh-cn'
-import { useChatClient } from '../../store/chat'
-import { ClientEvent, MatrixEvent, MatrixEventEvent, NotificationCountType, RoomEvent } from 'matrix-js-sdk'
+import { useMatrixClient } from '../../store/chat'
 
 
 const Session = ({ route, navigation }) => {
 
     const { theme } = useTheme()
     const [data, setData] = useState([])
-    const [client, rooms] = useChatClient((state) => [state.chatClient, state.rooms])
+    const { client, rooms } = useMatrixClient()
 
     useEffect(() => {
         setData(rooms.map(v => {
+            const lastMsg = v.getLastLiveEvent()
+            const label = lastMsg.event.type === "m.room.encrypted" ? "加密消息" : lastMsg.event.content.body
+            const updatedAt = moment(lastMsg.getDate()).fromNow()
             return {
                 id: v.roomId,
                 name: v.name,
-                avatar: v.getAvatarUrl(client.baseUrl, 50, 50, 'crop'),
-                label: v.getLastLiveEvent().getContent().displayname,
+                label: label,
                 unread: v.getUnreadNotificationCount(),
-                updatedAt: v.getLastActiveTimestamp()
+                updatedAt: updatedAt
             }
         }))
     }, [rooms])
 
     const onPress = (item) => {
-        // navigation.push('Chat')
-        client.sendTextMessage("!lwZVGSNaKBwDEUonAd:chat.b-pay.life", "this is a test")
+        navigation.push('Room', { roomId: item.id })
     }
 
     const renderItem = ({ item }) => (
@@ -44,7 +44,7 @@ const Session = ({ route, navigation }) => {
                     <Text style={{ fontSize: 14, color: theme.colors.grey3 }}>{item.label}</Text>
                 </View>
                 <View style={{ paddingTop: 10 }}>
-                    <Text style={{ fontSize: 12, color: theme.colors.grey3 }}>{moment(item.updateAt).fromNow()}</Text>
+                    <Text style={{ fontSize: 12, color: theme.colors.grey3 }}>{item.updatedAt}</Text>
                 </View>
             </View>
             <Divider style={{ width: "100%" }}></Divider>

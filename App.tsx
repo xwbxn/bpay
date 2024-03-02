@@ -9,12 +9,13 @@ import HomeScreen from './screens/home';
 // import PostDetail from './screens/posts/webDetail';
 import PostDetail from './screens/posts/detail';
 import { GlobalContext, IGlobalContext } from './store/globalContext';
-import { Chat } from './screens/chat';
+import { Room } from './screens/chat/room';
 import Login from './screens/profile/login';
 
 const theme = createTheme({
 });
 const Stack = createNativeStackNavigator();
+
 
 export default function App() {
 
@@ -38,7 +39,7 @@ export default function App() {
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="PostDetail" component={PostDetail} />
-              <Stack.Screen name="Chat" component={Chat} />
+              <Stack.Screen name="Room" component={Room} />
               <Stack.Screen name="Login" component={Login} />
             </Stack.Navigator>
           </NavigationContainer>}

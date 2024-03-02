@@ -3,7 +3,7 @@ import { Icon } from '@rneui/themed'
 import React from 'react'
 import { View, Text } from 'react-native'
 
-export function NavBar() {
+export function NavBar({ title }) {
 
     const navigation = useNavigation()
 
@@ -20,7 +20,7 @@ export function NavBar() {
             <Icon name="chevron-back" size={30} type='ionicon' onPress={() => {
                 navigation.goBack()
             }}></Icon>
-            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>D.T 亚军</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{title}</Text>
             <Text style={{ fontSize: 18 }}>···</Text>
         </View>
     )

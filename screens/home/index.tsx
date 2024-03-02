@@ -23,36 +23,6 @@ export default function HomeScreen({ navigation }) {
         })
     }, [])
 
-    const [setChatClient, setRooms] = useChatClient(state => [state.setChatClient, state.setRooms])
-    useEffect(() => {
-        (async () => {
-            const client = createClient({
-                baseUrl: 'https://chat.b-pay.life',
-                useAuthorizationHeader: true,
-                userId: "@admin:chat.b-pay.life",
-                accessToken: "syt_YWRtaW4_QUAdKRdXtXFhHHMNUKWY_3uebAn",
-                deviceId: "aaaabb"
-            })
-            client.on(ClientEvent.Sync, (state) => {
-                switch (state) {
-                    case 'PREPARED':
-                        const rooms = client.getRooms()
-                        setRooms(rooms)
-                        break;
-                }
-            })
-
-            try {
-                await client.initCrypto()
-                await client.setGlobalErrorOnUnknownDevices(false)
-            } catch { }
-            await client.startClient()
-
-            setChatClient(client)
-        })()
-
-    }, [])
-
     return <>
         <Tab.Navigator screenOptions={{ headerShown: false }}>
             <Tab.Screen options={{ tabBarIcon: ({ color }) => <Icon name='infocirlce' type='antdesign' color={color}></Icon> }} name="币看" component={PostList} initialParams={{ id: 78 }} />
