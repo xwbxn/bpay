@@ -1,4 +1,4 @@
-import { ClientEvent, createClient, MatrixClient, Room, User } from "matrix-js-sdk";
+import { ClientEvent, createClient, IRoomTimelineData, MatrixClient, MatrixEvent, Room, RoomEvent, RoomMember, User } from "matrix-js-sdk";
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 
@@ -9,6 +9,10 @@ interface IMatrixStore {
     setRooms: (rooms: Room[]) => void
     user: User
     setUser: (user: User) => void
+    currentRoom: Room
+    setCurrentRoom: (room: Room) => void
+    messages: any[]
+    setMessages: (messages: any[]) => void
 }
 
 const matrixClientStore = create<IMatrixStore>(set => ({
@@ -17,11 +21,15 @@ const matrixClientStore = create<IMatrixStore>(set => ({
     setClient: (val) => set(() => ({ client: val })),
     setRooms: (val) => set(() => ({ rooms: val })),
     user: null,
-    setUser: (val) => set(() => ({ user: val }))
+    setUser: (val) => set(() => ({ user: val })),
+    currentRoom: null,
+    setCurrentRoom: (val) => set(() => ({ currentRoom: val })),
+    messages: [],
+    setMessages: (val) => set(() => ({ messages: val }))
 }))
 
 export const useMatrixClient = () => {
-    const { client, setClient, rooms, setRooms, user, setUser } = matrixClientStore()
+    const { client, setClient, rooms, setRooms, user, setUser, currentRoom, setCurrentRoom } = matrixClientStore()
 
     const init = (client: MatrixClient) => {
         client.usingExternalCrypto = true // hack , ignore encrypt
@@ -35,6 +43,15 @@ export const useMatrixClient = () => {
                     break;
             }
         })
+        // client.on(RoomEvent.Timeline, (event: MatrixEvent, room: Room, toStartOfTimeline: boolean, removed: boolean, data: IRoomTimelineData) => {
+        //     if (currentRoom == null) {
+        //         return
+        //     }
+        //     if (currentRoom.roomId != room.roomId) {
+        //         return
+        //     }
+        //     console.log('event', event)
+        // })
     }
 
     useEffect(() => {
@@ -56,6 +73,8 @@ export const useMatrixClient = () => {
     return {
         client,
         rooms,
-        user
+        user,
+        currentRoom,
+        setCurrentRoom
     }
 }

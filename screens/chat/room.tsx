@@ -12,17 +12,38 @@ import { MatrixEvent, RoomEvent } from 'matrix-js-sdk';
 
 export function Room({ route }) {
 
-  const { client, rooms, user } = useMatrixClient()
-  const { roomId } = route.params
-  const room = rooms.find(r => r.roomId === roomId)
+  const { client, user, currentRoom } = useMatrixClient()
+
   const [messages, setMessages] = useState([])
   const { theme } = useTheme()
 
+  const recvMsg = (event: MatrixEvent, room, toStartOfTimeline) => {
+    console.log('event.', event.getType(), event.sender.userId, user.userId)
+    if (toStartOfTimeline) {
+      return; // don't print paginated results
+    }
+    if (event.sender.userId == user.userId) {
+      console.log('me!!!!!!!!!!')
+    }
+    const newMessage = {
+      _id: event.event.event_id,
+      text: event.event.type !== "m.room.encrypted" ? event.event.content.body : '加密消息',
+      createdAt: moment(event.event.origin_server_ts),
+      user: {
+        _id: event.event.sender,
+        name: event.event.sender,
+        avatar: () => <Avatar size={40} rounded title={event.event.sender[1]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+      }
+    };
+    setMessages(previousMessages =>
+      GiftedChat.append(previousMessages, [newMessage]),
+    )
+  }
+
   useEffect(() => {
     const historyMessages = []
-    room.getLiveTimeline().getEvents().forEach(e => {
-      console.log('eeeeeeeeeeeeeeeeee', e.event.event_id)
-      historyMessages.push({
+    currentRoom.getLiveTimeline().getEvents().forEach(e => {
+      historyMessages.unshift({
         _id: e.event.event_id,
         text: e.event.type !== "m.room.encrypted" ? e.event.content.body : '加密消息',
         createdAt: moment(e.localTimestamp),
@@ -34,38 +55,18 @@ export function Room({ route }) {
       })
     })
     setMessages(historyMessages)
-  }, [])
+    currentRoom.on(RoomEvent.Timeline, recvMsg)
 
-
-  const recvMessage = function (event: MatrixEvent, room, toStartOfTimeline) {
-    if (toStartOfTimeline) {
-      return; // don't print paginated results
+    return () => {
+      currentRoom.off(RoomEvent.Timeline, recvMsg)
     }
-
-    const newMessage = {
-      _id: event.event.event_id,
-      text: event.event.type !== "m.room.encrypted" ? event.event.content.body : '加密消息',
-      createdAt: moment(event.event.origin_server_ts),
-      user: {
-        _id: event.event.sender,
-        name: event.event.sender,
-        avatar: () => <Avatar size={40} rounded title={event.event.sender[1]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-      }
-    };
-
-    console.log('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', event.event.event_id)
-    setMessages(previousMessages =>
-      GiftedChat.append(previousMessages, [newMessage]),
-    )
-  };
-
-  room.on(RoomEvent.Timeline, recvMessage);
+  }, [])
 
   const onSend = useCallback((messages = []) => {
     setMessages(previousMessages =>
       GiftedChat.append(previousMessages, messages),
     )
-    client.sendTextMessage(roomId, messages[0].text)
+    client.sendTextMessage(currentRoom.roomId, messages[0].text)
   }, [])
 
   const renderSend = useCallback((props: SendProps<IMessage>) => {
@@ -81,7 +82,7 @@ export function Room({ route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <NavBar title={room.name || ''}></NavBar>
+      <NavBar title={currentRoom.name || ''}></NavBar>
       <View style={styles.content}>
         <GiftedChat
           messages={messages}

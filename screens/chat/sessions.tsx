@@ -11,7 +11,7 @@ const Session = ({ route, navigation }) => {
 
     const { theme } = useTheme()
     const [data, setData] = useState([])
-    const { client, rooms } = useMatrixClient()
+    const { client, rooms, setCurrentRoom } = useMatrixClient()
 
     useEffect(() => {
         setData(rooms.map(v => {
@@ -23,13 +23,15 @@ const Session = ({ route, navigation }) => {
                 name: v.name,
                 label: label,
                 unread: v.getUnreadNotificationCount(),
-                updatedAt: updatedAt
+                updatedAt: updatedAt,
+                room: v
             }
         }))
     }, [rooms])
 
     const onPress = (item) => {
-        navigation.push('Room', { roomId: item.id })
+        setCurrentRoom(item.room)
+        navigation.push('Room')
     }
 
     const renderItem = ({ item }) => (
