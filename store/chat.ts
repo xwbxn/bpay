@@ -31,7 +31,12 @@ const matrixClientStore = create<IMatrixStore>(set => ({
 export const useMatrixClient = () => {
     const { client, setClient, rooms, setRooms, user, setUser, currentRoom, setCurrentRoom } = matrixClientStore()
 
-    const init = (client: MatrixClient) => {
+    const initClient = async () => {
+        const client = createClient({
+            baseUrl: 'https://chat.b-pay.life',
+            useAuthorizationHeader: true,
+        })
+
         client.usingExternalCrypto = true // hack , ignore encrypt
         client.on(ClientEvent.Sync, (state) => {
             switch (state) {
@@ -52,19 +57,16 @@ export const useMatrixClient = () => {
         //     }
         //     console.log('event', event)
         // })
+
+        await client.loginWithPassword("@admin:chat.b-pay.life", "8675309Abcd!@#")
+        await client.startClient
+        return client
     }
 
     useEffect(() => {
-        const client = createClient({
-            baseUrl: 'https://chat.b-pay.life',
-            useAuthorizationHeader: true,
-            userId: "@admin:chat.b-pay.life",
-            accessToken: "syt_YWRtaW4_QUAdKRdXtXFhHHMNUKWY_3uebAn"
+        initClient().then(client => {
+            setClient(client)
         })
-        init(client)
-        client.startClient()
-        setClient(client)
-
         return () => {
             client.stopClient()
         }
