@@ -17,30 +17,30 @@ export function Room({ route }) {
   const [messages, setMessages] = useState([])
   const { theme } = useTheme()
 
+  // 接收消息回调
   const recvMsg = (event: MatrixEvent, room, toStartOfTimeline) => {
-    console.log('event.', event.getType(), event.sender.userId, user.userId)
     if (toStartOfTimeline) {
       return; // don't print paginated results
     }
-    if (event.sender.userId == user.userId) {
-      console.log('me!!!!!!!!!!')
-    }
-    const newMessage = {
+
+    const newMessage: IMessage = {
       _id: event.event.event_id,
       text: event.event.type !== "m.room.encrypted" ? event.event.content.body : '加密消息',
-      createdAt: moment(event.event.origin_server_ts),
+      createdAt: event.event.origin_server_ts,
       user: {
         _id: event.event.sender,
         name: event.event.sender,
         avatar: () => <Avatar size={40} rounded title={event.event.sender[1]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
       }
     };
-    setMessages(previousMessages =>
-      GiftedChat.append(previousMessages, [newMessage]),
-    )
+    setMessages(previousMessages => {
+      console.log('recv', newMessage)
+      return GiftedChat.append(previousMessages, [newMessage])
+    })
   }
 
   useEffect(() => {
+    // 接收历史消息
     const historyMessages = []
     currentRoom.getLiveTimeline().getEvents().forEach(e => {
       historyMessages.unshift({
@@ -62,11 +62,15 @@ export function Room({ route }) {
     }
   }, [])
 
+  // 发送消息
   const onSend = useCallback((messages = []) => {
-    setMessages(previousMessages =>
-      GiftedChat.append(previousMessages, messages),
-    )
-    client.sendTextMessage(currentRoom.roomId, messages[0].text)
+    const message = messages[0]
+    client.sendTextMessage(currentRoom.roomId, message.text).then(e => {
+      message._id = e.event_id
+      console.log('sendmsg', message)
+    }).catch(e => {
+      console.log('send failed', e)
+    })
   }, [])
 
   const renderSend = useCallback((props: SendProps<IMessage>) => {

@@ -31,7 +31,7 @@ const matrixClientStore = create<IMatrixStore>(set => ({
 export const useMatrixClient = () => {
     const { client, setClient, rooms, setRooms, user, setUser, currentRoom, setCurrentRoom } = matrixClientStore()
 
-    const initClient = async () => {
+    const initClient = () => {
         const client = createClient({
             baseUrl: 'https://chat.b-pay.life',
             useAuthorizationHeader: true,
@@ -48,27 +48,21 @@ export const useMatrixClient = () => {
                     break;
             }
         })
-        // client.on(RoomEvent.Timeline, (event: MatrixEvent, room: Room, toStartOfTimeline: boolean, removed: boolean, data: IRoomTimelineData) => {
-        //     if (currentRoom == null) {
-        //         return
-        //     }
-        //     if (currentRoom.roomId != room.roomId) {
-        //         return
-        //     }
-        //     console.log('event', event)
-        // })
 
-        await client.loginWithPassword("@admin:chat.b-pay.life", "8675309Abcd!@#")
-        await client.startClient
+        client.loginWithPassword("@admin:chat.b-pay.life", "8675309Abcd!@#").then(e => {
+            client.startClient()
+        })
         return client
     }
 
     useEffect(() => {
-        initClient().then(client => {
-            setClient(client)
-        })
-        return () => {
-            client.stopClient()
+        if (client === null) {
+            const _client = initClient()
+            setClient(_client)
+
+            return () => {
+                _client.stopClient()
+            }
         }
     }, [])
 
