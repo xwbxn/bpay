@@ -30,14 +30,3 @@ export const useProfile = create((set) => ({
     },
     setProfile: (newState) => set(() => ({ profile: newState })),
 }))
-
-export const useChatClient = create((set) => ({
-    chatClient: createClient({
-        baseUrl: 'https://chat.b-pay.life',
-        useAuthorizationHeader: true,
-        userId: "@admin:chat.b-pay.life",
-        accessToken: "syt_YWRtaW4_QUAdKRdXtXFhHHMNUKWY_3uebAn",
-        deviceId: 'mydevice'
-    }),
-    setChatClient: (newState) => set(() => ({ chatClient: newState }))
-}))

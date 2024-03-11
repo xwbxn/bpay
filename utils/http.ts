@@ -21,13 +21,13 @@ request.use(async (ctx, next) => {
     if (token) {
         ctx.req.options.headers = { ...ctx.req.options.headers, authorization: token }
     }
-    console.log('request: ', ctx.req.options.method, ctx.req.url, ctx.req.options.params, ctx.req.options.headers)
+    // console.log('request: ', ctx.req.options.method, ctx.req.url, ctx.req.options.params, ctx.req.options.headers)
     await next()
     return
 })
 
 request.interceptors.response.use((response: Response, options: RequestOptionsInit) => {
-    console.log('response: ', response.url, response.status)
+    // console.log('response: ', response.url, response.status)
     return response
 })
 

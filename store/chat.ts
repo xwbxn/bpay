@@ -1,76 +1,118 @@
-import { ClientEvent, createClient, IRoomTimelineData, MatrixClient, MatrixEvent, Room, RoomEvent, RoomMember, User } from "matrix-js-sdk";
-import { useEffect, useState } from "react";
+import { ClientEvent, createClient, EventType, MatrixClient, Room, SyncState, User } from "matrix-js-sdk";
 import { create } from "zustand";
 
 interface IMatrixStore {
     client: MatrixClient
-    rooms: Room[]
     setClient: (client: MatrixClient) => void
+
+    rooms: Room[]
     setRooms: (rooms: Room[]) => void
+
     user: User
     setUser: (user: User) => void
-    currentRoom: Room
-    setCurrentRoom: (room: Room) => void
-    messages: any[]
-    setMessages: (messages: any[]) => void
+
+    unReadCount: number
+    setUnreadCount: (num: number) => void
 }
 
 const matrixClientStore = create<IMatrixStore>(set => ({
     client: null,
-    rooms: [],
     setClient: (val) => set(() => ({ client: val })),
-    setRooms: (val) => set(() => ({ rooms: val })),
+
+    rooms: [],
+    setRooms: (rooms) => set((state) => {
+        let unreadCount = 0
+        rooms.forEach(r => {
+            const roomUnreadCount = r.getUnreadNotificationCount()
+            if (roomUnreadCount > 0) {
+                unreadCount += roomUnreadCount
+            }
+        })
+        state.setUnreadCount(unreadCount)
+        return { rooms: rooms }
+    }),
+
     user: null,
     setUser: (val) => set(() => ({ user: val })),
-    currentRoom: null,
-    setCurrentRoom: (val) => set(() => ({ currentRoom: val })),
-    messages: [],
-    setMessages: (val) => set(() => ({ messages: val }))
+
+    unReadCount: 0,
+    setUnreadCount(val) {
+        set(() => ({ unReadCount: val }))
+    }
 }))
 
 export const useMatrixClient = () => {
-    const { client, setClient, rooms, setRooms, user, setUser, currentRoom, setCurrentRoom } = matrixClientStore()
+    const { client, setClient, rooms, setRooms, user, setUser, unReadCount } = matrixClientStore()
 
-    const initClient = () => {
-        const client = createClient({
+    const login = (user: string, password: string) => {
+        if (client !== null) {
+            console.warn("不能重复登录")
+            return
+        }
+
+        const _client = createClient({
             baseUrl: 'https://chat.b-pay.life',
             useAuthorizationHeader: true,
+            userId: user,
+            accessToken: 'syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ'
         })
+        _client.usingExternalCrypto = true // hack , ignore encrypt
+        setClient(_client)
 
-        client.usingExternalCrypto = true // hack , ignore encrypt
-        client.on(ClientEvent.Sync, (state) => {
+        _client.on(ClientEvent.Sync, (state) => {
             switch (state) {
-                case 'PREPARED':
-                    const rooms = client.getRooms().sort((a, b) => b.getLastLiveEvent().localTimestamp - a.getLastLiveEvent().localTimestamp)
-                    setRooms(rooms)
-                    const user = client.getUser("@admin:chat.b-pay.life")
+                case SyncState.Prepared:
+                    setRooms(_client.getRooms())
+                    const user = _client.getUser("@admin:chat.b-pay.life")
                     setUser(user)
                     break;
             }
         })
 
-        client.loginWithPassword("@admin:chat.b-pay.life", "8675309Abcd!@#").then(e => {
-            client.startClient()
-        })
-        return client
-    }
-
-    useEffect(() => {
-        if (client === null) {
-            const _client = initClient()
-            setClient(_client)
-
-            return () => {
-                _client.stopClient()
+        _client.on(ClientEvent.Event, (evt) => {
+            // console.log('evt', evt.event.room_id, evt.event.type, evt.event.content, evt.event.membership)
+            switch (evt.event.type) {
+                case EventType.RoomMember:
+                case EventType.RoomMessage:
+                case EventType.Receipt:
+                    // console.log('sync', 'refesh room list')
+                    setRooms(_client.getRooms())
+                    break
             }
-        }
-    }, [])
+        })
+
+        _client.on(ClientEvent.AccountData, (evt) => {
+            console.log('accountdata', evt.event.type, evt.event.content)
+        })
+
+        _client.startClient()
+        // AsyncStorage.getItem("CHAT_ACCESS_TOKEN").then(token => {
+        //     console.log('login with token: ', 'syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ')
+        //     return _client.loginWithToken('syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ')
+        // }).then((res) => {
+        //     console.log('login with token success')
+        //     _client.startClient()
+        //     setClient(_client)
+        // }).catch(res => {
+        //     console.log('login with token failed', res)
+        //     console.log('login with password')
+        //     return _client.loginWithPassword(user, password)
+        // }).then((res: any) => {
+        //     console.log('login with password success')
+        //     _client.startClient()
+        //     setClient(_client)
+        //     AsyncStorage.setItem("CHAT_ACCESS_TOKEN", res.access_token)
+        //     console.log('set token', res.access_token)
+        // }).catch((res) => {
+        //     console.log('login with password failed:', res)
+        // })
+    }
 
     return {
         client,
-        rooms,
         user,
-        currentRoom,
-        setCurrentRoom
+        rooms,
+        login,
+        unReadCount
     }
 }

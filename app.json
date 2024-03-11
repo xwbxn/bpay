@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.xwbxn.bpay"
+      "package": "life.bpay"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -31,6 +31,14 @@
       "eas": {
         "projectId": "b407a5e2-5975-46d5-9d63-267fe630b43e"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ]
+    ]
   }
 }

@@ -1,9 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
-import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createTheme, FAB, Icon, ThemeProvider } from '@rneui/themed';
+import { createTheme, ThemeProvider } from '@rneui/themed';
 
 import HomeScreen from './screens/home';
 // import PostDetail from './screens/posts/webDetail';
@@ -11,6 +11,8 @@ import PostDetail from './screens/posts/detail';
 import { GlobalContext, IGlobalContext } from './store/globalContext';
 import { Room } from './screens/chat/room';
 import Login from './screens/profile/login';
+import { Invite } from './screens/chat/invite';
+import { RoomSetting } from './screens/chat/roomSetting';
 
 const theme = createTheme({
 });
@@ -39,7 +41,6 @@ export default function App() {
             <Stack.Navigator screenOptions={{ headerShown: false }}>
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="PostDetail" component={PostDetail} />
-              <Stack.Screen name="Room" component={Room} />
               <Stack.Screen name="Login" component={Login} />
             </Stack.Navigator>
           </NavigationContainer>}
