@@ -1,15 +1,14 @@
 import React, { useContext, useEffect } from 'react';
+import { View } from 'react-native';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Icon } from '@rneui/themed';
+import { Badge, Icon } from '@rneui/themed';
 
 import { getCategories } from '../../service/wordpress';
-import { GlobalContext } from '../../store/globalContext';
-import PostList from '../posts/list';
 import { useMatrixClient } from '../../store/chat';
+import { GlobalContext } from '../../store/globalContext';
 import { ChatIndex } from '../chat';
-import { Badge } from '@rneui/themed';
-import { View } from 'react-native';
+import PostList from '../posts/list';
 
 const Tab = createBottomTabNavigator();
 

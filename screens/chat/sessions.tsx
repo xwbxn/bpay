@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react'
-import { FlatList, TouchableOpacity, View, StyleSheet, Alert, useWindowDimensions } from 'react-native'
-import { Avatar, Badge, Divider, Icon, Image, ListItem, Text, useTheme } from '@rneui/themed'
-import moment from 'moment'
-import 'moment/locale/zh-cn'
-import { useMatrixClient } from '../../store/chat'
-import { EventType, MsgType, Room } from 'matrix-js-sdk'
+import 'moment/locale/zh-cn';
 
+import { EventType, MsgType, Room } from 'matrix-js-sdk';
+import moment from 'moment';
+import React, { useEffect, useState } from 'react';
+import {
+    FlatList, StyleSheet, TouchableOpacity, useWindowDimensions, View
+} from 'react-native';
+
+import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
+
+import { useMatrixClient } from '../../store/chat';
 
 const Session = ({ navigation }) => {
 

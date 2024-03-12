@@ -1,8 +1,10 @@
-import { Avatar, Button, Divider, Icon, ListItem, useTheme } from '@rneui/themed'
-import React, { useEffect } from 'react'
-import { View, StyleSheet, Alert } from 'react-native'
-import { useMatrixClient } from '../../store/chat'
-import { useSqliteStore } from './localMessage'
+import React, { useEffect } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+
+import { Avatar, Button, Icon, ListItem, useTheme } from '@rneui/themed';
+
+import { useMatrixClient } from '../../store/chat';
+import { useSqliteStore } from './localMessage';
 
 export const RoomSetting = ({ navigation, route }) => {
 

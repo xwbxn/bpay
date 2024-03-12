@@ -1,9 +1,10 @@
-import { ListItem } from '@rneui/base'
-import { Avatar, Button, Divider, Icon, Input, SearchBar, Text, useTheme } from '@rneui/themed'
-import React, { useEffect, useState, } from 'react'
-import { View, StyleSheet, Alert } from 'react-native'
-import { SafeAreaView } from "react-native-safe-area-context"
-import { useMatrixClient } from '../../store/chat'
+import React, { useEffect, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
+
+import { ListItem } from '@rneui/base';
+import { Avatar, Button, Divider, SearchBar, useTheme } from '@rneui/themed';
+
+import { useMatrixClient } from '../../store/chat';
 
 export const Invite = ({ navigation }) => {
 

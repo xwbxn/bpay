@@ -1,20 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { IMessage } from "react-native-gifted-chat";
-import * as SQLite from 'expo-sqlite'
+import * as SQLite from 'expo-sqlite';
+import { useEffect, useRef, useState } from 'react';
+import { IMessage } from 'react-native-gifted-chat';
+import { create } from 'zustand';
 
-export interface ILocalMessage extends IMessage {
-    txnId: string
-}
-
-let sqlQueue = []
-let sqlRunning = false
+const useDatabase = create<{ db: SQLite.SQLiteDatabase }>(set => ({
+    db: SQLite.openDatabase("localMessage")
+}))
 
 export const useSqliteStore = (roomId: string) => {
 
-    const [db] = useState(SQLite.openDatabase("localMessage"))
+    const db = useDatabase(state => state.db)
+
+    // const [db] = useState(SQLite.openDatabase("localMessage"))
     const tableName = roomId.slice(1, 19)
     const readUpTo = useRef(0)
-    const [messages, setMessages] = useState<ILocalMessage[]>([])
+    const [messages, setMessages] = useState<IMessage[]>([])
     const [isReady, setIsReady] = useState(false)
 
     useEffect(() => {
@@ -33,16 +33,12 @@ export const useSqliteStore = (roomId: string) => {
             }
             setIsReady(true)
         })()
-        return () => {
-            console.log('stop database')
-            db.closeAsync()
-        }
     }, [roomId])
 
     const createStore = async () => {
         return await db.execAsync([{
             sql: `CREATE TABLE "${tableName}" (
-                        "txnId" text(255) NOT NULL PRIMARY KEY,
+                        "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                         "_id" text(255),
                         "text" text(255),
                         "createdAt" integer,
@@ -60,12 +56,11 @@ export const useSqliteStore = (roomId: string) => {
     }
 
     const loadMoreMessages = async (limit: number = 30) => {
-        const page: ILocalMessage[] = []
-        const res = await db.execAsync([{ sql: `select * from ${tableName} order by txnId desc limit ${readUpTo.current}, ${limit}`, args: [] }], true)
+        const page: IMessage[] = []
+        const res = await db.execAsync([{ sql: `select * from ${tableName} order by id desc limit ${readUpTo.current}, ${limit}`, args: [] }], true)
         if (res[0]['rows']) {
             res[0]['rows'].forEach(r => {
-                const msg: ILocalMessage = {
-                    txnId: null,
+                const msg: IMessage = {
                     _id: null,
                     text: null,
                     createdAt: 0,
@@ -94,17 +89,18 @@ export const useSqliteStore = (roomId: string) => {
         setMessages(() => [])
     }
 
-    const appendMessage = async (msg: ILocalMessage) => {
-        return appendMessages([msg])
+    const appendMessage = async (msg: IMessage) => {
+        await appendMessages([msg])
     }
 
-    const appendMessages = async (msgs: ILocalMessage[]) => {
+    const appendMessages = async (msgs: IMessage[]) => {
         msgs.forEach(async msg => {
-            const args = [msg.txnId, msg._id, msg.text, msg.createdAt, JSON.stringify(msg.user) || null, msg.image || null, msg.video || null, msg.audio || null, msg.system ? 1 : 0, msg.sent ? 1 : 0, msg.received ? 1 : 0, msg.pending ? 1 : 0, JSON.stringify(msg.quickReplies) || null]
+            console.log('append msg:', msg)
+            const args = [msg._id, msg.text, msg.createdAt, JSON.stringify(msg.user) || null, msg.image || null, msg.video || null, msg.audio || null, msg.system ? 1 : 0, msg.sent ? 1 : 0, msg.received ? 1 : 0, msg.pending ? 1 : 0, JSON.stringify(msg.quickReplies) || null]
             const res = await db.execAsync([{
                 sql: `INSERT INTO "${tableName}" 
-                ("txnId", "_id", "text", "createdAt", "user", "image", "video", "audio", "system", "sent", "received", "pending", "quickReplies") 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+                ("_id", "text", "createdAt", "user", "image", "video", "audio", "system", "sent", "received", "pending", "quickReplies") 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 args
             }], false)
             console.log('append', res)
@@ -112,13 +108,14 @@ export const useSqliteStore = (roomId: string) => {
         setMessages((prev) => msgs.concat(prev))
     }
 
-    const setMessageCompeted = async (txnId: string) => {
-        const sql = `update ${tableName} set pending = 0, sent = 1 where txnId = ?`
-        const args = [txnId]
+    const setMessageCompeted = async (txnId: string, eventId: string) => {
+        const sql = `update ${tableName} set _id = ?, pending = 0, sent = 1 where _id = ?`
+        const args = [eventId, txnId]
         const res = await db.execAsync([{ sql, args }], false)
         setMessages((prev) => {
-            const updating = prev.find(m => m.txnId === txnId)
+            const updating = prev.find(m => m._id === txnId)
             if (updating) {
+                updating._id = eventId
                 updating.pending = false
                 updating.sent = true
             }

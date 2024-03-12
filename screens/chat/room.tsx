@@ -1,16 +1,20 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
-import { Avatar, Button, Divider, Icon } from '@rneui/themed';
-import { MaterialIcons } from '@expo/vector-icons';
-import { useTheme } from '@rneui/themed';
-import { View, StyleSheet } from 'react-native';
-import { EventStatus, EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, ReceiptType, RoomEvent } from 'matrix-js-sdk';
-import { useMatrixClient } from '../../store/chat';
+import 'dayjs/locale/zh';
+
 import * as ImagePicker from 'expo-image-picker';
+import {
+  EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, ReceiptType, RoomEvent
+} from 'matrix-js-sdk';
+import React, { useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
 import URI from 'urijs';
+
+import { MaterialIcons } from '@expo/vector-icons';
+import { Button, Divider, Icon, useTheme } from '@rneui/themed';
+
+import { useMatrixClient } from '../../store/chat';
+import { useSqliteStore } from './localMessage';
 import { CameraType } from 'expo-image-picker';
-import 'dayjs/locale/zh'
-import { ILocalMessage, useSqliteStore } from './localMessage';
 
 export function Room({ route, navigation }) {
 
@@ -34,83 +38,79 @@ export function Room({ route, navigation }) {
   }, [])
 
   // event转换为msg格式
-  const evtToMsg = (e: MatrixEvent) => {
-    let msg: ILocalMessage = null
-    const sender = client.getUser(e.getSender())
-    const txnId = e.getTxnId()
+  const evtToMsg = (evt: MatrixEvent) => {
+    let msg: IMessage = null
+    const sender = client.getUser(evt.getSender())
     const msgUser: User = {
       _id: sender.userId,
       name: sender.displayName,
       avatar: sender.avatarUrl,
     }
-    switch (e.event.type) {
+    switch (evt.event.type) {
       case EventType.RoomCreate:
         msg = {
-          txnId,
-          _id: e.event.event_id,
-          text: `${e.event.content.displayname} 创建了聊天`,
-          createdAt: e.localTimestamp,
+          _id: evt.event.event_id,
+          text: `${evt.event.content.displayname} 创建了聊天`,
+          createdAt: evt.localTimestamp,
           system: true,
           user: msgUser
         }
         break
       case EventType.RoomMember:
-        if (e.event.content.membership === 'join') {
+        if (evt.event.content.membership === 'join') {
           msg = {
-            txnId,
-            _id: e.event.event_id,
-            text: `${e.event.content.displayname} 加入了聊天`,
-            createdAt: e.localTimestamp,
+            _id: evt.event.event_id,
+            text: `${evt.event.content.displayname} 加入了聊天`,
+            createdAt: evt.localTimestamp,
             system: true,
             user: msgUser
           }
-        } else if (e.event.content.membership === 'leave') {
+        } else if (evt.event.content.membership === 'leave') {
           msg = {
-            txnId,
-            _id: e.event.event_id,
-            text: `${e.event.content.displayname} 离开了聊天`,
-            createdAt: e.localTimestamp,
+            _id: evt.event.event_id,
+            text: `${evt.event.content.displayname} 离开了聊天`,
+            createdAt: evt.localTimestamp,
             system: true,
             user: msgUser
           }
         }
         break
       case EventType.RoomMessage:
-        if (e.event.content.msgtype == MsgType.Text) {
+        if (evt.event.content.msgtype == MsgType.Text) {
           msg = {
-            txnId,
-            _id: e.event.event_id,
-            text: e.event.content.body,
-            createdAt: e.localTimestamp,
+            _id: evt.event.event_id,
+            text: evt.event.content.body,
+            createdAt: evt.localTimestamp,
             user: msgUser
           }
         }
-        if (e.event.content.msgtype == MsgType.Image) {
+        if (evt.event.content.msgtype == MsgType.Image) {
           msg = {
-            txnId,
-            _id: e.event.event_id,
+            _id: evt.event.event_id,
             text: "",
-            image: client.mxcUrlToHttp(e.event.content.url),
-            createdAt: e.localTimestamp,
+            image: client.mxcUrlToHttp(evt.event.content.url),
+            createdAt: evt.localTimestamp,
             user: msgUser
           }
         }
-        if (e.event.content.msgtype === MsgType.Video) {
+        if (evt.event.content.msgtype === MsgType.Video) {
           msg = {
-            txnId,
-            _id: e.event.event_id,
+            _id: evt.event.event_id,
             text: "",
-            image: client.mxcUrlToHttp(e.event.content.info.thumbnail_info.thumbnail_url),
-            video: client.mxcUrlToHttp(e.event.content.url),
-            createdAt: e.localTimestamp,
+            image: client.mxcUrlToHttp(evt.event.content.info.thumbnail_info.thumbnail_url),
+            video: client.mxcUrlToHttp(evt.event.content.url),
+            createdAt: evt.localTimestamp,
             user: msgUser
           }
         }
         break
       default:
-        console.log('timeline', e.event.event_id, e.event.type, e.event.membership, e.event.content)
+        console.log('timeline', evt.event.event_id, evt.event.type, evt.event.membership, evt.event.content)
     }
-    msg.pending = e.isSending()
+    msg.pending = evt.isSending()
+    if (evt.isSending()) {
+      msg._id = evt.getTxnId()
+    }
     return msg
   }
 
@@ -123,11 +123,12 @@ export function Room({ route, navigation }) {
     const newMessage = evtToMsg(evt)
     if (newMessage) {
       // 发送已读
+      console.log('append evt', evt.event.event_id, evt.event.txn_id, evt.event.content)
       msgStore.appendMessage(newMessage).then(() => {
         if (evt.isSending()) {
           evt.once(MatrixEventEvent.LocalEventIdReplaced, (e => {
             client.sendReadReceipt(e, ReceiptType.Read)
-            msgStore.setMessageCompeted(e.getTxnId())
+            msgStore.setMessageCompeted(e.getTxnId(), e.event.event_id)
           }))
         } else {
           client.sendReadReceipt(evt, ReceiptType.Read)

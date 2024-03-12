@@ -1,16 +1,18 @@
-import { ResizeMode, Video, Audio } from 'expo-av';
+import { Audio, ResizeMode, Video } from 'expo-av';
+import VideoPlayer from 'expo-video-player';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
-import RenderHtml, { CustomBlockRenderer, HTMLContentModel, HTMLElementModel, useComputeMaxWidthForTag, useContentWidth } from 'react-native-render-html';
+import RenderHtml, {
+    CustomBlockRenderer, HTMLContentModel, HTMLElementModel, useComputeMaxWidthForTag,
+    useContentWidth
+} from 'react-native-render-html';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Icon, useTheme, Text } from '@rneui/themed';
-import VideoPlayer from 'expo-video-player'
-// import VideoPlayer from 'expo-fullscreen-video-player';
+import { Button, Icon, Text, useTheme } from '@rneui/themed';
 
+// import VideoPlayer from 'expo-fullscreen-video-player';
 import Searchbar from '../../components/searchbar';
 import { getPost } from '../../service/wordpress';
-
 
 const customElementModels = {
     video: HTMLElementModel.fromCustomModel({

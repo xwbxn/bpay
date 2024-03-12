@@ -1,3 +1,4 @@
+import moment from 'moment';
 import React, { memo, useCallback, useEffect, useState } from 'react';
 import { FlatList, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import RenderHtml from 'react-native-render-html';
@@ -5,7 +6,6 @@ import RenderHtml from 'react-native-render-html';
 import { Image, Text, useTheme } from '@rneui/themed';
 
 import { getPosts } from '../../../service/wordpress';
-import moment from 'moment';
 
 interface IProps {
     active: boolean,

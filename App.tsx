@@ -6,13 +6,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createTheme, ThemeProvider } from '@rneui/themed';
 
 import HomeScreen from './screens/home';
-// import PostDetail from './screens/posts/webDetail';
 import PostDetail from './screens/posts/detail';
-import { GlobalContext, IGlobalContext } from './store/globalContext';
-import { Room } from './screens/chat/room';
 import Login from './screens/profile/login';
-import { Invite } from './screens/chat/invite';
-import { RoomSetting } from './screens/chat/roomSetting';
+import { GlobalContext, IGlobalContext } from './store/globalContext';
 
 const theme = createTheme({
 });

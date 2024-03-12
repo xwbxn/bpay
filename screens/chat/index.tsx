@@ -1,7 +1,8 @@
-import { NavigationContainer } from '@react-navigation/native';
+import React from 'react';
+
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '@rneui/themed';
-import React from 'react'
+
 import { Invite } from './invite';
 import { Room } from './room';
 import { RoomSetting } from './roomSetting';
