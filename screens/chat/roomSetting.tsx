@@ -1,7 +1,8 @@
 import { Avatar, Button, Divider, Icon, ListItem, useTheme } from '@rneui/themed'
 import React, { useEffect } from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Alert } from 'react-native'
 import { useMatrixClient } from '../../store/chat'
+import { useSqliteStore } from './localMessage'
 
 export const RoomSetting = ({ navigation, route }) => {
 
@@ -9,6 +10,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const { rooms, client } = useMatrixClient()
     const room = rooms.find(v => v.roomId === id)
     const { theme } = useTheme()
+    const { clearMessages } = useSqliteStore(room.roomId)
 
     useEffect(() => {
         // set nav bar
@@ -17,11 +19,14 @@ export const RoomSetting = ({ navigation, route }) => {
         })
     }, [])
 
-    const leave = () => {
-        client.leave(room.roomId).then(() => {
-            navigation.replace('Sessions')
-        }).catch(e => {
-            console.log('e', e)
+    const clearStore = () => {
+        // client.leave(room.roomId).then(() => {
+        //     navigation.replace('Sessions')
+        // }).catch(e => {
+        //     console.log('e', e)
+        // })
+        clearMessages().then(() => {
+            Alert.alert("消息已清空")
         })
     }
 
@@ -43,7 +48,7 @@ export const RoomSetting = ({ navigation, route }) => {
                     title={"邀请加入聊天"} type='outline'></Button>
             </View>
             <View style={{ paddingTop: 100, paddingHorizontal: 10 }}>
-                <Button color={'error'} title={'离开聊天并清空聊天记录'} onPress={() => { leave() }}></Button>
+                <Button color={'error'} title={'清空聊天记录'} onPress={() => { clearStore() }}></Button>
             </View>
         </View>
     </View >

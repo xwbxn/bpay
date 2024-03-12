@@ -85,7 +85,7 @@ export const useMatrixClient = () => {
             console.log('accountdata', evt.event.type, evt.event.content)
         })
 
-        _client.startClient()
+        _client.startClient({ initialSyncLimit: 5 })
         // AsyncStorage.getItem("CHAT_ACCESS_TOKEN").then(token => {
         //     console.log('login with token: ', 'syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ')
         //     return _client.loginWithToken('syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ')
