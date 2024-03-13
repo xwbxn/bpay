@@ -89,11 +89,19 @@ export const useSqliteStore = (roomId: string) => {
         setMessages(() => [])
     }
 
-    const appendMessage = async (msg: IMessage) => {
-        await appendMessages([msg])
+    const appendMessages = async (messages: IMessage | IMessage[]) => {
+        const msgs = Array.isArray(messages) ? messages : [messages]
+        await storeMessages(msgs)
+        setMessages((prev) => msgs.reverse().concat(prev))
     }
 
-    const appendMessages = async (msgs: IMessage[]) => {
+    const insertMessages = async (msgs: IMessage[]) => {
+        const m = Array.isArray(msgs) ? msgs : [msgs]
+        await storeMessages(m)
+        setMessages((prev) => prev.concat(m))
+    }
+
+    const storeMessages = async (msgs: IMessage[]) => {
         msgs.forEach(async msg => {
             console.log('append msg:', msg)
             const args = [msg._id, msg.text, msg.createdAt, JSON.stringify(msg.user) || null, msg.image || null, msg.video || null, msg.audio || null, msg.system ? 1 : 0, msg.sent ? 1 : 0, msg.received ? 1 : 0, msg.pending ? 1 : 0, JSON.stringify(msg.quickReplies) || null]
@@ -103,9 +111,7 @@ export const useSqliteStore = (roomId: string) => {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
                 args
             }], false)
-            console.log('append', res)
         })
-        setMessages((prev) => msgs.concat(prev))
     }
 
     const setMessageCompeted = async (txnId: string, eventId: string) => {
@@ -124,8 +130,8 @@ export const useSqliteStore = (roomId: string) => {
     }
 
     return {
-        appendMessage,
         appendMessages,
+        insertMessages,
         loadMoreMessages,
         clearMessages,
         setMessageCompeted,

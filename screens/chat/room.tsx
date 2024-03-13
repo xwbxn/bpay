@@ -111,6 +111,7 @@ export function Room({ route, navigation }) {
     if (evt.isSending()) {
       msg._id = evt.getTxnId()
     }
+    GiftedChat.append
     return msg
   }
 
@@ -123,8 +124,7 @@ export function Room({ route, navigation }) {
     const newMessage = evtToMsg(evt)
     if (newMessage) {
       // 发送已读
-      console.log('append evt', evt.event.event_id, evt.event.txn_id, evt.event.content)
-      msgStore.appendMessage(newMessage).then(() => {
+      msgStore.appendMessages(newMessage).then(() => {
         if (evt.isSending()) {
           evt.once(MatrixEventEvent.LocalEventIdReplaced, (e => {
             client.sendReadReceipt(e, ReceiptType.Read)
@@ -139,36 +139,41 @@ export function Room({ route, navigation }) {
 
   // 同步未接收消息
   const syncUnread = async () => {
+    console.log('sync check:', room.getEventReadUpTo(user.userId))
     while (room.getEventReadUpTo(user.userId) === null) {
       await client.scrollback(room)
     }
+    console.log('sync check:', room.getEventReadUpTo(user.userId))
 
     // no new event
     if (room.getEventReadUpTo(user.userId) === room.getLastLiveEvent().event.event_id) {
       return
     }
 
-    console.log('sync finished')
     const events = room.getLiveTimeline().getEvents()
     const syncIndex = events.findIndex(e => e.event.event_id === room.getEventReadUpTo(user.userId))
     const unReadMsgs = []
-    events.slice(syncIndex).forEach(e => {
-      console.log('ssssssssssss', e.event.event_id, e.event.type, e.event.content)
+    events.slice(syncIndex + 1).forEach(e => {
+      console.log('sync event:', e.event.event_id, e.event.content)
       const msg = evtToMsg(e)
       if (msg) {
         unReadMsgs.push(msg)
       }
     })
-    msgStore.appendMessages(unReadMsgs)
+    msgStore.appendMessages(unReadMsgs).then(() => {
+      client.sendReadReceipt(events[events.length - 1], ReceiptType.Read)
+    })
 
-    client.sendReadReceipt(events[events.length - 1], ReceiptType.Read)
   }
 
   // 初始化: 显示本地消息 & 监听消息队列 & 同步离线消息
   useEffect(() => {
     if (msgStore.isReady) {
-      syncUnread()
-      room.on(RoomEvent.Timeline, recvMsgCallback)
+      msgStore.loadMoreMessages().then(() => {
+        syncUnread()
+      }).then(() => {
+        room.on(RoomEvent.Timeline, recvMsgCallback)
+      })
     }
 
     return () => {
@@ -270,9 +275,9 @@ export function Room({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.content} onLayout={() => { LoadEarlier() }}>
+      <View style={styles.content}>
         <GiftedChat
-          locale='zh'
+          locale='zh-cn'
           messages={msgStore.messages}
           onInputTextChanged={() => { setBottomSheetShow(false) }}
           scrollToBottom
@@ -281,7 +286,7 @@ export function Room({ route, navigation }) {
           onSend={messages => sendText(messages)}
           placeholder='说点什么吧...'
           infiniteScroll
-          loadEarlier
+          inverted
           showUserAvatar
           user={{
             _id: user.userId,

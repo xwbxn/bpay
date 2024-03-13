@@ -7,24 +7,55 @@ import {
     FlatList, StyleSheet, TouchableOpacity, useWindowDimensions, View
 } from 'react-native';
 
-import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Button } from '@rneui/themed';
 
 import { useMatrixClient } from '../../store/chat';
+import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 const Session = ({ navigation }) => {
 
     useEffect(() => {
         // set nav bar
+        const menuStyles = StyleSheet.create({
+            optionWrapper: {
+                backgroundColor: theme.colors.grey1,
+            },
+            titleStyle: {
+                fontSize: 18,
+                color: theme.colors.white,
+                marginLeft: 20
+            },
+            buttonItem: {
+                flexDirection: 'row',
+                justifyContent: 'center',
+                padding: 16,
+            }
+        })
         navigation.setOptions({
             title: '聊天', headerRight: () => {
-                return <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30}
-                    onPress={() => { setIsMenuShow(true) }}></Icon>
+                return <Menu>
+                    <MenuTrigger>
+                        <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30} />
+                    </MenuTrigger>
+                    <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper }}>
+                        <MenuOption onSelect={() => { onDirectPress() }}>
+                            <View style={menuStyles.buttonItem}>
+                                <Icon name='comment' type='octicon' color={theme.colors.white}></Icon>
+                                <Text style={menuStyles.titleStyle}>好友</Text>
+                            </View>
+                        </MenuOption>
+                        <MenuOption>
+                            <View style={menuStyles.buttonItem}>
+                                <Icon name='comment-discussion' type='octicon' color={theme.colors.white}></Icon>
+                                <Text style={menuStyles.titleStyle}>群组</Text>
+                            </View>
+                        </MenuOption>
+                    </MenuOptions>
+                </Menu>
             }
         })
     }, [])
 
-    const { width, height } = useWindowDimensions()
-    const [isMenuShow, setIsMenuShow] = useState(false)
     const { theme } = useTheme()
     const { client, rooms } = useMatrixClient()
     const [roomSummary, setRoomSummary] = useState([])
@@ -91,12 +122,10 @@ const Session = ({ navigation }) => {
     }, [rooms])
 
     const onDirectPress = () => {
-        setIsMenuShow(false)
         navigation.push('Invite')
     }
 
     const onRoomPress = () => {
-        setIsMenuShow(false)
         navigation.push('Invite')
     }
 
@@ -110,22 +139,36 @@ const Session = ({ navigation }) => {
     }
 
     const renderItem = ({ item }) => (
-        <TouchableOpacity onPress={() => onPress(item)} onLongPress={() => onLongPress(item)}>
-            <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8 }}>
-                <View>
-                    <Avatar size={50} rounded title={item.name[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    {item.unread !== 0 && <Badge value={item.unread} status="error" containerStyle={{ position: 'absolute', top: -5, left: 35 }}></Badge>}
+        <Menu>
+            <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPress(item)}>
+                <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8 }}>
+                    <View>
+                        <Avatar size={50} rounded title={item.name[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                        {item.unread !== 0 && <Badge value={item.unread} status="error" containerStyle={{ position: 'absolute', top: -5, left: 35 }}></Badge>}
+                    </View>
+                    <View style={{ flex: 1, justifyContent: 'space-between', padding: 8 }}>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{item.name}</Text>
+                        <Text style={{ fontSize: 14, color: theme.colors.grey3 }}>{item.label}</Text>
+                    </View>
+                    <View style={{ paddingTop: 10 }}>
+                        <Text style={{ fontSize: 12, color: theme.colors.grey3 }}>{moment(item.updatedAt).fromNow()}</Text>
+                    </View>
                 </View>
-                <View style={{ flex: 1, justifyContent: 'space-between', padding: 8 }}>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{item.name}</Text>
-                    <Text style={{ fontSize: 14, color: theme.colors.grey3 }}>{item.label}</Text>
-                </View>
-                <View style={{ paddingTop: 10 }}>
-                    <Text style={{ fontSize: 12, color: theme.colors.grey3 }}>{moment(item.updatedAt).fromNow()}</Text>
-                </View>
-            </View>
-            <Divider style={{ width: "100%", borderColor: theme.colors.primary }}></Divider>
-        </TouchableOpacity>
+                <Divider style={{ width: "100%", borderColor: theme.colors.primary }}></Divider>
+            </MenuTrigger>
+            <MenuOptions customStyles={{ optionsContainer: { marginLeft: 100, marginTop: 20 } }}>
+                <MenuOption text='置顶' customStyles={{
+                    optionText: {
+                        padding: 10, fontSize: 18
+                    }
+                }}></MenuOption>
+                <MenuOption text='删除该聊天' customStyles={{
+                    optionText: {
+                        padding: 10, fontSize: 18
+                    }
+                }}></MenuOption>
+            </MenuOptions>
+        </Menu>
     );
 
     return <View style={styles.container}>
@@ -133,29 +176,6 @@ const Session = ({ navigation }) => {
             <FlatList data={roomSummary} renderItem={renderItem}>
             </FlatList>
         </View>
-
-        {isMenuShow &&
-            <View style={{
-                position: 'absolute', height, width, zIndex: 999, alignItems: 'flex-end'
-            }}
-            >
-                <View style={{ width: 200 }}>
-                    <ListItem bottomDivider containerStyle={{ backgroundColor: theme.colors.black }} onPress={() => { onDirectPress() }}>
-                        <Icon name='group-add' type='material' color={theme.colors.white}></Icon>
-                        <ListItem.Content>
-                            <ListItem.Title><Text style={{ color: theme.colors.white }}>添加好友</Text></ListItem.Title>
-                        </ListItem.Content>
-                    </ListItem>
-                    <ListItem bottomDivider containerStyle={{ backgroundColor: theme.colors.black }} onPress={() => { onRoomPress() }}>
-                        <Icon name='groups' type='material' color={theme.colors.white}></Icon>
-                        <ListItem.Content>
-                            <ListItem.Title><Text style={{ color: theme.colors.white }}>添加群聊</Text></ListItem.Title>
-                        </ListItem.Content>
-                    </ListItem>
-                    <View style={{ position: 'relative', left: -180, height, width: width, backgroundColor: 'grey', opacity: 0 }}
-                        onTouchStart={() => { setIsMenuShow(false) }}></View>
-                </View>
-            </View>}
     </View>
 }
 

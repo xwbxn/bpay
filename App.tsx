@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createTheme, ThemeProvider } from '@rneui/themed';
+import { MenuProvider } from 'react-native-popup-menu';
 
 import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
@@ -32,15 +33,17 @@ export default function App() {
   return (
     <GlobalContext.Provider value={globalState}>
       <ThemeProvider theme={theme}>
-        {globalState.ready &&
-          <NavigationContainer>
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="Home" component={HomeScreen} />
-              <Stack.Screen name="PostDetail" component={PostDetail} />
-              <Stack.Screen name="Login" component={Login} />
-            </Stack.Navigator>
-          </NavigationContainer>}
-        <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
+        <MenuProvider>
+          {globalState.ready &&
+            <NavigationContainer>
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="Home" component={HomeScreen} />
+                <Stack.Screen name="PostDetail" component={PostDetail} />
+                <Stack.Screen name="Login" component={Login} />
+              </Stack.Navigator>
+            </NavigationContainer>}
+          <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
+        </MenuProvider>
       </ThemeProvider>
     </GlobalContext.Provider>
   );

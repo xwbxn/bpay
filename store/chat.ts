@@ -1,5 +1,10 @@
+import { drizzle } from "drizzle-orm/expo-sqlite";
+import { useMigrations } from "drizzle-orm/expo-sqlite/migrator";
+import { openDatabaseSync } from "expo-sqlite/next";
 import { ClientEvent, createClient, EventType, MatrixClient, Room, SyncState, User } from "matrix-js-sdk";
 import { create } from "zustand";
+import migrations from "../drizzle/migrations";
+import { SqliteStore } from "./sqliteStore/sqliteStore";
 
 interface IMatrixStore {
     client: MatrixClient
@@ -41,9 +46,13 @@ const matrixClientStore = create<IMatrixStore>(set => ({
     }
 }))
 
+const expoDb = openDatabaseSync("chat.db");
+const db = drizzle(expoDb);
+
 export const useMatrixClient = () => {
     const { client, setClient, rooms, setRooms, user, setUser, unReadCount } = matrixClientStore()
-
+    const { success, error } = useMigrations(db, migrations);
+    
     const login = (user: string, password: string) => {
         if (client !== null) {
             console.warn("不能重复登录")
@@ -54,7 +63,8 @@ export const useMatrixClient = () => {
             baseUrl: 'https://chat.b-pay.life',
             useAuthorizationHeader: true,
             userId: user,
-            accessToken: 'syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ'
+            accessToken: 'syt_YWRtaW4_SLkLkArycjLQUYONdjQm_0QtLrZ',
+            store: new SqliteStore("chat.db")
         })
         _client.usingExternalCrypto = true // hack , ignore encrypt
         setClient(_client)
@@ -70,7 +80,6 @@ export const useMatrixClient = () => {
         })
 
         _client.on(ClientEvent.Event, (evt) => {
-            // console.log('evt', evt.event.room_id, evt.event.type, evt.event.content, evt.event.membership)
             switch (evt.event.type) {
                 case EventType.RoomMember:
                 case EventType.RoomMessage:
