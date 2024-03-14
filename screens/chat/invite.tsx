@@ -5,25 +5,38 @@ import { ListItem } from '@rneui/base';
 import { Avatar, Button, Divider, SearchBar, useTheme } from '@rneui/themed';
 
 import { useMatrixClient } from '../../store/useMatrixClient';
+import { EventType, User } from 'matrix-js-sdk';
 
 export const Invite = ({ navigation }) => {
 
     useEffect(() => {
         // set nav bar
         navigation.setOptions({
-            title: '添加好友'
+            title: '我的好友'
         })
     }, [])
 
     const { theme } = useTheme()
-    const [searchVal, setSearchVal] = useState('')
     const { client } = useMatrixClient()
     const [search, setSearch] = useState("");
     const [inviteMembers, setInviteMembers] = useState([])
+    const [members, setMembers] = useState<User[]>([])
 
     const updateSearch = (search) => {
         setSearch(search);
     };
+
+    useEffect(() => {
+        const direct = client.getAccountData(EventType.Direct)
+        const users = []
+        Object.keys(direct.getContent()).forEach(k => {
+            const user = client.getUser(k)
+            if (user) {
+                users.push(user)
+            }
+        })
+        setMembers(users)
+    }, [])
 
     const searchUser = () => {
         client.getProfileInfo(`@${search}:chat.b-pay.life`).then(res => {
@@ -52,7 +65,7 @@ export const Invite = ({ navigation }) => {
         <SearchBar containerStyle={{ borderWidth: 0, borderColor: theme.colors.background, backgroundColor: theme.colors.background, paddingHorizontal: 12 }}
             inputContainerStyle={{ backgroundColor: theme.colors.grey5 }}
             round
-            placeholder='使用bpayID搜索好友后开始聊天'
+            placeholder='搜索好友'
             value={search}
             onChangeText={updateSearch}
             onSubmitEditing={() => { searchUser() }}
@@ -60,14 +73,18 @@ export const Invite = ({ navigation }) => {
         <View style={{ paddingHorizontal: 10, ...styles.content }}>
             <Divider style={{ width: '100%', marginVertical: 10 }}></Divider>
             {/* <Text style={{ color: theme.colors.grey3, paddingBottom: 10 }}>邀请列表</Text> */}
-            {inviteMembers.map(m => {
-                return <ListItem topDivider bottomDivider key={m.id}>
-                    <Avatar size={50} rounded title={m.displayname[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    <ListItem.Content>
-                        <ListItem.Title>{m.displayname}</ListItem.Title>
-                        <ListItem.Subtitle>{m.id}</ListItem.Subtitle>
-                    </ListItem.Content>
-                </ListItem>
+            {members.map(m => {
+                return (
+                    <ListItem topDivider bottomDivider key={m.userId} onPress={() => {
+                        navigation.push('Member', { userId: m.userId })
+                    }}>
+                        <Avatar size={50} rounded title={m.displayName[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                        <ListItem.Content>
+                            <ListItem.Title style={{ fontSize: 22 }}>{m.displayName}</ListItem.Title>
+                            <ListItem.Subtitle>{m.userId}</ListItem.Subtitle>
+                        </ListItem.Content>
+                        <ListItem.Chevron></ListItem.Chevron>
+                    </ListItem>)
             })}
             {inviteMembers.length > 0 && <Button title={'确定'} onPress={() => doInvite()}></Button>}
         </View>

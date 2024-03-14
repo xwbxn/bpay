@@ -15,19 +15,6 @@ export class SqliteStore extends MemoryStore {
     }
 
     storeEvents(room: Room, events: MatrixEvent[], token: string, toStart: boolean): void {
-        // const insertValues = []
-        // events.forEach(e => {
-        //     const val = {
-        //         ...e.event
-        //     }
-        //     insertValues.push(val)
-        // })
-        // this.db.insert(schema.events).values(insertValues).then(res => {
-        //     console.log('store local events ', res)
-        // })
-        events.forEach(e => {
-            console.log('ssssssssssssssssssssssssssstore event', e.getId(), e.getType(), e.getContent())
-        })
         super.storeEvents(room, events, token, toStart)
     }
 

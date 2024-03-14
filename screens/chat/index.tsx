@@ -7,6 +7,7 @@ import { Invite } from './invite';
 import { Room } from './room';
 import { RoomSetting } from './roomSetting';
 import Session from './sessions';
+import { MemberProfile } from './member';
 
 const Stack = createNativeStackNavigator();
 export const ChatIndex = () => {
@@ -24,6 +25,7 @@ export const ChatIndex = () => {
             <Stack.Screen name="Room" component={Room} />
             <Stack.Screen name="Invite" component={Invite} />
             <Stack.Screen name='RoomSetting' component={RoomSetting} />
+            <Stack.Screen name='Member' component={MemberProfile} />
         </Stack.Navigator>
     </>
 }
