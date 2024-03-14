@@ -30,8 +30,8 @@ export const useMatrixClient = () => {
         _client.on(ClientEvent.Sync, (state) => {
             if (state === SyncState.Prepared) {
                 _client.on(RoomEvent.Timeline, ((event, room, toStartOfTimeline, removed, data) => {
-                    console.log('new event to store', event.getId(), room.name, event.getType(), event.getContent())
-                    // _store.storeEvents()
+                    // console.log('new event to store', event.getId(), room.name, event.getType(), event.getContent())
+                    // _client.store.storeEvents(room, [event])
                 }))
             }
         })
