@@ -3,16 +3,14 @@ import { Alert, StyleSheet, View } from 'react-native';
 
 import { Avatar, Button, Icon, ListItem, useTheme } from '@rneui/themed';
 
-import { useMatrixClient } from '../../store/chat';
-import { useSqliteStore } from './localMessage';
+import { useMatrixClient } from '../../store/useMatrixClient';
 
 export const RoomSetting = ({ navigation, route }) => {
 
     const { id } = route.params
-    const { rooms, client } = useMatrixClient()
-    const room = rooms.find(v => v.roomId === id)
+    const { client } = useMatrixClient()
+    const room = client.getRoom(id)
     const { theme } = useTheme()
-    const { clearMessages } = useSqliteStore(room.roomId)
 
     useEffect(() => {
         // set nav bar
@@ -22,14 +20,7 @@ export const RoomSetting = ({ navigation, route }) => {
     }, [])
 
     const clearStore = () => {
-        // client.leave(room.roomId).then(() => {
-        //     navigation.replace('Sessions')
-        // }).catch(e => {
-        //     console.log('e', e)
-        // })
-        clearMessages().then(() => {
-            Alert.alert("消息已清空")
-        })
+
     }
 
     return <View style={styles.container}>

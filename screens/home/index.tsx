@@ -1,31 +1,44 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Badge, Icon } from '@rneui/themed';
 
 import { getCategories } from '../../service/wordpress';
-import { useMatrixClient } from '../../store/chat';
+import { useMatrixClient } from '../../store/useMatrixClient';
 import { GlobalContext } from '../../store/globalContext';
 import { ChatIndex } from '../chat';
 import PostList from '../posts/list';
+import { RoomEvent } from 'matrix-js-sdk';
 
 const Tab = createBottomTabNavigator();
 
 export default function HomeScreen({ navigation }) {
 
-    const { login, unReadCount } = useMatrixClient()
-
+    const { client } = useMatrixClient()
+    const [unReadTotal, setUnReadTotal] = useState(0)
     const { setCategories } = useContext(GlobalContext)
+
     useEffect(() => {
         getCategories({
             orderby: 'slug'
         }).then(res => {
             setCategories(res)
         })
-
-        login("@admin:chat.b-pay.life", "8675309Abcd!@#")
     }, [])
+
+    useEffect(() => {
+        const refreshUnreadTotal = () => {
+            setUnReadTotal(client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0))
+        }
+        client.on(RoomEvent.Timeline, refreshUnreadTotal)
+        client.on(RoomEvent.Receipt, refreshUnreadTotal)
+        return () => {
+            client.off(RoomEvent.Timeline, refreshUnreadTotal)
+            client.off(RoomEvent.Receipt, refreshUnreadTotal)
+        }
+    }, [])
+
 
     return <>
         <Tab.Navigator screenOptions={{ headerShown: false }}>
@@ -34,7 +47,7 @@ export default function HomeScreen({ navigation }) {
             <Tab.Screen options={{
                 tabBarIcon: ({ color }) => {
                     return <View>
-                        {unReadCount > 0 && <Badge containerStyle={{ position: 'absolute', zIndex: 999, right: -10, top: -10 }} value={unReadCount} status="error"></Badge>}
+                        {unReadTotal > 0 && <Badge containerStyle={{ position: 'absolute', zIndex: 999, right: -10, top: -10 }} value={unReadTotal} status="error"></Badge>}
                         <Icon name='wechat' type='font-awesome' color={color}>
                         </Icon></View>
                 }

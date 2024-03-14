@@ -4,7 +4,7 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { ListItem } from '@rneui/base';
 import { Avatar, Button, Divider, SearchBar, useTheme } from '@rneui/themed';
 
-import { useMatrixClient } from '../../store/chat';
+import { useMatrixClient } from '../../store/useMatrixClient';
 
 export const Invite = ({ navigation }) => {
 

@@ -25,6 +25,7 @@
     "expo": "^50.0.8",
     "expo-asset": "~9.0.2",
     "expo-av": "~13.10.5",
+    "expo-crypto": "^12.8.1",
     "expo-file-system": "~16.0.8",
     "expo-image-picker": "~14.7.1",
     "expo-linking": "~6.2.2",

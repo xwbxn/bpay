@@ -1,8 +1,9 @@
 import 'dayjs/locale/zh';
 
+import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, ReceiptType, RoomEvent
+  EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, ReceiptType, RoomEvent, RoomStateEvent
 } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -12,18 +13,20 @@ import URI from 'urijs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Button, Divider, Icon, useTheme } from '@rneui/themed';
 
-import { useMatrixClient } from '../../store/chat';
-import { useSqliteStore } from './localMessage';
+import { useMatrixClient } from '../../store/useMatrixClient';
 import { CameraType } from 'expo-image-picker';
 
 export function Room({ route, navigation }) {
 
-  const { id } = route.params
-  const { client, rooms, user } = useMatrixClient()
-  const room = rooms.find(r => r.roomId === id)
-  const msgStore = useSqliteStore(room.roomId)
   const { theme } = useTheme()
+  const { id } = route.params
+  const { client } = useMatrixClient()
+  const room = client.getRoom(id)
+  const user = client.getUser(client.getUserId())
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
+
+  const [messages, setMessages] = useState([])
+  const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
 
   // 导航条样式
   useEffect(() => {
@@ -42,33 +45,33 @@ export function Room({ route, navigation }) {
     let msg: IMessage = null
     const sender = client.getUser(evt.getSender())
     const msgUser: User = {
-      _id: sender.userId,
-      name: sender.displayName,
-      avatar: sender.avatarUrl,
+      _id: evt.getSender(),
+      name: sender.displayName ?? evt.getSender(),
+      avatar: sender.avatarUrl ?? '',
     }
     switch (evt.event.type) {
       case EventType.RoomCreate:
         msg = {
-          _id: evt.event.event_id,
-          text: `${evt.event.content.displayname} 创建了聊天`,
+          _id: evt.getId(),
+          text: `${evt.getContent().displayname} 创建了聊天`,
           createdAt: evt.localTimestamp,
           system: true,
           user: msgUser
         }
         break
       case EventType.RoomMember:
-        if (evt.event.content.membership === 'join') {
+        if (evt.getContent().membership === 'join') {
           msg = {
-            _id: evt.event.event_id,
-            text: `${evt.event.content.displayname} 加入了聊天`,
+            _id: evt.getId(),
+            text: `${evt.getContent().displayname} 加入了聊天`,
             createdAt: evt.localTimestamp,
             system: true,
             user: msgUser
           }
-        } else if (evt.event.content.membership === 'leave') {
+        } else if (evt.getContent().membership === 'leave') {
           msg = {
-            _id: evt.event.event_id,
-            text: `${evt.event.content.displayname} 离开了聊天`,
+            _id: evt.getId(),
+            text: `${evt.getContent().displayname} 离开了聊天`,
             createdAt: evt.localTimestamp,
             system: true,
             user: msgUser
@@ -76,117 +79,84 @@ export function Room({ route, navigation }) {
         }
         break
       case EventType.RoomMessage:
-        if (evt.event.content.msgtype == MsgType.Text) {
+        if (evt.getContent().msgtype == MsgType.Text) {
           msg = {
-            _id: evt.event.event_id,
-            text: evt.event.content.body,
+            _id: evt.getId(),
+            text: evt.getContent().body,
             createdAt: evt.localTimestamp,
             user: msgUser
           }
         }
-        if (evt.event.content.msgtype == MsgType.Image) {
+        if (evt.getContent().msgtype == MsgType.Image) {
           msg = {
-            _id: evt.event.event_id,
+            _id: evt.getId(),
             text: "",
-            image: client.mxcUrlToHttp(evt.event.content.url),
+            image: client.mxcUrlToHttp(evt.getContent().url),
             createdAt: evt.localTimestamp,
             user: msgUser
           }
         }
-        if (evt.event.content.msgtype === MsgType.Video) {
+        if (evt.getContent().msgtype === MsgType.Video) {
           msg = {
-            _id: evt.event.event_id,
+            _id: evt.getId(),
             text: "",
-            image: client.mxcUrlToHttp(evt.event.content.info.thumbnail_info.thumbnail_url),
-            video: client.mxcUrlToHttp(evt.event.content.url),
+            image: client.mxcUrlToHttp(evt.getContent().info.thumbnail_info.thumbnail_url),
+            video: client.mxcUrlToHttp(evt.getContent().url),
             createdAt: evt.localTimestamp,
             user: msgUser
           }
         }
         break
       default:
-        console.log('timeline', evt.event.event_id, evt.event.type, evt.event.membership, evt.event.content)
+        msg = {
+          _id: evt.getId(),
+          text: `[不支持的消息(${evt.getType()})]`,
+          image: client.mxcUrlToHttp(evt.getContent().info.thumbnail_info.thumbnail_url),
+          video: client.mxcUrlToHttp(evt.getContent().url),
+          createdAt: evt.localTimestamp,
+          user: msgUser
+        }
+        console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
+        break
     }
-    msg.pending = evt.isSending()
-    if (evt.isSending()) {
-      msg._id = evt.getTxnId()
-    }
-    GiftedChat.append
+    msg.sent = evt.status === null
+    msg.pending = evt.status !== null
     return msg
   }
 
-  // 接收消息回调, 消息入库，发送回执
-  const recvMsgCallback = (evt: MatrixEvent, room, toStartOfTimeline) => {
-    if (toStartOfTimeline) {
-      return; // don't print paginated results
-    }
-
-    const newMessage = evtToMsg(evt)
-    if (newMessage) {
-      // 发送已读
-      msgStore.appendMessages(newMessage).then(() => {
-        if (evt.isSending()) {
-          evt.once(MatrixEventEvent.LocalEventIdReplaced, (e => {
-            client.sendReadReceipt(e, ReceiptType.Read)
-            msgStore.setMessageCompeted(e.getTxnId(), e.event.event_id)
-          }))
-        } else {
-          client.sendReadReceipt(evt, ReceiptType.Read)
-        }
-      })
-    }
-  }
-
-  // 同步未接收消息
-  const syncUnread = async () => {
-    console.log('sync check:', room.getEventReadUpTo(user.userId))
-    while (room.getEventReadUpTo(user.userId) === null) {
-      await client.scrollback(room)
-    }
-    console.log('sync check:', room.getEventReadUpTo(user.userId))
-
-    // no new event
-    if (room.getEventReadUpTo(user.userId) === room.getLastLiveEvent().event.event_id) {
-      return
-    }
-
-    const events = room.getLiveTimeline().getEvents()
-    const syncIndex = events.findIndex(e => e.event.event_id === room.getEventReadUpTo(user.userId))
-    const unReadMsgs = []
-    events.slice(syncIndex + 1).forEach(e => {
-      console.log('sync event:', e.event.event_id, e.event.content)
-      const msg = evtToMsg(e)
-      if (msg) {
-        unReadMsgs.push(msg)
-      }
-    })
-    msgStore.appendMessages(unReadMsgs).then(() => {
-      client.sendReadReceipt(events[events.length - 1], ReceiptType.Read)
-    })
-
-  }
-
-  // 初始化: 显示本地消息 & 监听消息队列 & 同步离线消息
   useEffect(() => {
-    if (msgStore.isReady) {
-      msgStore.loadMoreMessages().then(() => {
-        syncUnread()
-      }).then(() => {
-        room.on(RoomEvent.Timeline, recvMsgCallback)
-      })
+    const refreshMessage = () => {
+      setRefreshKey(crypto.randomUUID())
     }
-
+    room.on(RoomEvent.Timeline, refreshMessage)
+    room.on(RoomEvent.LocalEchoUpdated, refreshMessage)
     return () => {
-      room.off(RoomEvent.Timeline, recvMsgCallback)
+      room.off(RoomEvent.LocalEchoUpdated, refreshMessage)
+      room.off(RoomEvent.Timeline, refreshMessage)
     }
-  }, [msgStore.isReady])
+  }, [])
+
+  // timeline event 转为 消息
+  useEffect(() => {
+    const newMessages = []
+    const msgEvts = room.getLiveTimeline().getEvents().filter(e => e.getType() === EventType.RoomMessage)
+    if (msgEvts.length > 0) {
+      msgEvts.forEach(evt => {
+        newMessages.unshift(evtToMsg(evt))
+      })
+      setMessages(newMessages)
+      const lastEvt = msgEvts[msgEvts.length - 1]
+      if (lastEvt.status === null) {
+        client.sendReadReceipt(lastEvt)
+      }
+    }
+  }, [refreshKey])
 
   // 发送消息
   const sendText = useCallback((messages = []) => {
     setBottomSheetShow(false)
     const message = messages[0]
     client.sendTextMessage(room.roomId, message.text)
-
   }, [client])
 
   // 相册
@@ -253,10 +223,7 @@ export function Room({ route, navigation }) {
 
   // 查看历史消息
   const LoadEarlier = useCallback(() => {
-    console.log('load earlier')
-    msgStore.loadMoreMessages().then((res) => {
-      console.log('res', res)
-    })
+    client.scrollback(room)
   }, [client])
 
   // 发送按钮
@@ -278,7 +245,7 @@ export function Room({ route, navigation }) {
       <View style={styles.content}>
         <GiftedChat
           locale='zh-cn'
-          messages={msgStore.messages}
+          messages={messages}
           onInputTextChanged={() => { setBottomSheetShow(false) }}
           scrollToBottom
           onLoadEarlier={LoadEarlier}
@@ -286,7 +253,6 @@ export function Room({ route, navigation }) {
           onSend={messages => sendText(messages)}
           placeholder='说点什么吧...'
           infiniteScroll
-          inverted
           showUserAvatar
           user={{
             _id: user.userId,
