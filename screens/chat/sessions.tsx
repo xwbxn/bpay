@@ -1,11 +1,11 @@
 import 'moment/locale/zh-cn';
 
-import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
+import { ClientEvent, EventType, NotificationCountType, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Divider, Icon, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
 
 import { favTagName, hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
@@ -36,17 +36,17 @@ const Session = ({ navigation }) => {
                         <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30} />
                     </MenuTrigger>
                     <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20 } }}>
-                        <MenuOption onSelect={() => { onDirectPress() }}>
+                        <MenuOption onSelect={onDirectPress}>
                             <View style={menuStyles.buttonItem}>
                                 <Icon name='comment' type='octicon' color={theme.colors.white}></Icon>
-                                <Text style={menuStyles.titleStyle}>我的好友</Text>
+                                <Text style={menuStyles.titleStyle}>联系人</Text>
                             </View>
                         </MenuOption>
                         <Divider style={{ width: '100%' }}></Divider>
-                        <MenuOption>
+                        <MenuOption onSelect={onGroupPress}>
                             <View style={menuStyles.buttonItem}>
                                 <Icon name='comment-discussion' type='octicon' color={theme.colors.white}></Icon>
-                                <Text style={menuStyles.titleStyle}>我的群组</Text>
+                                <Text style={menuStyles.titleStyle}>发起群聊</Text>
                             </View>
                         </MenuOption>
                     </MenuOptions>
@@ -80,6 +80,7 @@ const Session = ({ navigation }) => {
         client.on(ClientEvent.DeleteRoom, refreshRooms)
         client.on(RoomEvent.MyMembership, refreshRooms)
         client.on(RoomEvent.Tags, refreshRooms)
+        client.on(RoomEvent.Name, refreshRooms)
 
         return () => {
             client.off(RoomEvent.Timeline, refreshRooms)
@@ -88,16 +89,18 @@ const Session = ({ navigation }) => {
             client.off(ClientEvent.DeleteRoom, refreshRooms)
             client.off(RoomEvent.MyMembership, refreshRooms)
             client.off(RoomEvent.Tags, refreshRooms)
+            client.off(RoomEvent.Name, refreshRooms)
+
         }
     }, [])
 
 
     const onDirectPress = () => {
-        navigation.push('Invite')
+        navigation.push('DirectChat')
     }
 
-    const onRoomPress = () => {
-        navigation.push('Invite')
+    const onGroupPress = () => {
+        navigation.push('GroupChat')
     }
 
     const onPressRoom = (item) => {
@@ -114,34 +117,67 @@ const Session = ({ navigation }) => {
         }
     }
 
-    const handleHide = (item) => {
-        client.setRoomTag(item.roomId, hiddenTagName, {})
+    const handleHide = (item: Room) => {
+        if (item.getJoinedMemberCount() === 1) {
+            client.leave(item.roomId).then(() => {
+                client.forget(item.roomId)
+            })
+        } else {
+            client.setRoomTag(item.roomId, hiddenTagName, {})
+        }
     }
 
     const renderItem = ({ item }: { item: Room }) => {
-        const lastEvt = item.getLastLiveEvent()
+        let title = item.name
+        let subTitle = ''
+        let updateAt = new Date().getTime()
+
+        if (item.getMyMembership() === 'invite') { //收到邀请信息
+            item.setUnreadNotificationCount(NotificationCountType.Total, 1)
+            if (item.getDMInviter()) {
+                subTitle = `来自${item.getDMInviter()?.split(":")[0]?.substring(1)}的好友申请`
+            } else {
+                subTitle = "邀请您加入群聊"
+            }
+            updateAt = item.getMember(item.myUserId).events.member.localTimestamp
+        } else if (item.getMyMembership() === 'join') { //已加入聊天
+            if (item.getInvitedMemberCount() == 1 && item.getInvitedAndJoinedMemberCount() == 2) {
+                //发起单聊等待对方同意
+                subTitle = '等待对方同意'
+            } else {
+                // 预览消息
+                const lastEvt = item.getLastLiveEvent()
+                updateAt = item.getLastActiveTimestamp()
+                switch (lastEvt.getType()) {
+                    case EventType.RoomMessage:
+                        subTitle = lastEvt.getContent().body ?? ''
+                        break;
+                    case EventType.RoomMember:
+                        subTitle = '现在可以开始聊天了'
+                    default:
+                        break;
+                }
+            }
+        } else if (item.getMyMembership() === 'leave') {
+            return <></>
+        }
+
         const isFavor = Boolean(item.tags[favTagName])
         return (
             <Menu>
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
-                    <View style={{
-                        flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8,
-                        backgroundColor: isFavor ? theme.colors.grey5 : undefined
-                    }}>
-                        <View>
-                            <Avatar size={50} rounded title={item.name[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                    <ListItem topDivider bottomDivider>
+                        <Avatar size={50} rounded title={title[0]} containerStyle={{ backgroundColor: theme.colors.primary }}>
                             {item.getUnreadNotificationCount() > 0
-                                && <Badge value={item.getUnreadNotificationCount()} status="error" containerStyle={{ position: 'absolute', top: -5, left: 35 }}></Badge>}
-                        </View>
-                        <View style={{ flex: 1, justifyContent: 'space-between', paddingLeft: 8 }}>
-                            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{item.name}</Text>
-                            <Text style={{ fontSize: 14, color: theme.colors.grey3 }}>{lastEvt?.getContent().body?.slice(0, 20)}</Text>
-                        </View>
-                        <View style={{ paddingTop: 10 }}>
-                            <Text style={{ fontSize: 12, color: theme.colors.grey3 }}>{moment(lastEvt?.localTimestamp).fromNow()}</Text>
-                        </View>
-                    </View>
-                    <Divider style={{ width: "100%", borderColor: theme.colors.primary }}></Divider>
+                                && <Badge value={item.getUnreadNotificationCount()} status="error"
+                                    containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
+                        </Avatar>
+                        <ListItem.Content>
+                            <ListItem.Title style={{ fontSize: 22 }}>{title}</ListItem.Title>
+                            <ListItem.Subtitle>{subTitle.slice(0, 20)}</ListItem.Subtitle>
+                        </ListItem.Content>
+                        <ListItem.Subtitle>{moment(updateAt).fromNow()}</ListItem.Subtitle>
+                    </ListItem>
                 </MenuTrigger>
                 <MenuOptions customStyles={{ optionsContainer: { marginLeft: 100, marginTop: 20 } }}>
                     <MenuOption onSelect={() => toggleFavor(item)} text={isFavor ? '取消置顶' : '置顶'} customStyles={{

@@ -3,17 +3,17 @@ import 'dayjs/locale/zh';
 import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, ReceiptType, RoomEvent, RoomStateEvent
+  EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, NotificationCountType, ReceiptType, RoomEvent, RoomStateEvent
 } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
 import URI from 'urijs';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import { Button, Divider, Icon, useTheme } from '@rneui/themed';
 
-import { useMatrixClient } from '../../store/useMatrixClient';
+import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { CameraType } from 'expo-image-picker';
 
 export function Room({ route, navigation }) {
@@ -36,7 +36,7 @@ export function Room({ route, navigation }) {
       headerRight: () => {
         return <Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
           onPress={() => { navigation.push('RoomSetting', { id: room.roomId }) }}></Icon>
-      }
+      },
     })
   }, [])
 
@@ -128,6 +128,32 @@ export function Room({ route, navigation }) {
     const refreshMessage = () => {
       setRefreshKey(crypto.randomUUID())
     }
+    if (room.tags[hiddenTagName]) {
+      client.deleteRoomTag(room.roomId, hiddenTagName)
+    }
+
+    if (room.getMyMembership() == 'invite') {
+      const invitor = room.getMember(room.getDMInviter())
+      const tip = invitor ? `是否同意 ${invitor?.name} 的好友申请` : `是否同意加入[${room.name}]`
+      Alert.alert("提示", tip, [
+        {
+          text: '拒绝', onPress(value?) {
+            client.leave(room.roomId).then(() => {
+              return client.forget(room.roomId)
+            }).then(() => {
+              navigation.goBack()
+            })
+          },
+        }, {
+          text: '同意', onPress(value?) {
+            client.joinRoom(room.roomId).then(() => {
+              setRefreshKey(crypto.randomUUID())
+            })
+          },
+        }
+      ])
+    }
+
     room.on(RoomEvent.Timeline, refreshMessage)
     room.on(RoomEvent.LocalEchoUpdated, refreshMessage)
     return () => {
@@ -254,12 +280,14 @@ export function Room({ route, navigation }) {
           placeholder='说点什么吧...'
           infiniteScroll
           showUserAvatar
+          loadEarlier
           user={{
             _id: user.userId,
             name: user.displayName,
             avatar: user.avatarUrl
           }}
           renderSend={renderSend}
+          onPressAvatar={(user) => navigation.push('Member', { userId: user._id, roomId: room.roomId })}
         />
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>
