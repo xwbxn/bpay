@@ -1,6 +1,6 @@
 import { ClientEvent, EventType, Preset, User } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Icon, ListItem } from '@rneui/base';
 import { Avatar, BottomSheet, Button, Input, SearchBar, Text, useTheme } from '@rneui/themed';
@@ -98,32 +98,38 @@ export const GroupChat = ({ navigation }) => {
                 titleStyle={{ fontSize: 18 }} containerStyle={{ backgroundColor: '#ffffff', marginRight: 10 }}></Button>
         </View>
         <View style={{ paddingHorizontal: 10, ...styles.content }}>
-            <ListItem.Accordion content={
-                <>
-                    <ListItem.Content>
-                        <ListItem.Title>选择联系人(已选{members.filter(m => m.checked).length}人)</ListItem.Title>
-                    </ListItem.Content>
-                </>
-            } isExpanded>
-                {(searchVal !== '' ?
-                    members.filter(m => m.user.userId.includes(searchVal) ||
-                        m.user.displayName.includes(searchVal)) : members)
-                    .map(m => {
-                        return (
-                            <ListItem topDivider bottomDivider key={m.user.userId}>
-                                <ListItem.CheckBox checked={m.checked} onPress={() => {
-                                    m.checked = !m.checked
-                                    setMembers([...members])
-                                }}></ListItem.CheckBox>
-                                <Avatar size={50} rounded title={m.user.displayName[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                                <ListItem.Content>
-                                    <ListItem.Title style={{ fontSize: 22 }}>{m.user.displayName}</ListItem.Title>
-                                    <ListItem.Subtitle>{m.user.userId} {m.roomId}</ListItem.Subtitle>
-                                </ListItem.Content>
-                                <ListItem.Chevron></ListItem.Chevron>
-                            </ListItem>)
-                    })}
-            </ListItem.Accordion>
+            <ScrollView>
+                <ListItem.Accordion content={
+                    <>
+                        <ListItem.Content>
+                            <ListItem.Title>选择联系人(已选{members.filter(m => m.checked).length}人)</ListItem.Title>
+                        </ListItem.Content>
+                    </>
+                } isExpanded>
+                    {(searchVal !== '' ?
+                        members.filter(m => m.user.userId.includes(searchVal) ||
+                            m.user.displayName.includes(searchVal)) : members)
+                        .map(m => {
+                            return (
+                                <ListItem topDivider bottomDivider key={m.user.userId}
+                                    onPress={() => {
+                                        m.checked = !m.checked
+                                        setMembers([...members])
+                                    }}                                >
+                                    <ListItem.CheckBox checked={m.checked} onPress={() => {
+                                        m.checked = !m.checked
+                                        setMembers([...members])
+                                    }}></ListItem.CheckBox>
+                                    <Avatar size={50} rounded title={m.user.displayName[0]} containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                                    <ListItem.Content>
+                                        <ListItem.Title style={{ fontSize: 22 }}>{m.user.displayName}</ListItem.Title>
+                                        <ListItem.Subtitle>{m.user.userId} {m.roomId}</ListItem.Subtitle>
+                                    </ListItem.Content>
+                                    <ListItem.Chevron></ListItem.Chevron>
+                                </ListItem>)
+                        })}
+                </ListItem.Accordion>
+            </ScrollView>
         </View>
         <BottomSheet modalProps={{}} isVisible={isGroupOptionVisible}>
             <ListItem>
