@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '@rneui/themed';
 
-import { DirectChat } from './invite';
+import { Contacts } from './contacts';
 import { Room } from './room';
 import { RoomSetting } from './roomSetting';
 import Session from './sessions';
@@ -33,7 +33,7 @@ export const ChatIndex = ({ navigation, route }) => {
         }}>
             <Stack.Screen name="Sessions" component={Session} />
             <Stack.Screen name="Room" component={Room} />
-            <Stack.Screen name="DirectChat" component={DirectChat} />
+            <Stack.Screen name="Contact" component={Contacts} />
             <Stack.Screen name="GroupChat" component={GroupChat} />
             <Stack.Screen name='RoomSetting' component={RoomSetting} />
             <Stack.Screen name='Member' component={MemberProfile} />

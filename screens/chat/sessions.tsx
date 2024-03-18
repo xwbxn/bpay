@@ -25,7 +25,6 @@ const Session = ({ navigation }) => {
             },
             buttonItem: {
                 flexDirection: 'row',
-                justifyContent: 'center',
                 padding: 12,
             }
         })
@@ -36,16 +35,16 @@ const Session = ({ navigation }) => {
                         <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30} />
                     </MenuTrigger>
                     <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20 } }}>
-                        <MenuOption onSelect={onDirectPress}>
+                        <MenuOption onSelect={onContactPress}>
                             <View style={menuStyles.buttonItem}>
-                                <Icon name='comment' type='octicon' color={theme.colors.white}></Icon>
+                                <Icon name='person' type='octicon' containerStyle={{ width: 40 }} size={30} color={theme.colors.white}></Icon>
                                 <Text style={menuStyles.titleStyle}>联系人</Text>
                             </View>
                         </MenuOption>
                         <Divider style={{ width: '100%' }}></Divider>
                         <MenuOption onSelect={onGroupPress}>
                             <View style={menuStyles.buttonItem}>
-                                <Icon name='comment-discussion' type='octicon' color={theme.colors.white}></Icon>
+                                <Icon name='comment-discussion' containerStyle={{ width: 40 }} size={30} type='octicon' color={theme.colors.white}></Icon>
                                 <Text style={menuStyles.titleStyle}>发起群聊</Text>
                             </View>
                         </MenuOption>
@@ -95,8 +94,8 @@ const Session = ({ navigation }) => {
     }, [])
 
 
-    const onDirectPress = () => {
-        navigation.push('DirectChat')
+    const onContactPress = () => {
+        navigation.push('Contact')
     }
 
     const onGroupPress = () => {

@@ -1,16 +1,18 @@
 import { Avatar, ListItem, useTheme } from '@rneui/themed'
 import React, { useEffect, useState } from 'react'
 
-interface IListItem {
+export interface IListItem {
     id: string | number
     title: string
     subtitle?: string
     avatar?: string
     right?: string
+    data?: any
 }
 
 interface IProps {
     items: IListItem[]
+    search?: string
 
     accordion?: boolean
     accordionTitle?: string
@@ -24,48 +26,60 @@ interface IProps {
     onSelected?: (items: IListItem[]) => void
 }
 
-export const ListView = (props: IProps) => {
+export const ListView = ({
+    items,
+    search = "",
+    accordion,
+    accordionExpand = true,
+    accordionTitle,
+    enableSelect,
+    multiSelect,
+    onSelected,
+    onLongPressItem,
+    onPressItem,
+}: IProps) => {
 
     const { theme } = useTheme()
-    const { items,
-        accordion,
-        accordionTitle,
-        accordionExpand,
-        enableSelect,
-        multiSelect,
-        onSelected,
-        onLongPressItem,
-        onPressItem } = props
     const [isExpanded, setIsExpanded] = useState(accordionExpand)
+    const [filterdItems, setFilterdItems] = useState(items)
     const [checkedItems, setCheckedItems] = useState<{ [id: string | number]: boolean }>({})
 
     useEffect(() => {
         const _checkItems = {}
-        items.forEach(i => {
+        filterdItems.forEach(i => {
             Object.assign(_checkItems, { [i.id]: false })
         })
-    }, [items])
+    }, [filterdItems])
 
     useEffect(() => {
-
-    }, [checkedItems])
+        if (search !== "") {
+            const _filterdItems = items.filter(i => i.title?.includes(search) || i.subtitle?.includes(search))
+            setFilterdItems(_filterdItems)
+        } else {
+            setFilterdItems(items)
+        }
+        console.log('items', items)
+    }, [items, search])
 
     const onCheckItem = (m) => {
         const values = multiSelect ? { ...checkedItems } : {}
         values[m.id] = !values[m.id]
-        onSelected && onSelected(items.filter(i => values[i.id]))
+        onSelected && onSelected(filterdItems.filter(i => values[i.id]))
         setCheckedItems(values)
     }
 
     const renderListItem = () => {
-        return <>{items.map(m => {
+        return <>{filterdItems.map(m => {
             return (
                 <ListItem topDivider bottomDivider key={m.id}
-                    onPress={() => { onPressItem && onPressItem(m) }}
+                    onPress={() => { enableSelect ? onCheckItem(m) : onPressItem && onPressItem(m) }}
                     onLongPress={() => { onLongPressItem && onLongPressItem(m) }}>
                     {enableSelect && <ListItem.CheckBox checked={checkedItems[m.id]} onPress={() => onCheckItem(m)}></ListItem.CheckBox>}
-                    <Avatar size={50} rounded title={m.title[0]} source={{ uri: m.avatar }}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                    {m.avatar
+                        ? <Avatar size={50} rounded source={{ uri: m.avatar }}
+                            containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                        : <Avatar size={50} rounded title={m.title[0]}
+                            containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                     <ListItem.Content>
                         <ListItem.Title style={{ fontSize: 22 }}>{m.title}</ListItem.Title>
                         <ListItem.Subtitle>{m.subtitle}</ListItem.Subtitle>
@@ -79,7 +93,7 @@ export const ListView = (props: IProps) => {
 
     return accordion ? (<ListItem.Accordion content={
         <ListItem.Content>
-            <ListItem.Title>{accordionTitle}</ListItem.Title>
+            <ListItem.Title>{accordionTitle}({filterdItems.length})</ListItem.Title>
         </ListItem.Content>
     } isExpanded={isExpanded} onPress={() => setIsExpanded(!isExpanded)}>
         {renderListItem()}

@@ -49,7 +49,16 @@ export function Room({ route, navigation }) {
       name: sender.displayName ?? evt.getSender(),
       avatar: sender.avatarUrl ?? '',
     }
+    console.log('message:', evt.getId(), evt.getType())
     switch (evt.event.type) {
+      case EventType.RoomMessageEncrypted:
+        msg = {
+          _id: evt.getId(),
+          text: `[加密消息]`,
+          createdAt: evt.localTimestamp,
+          user: msgUser
+        }
+        break
       case EventType.RoomCreate:
         msg = {
           _id: evt.getId(),
@@ -111,16 +120,18 @@ export function Room({ route, navigation }) {
         msg = {
           _id: evt.getId(),
           text: `[不支持的消息(${evt.getType()})]`,
-          image: client.mxcUrlToHttp(evt.getContent().info.thumbnail_info.thumbnail_url),
-          video: client.mxcUrlToHttp(evt.getContent().url),
+          image: client.mxcUrlToHttp(evt.getContent()?.info?.thumbnail_info?.thumbnail_url),
+          video: client.mxcUrlToHttp(evt.getContent()?.url),
           createdAt: evt.localTimestamp,
           user: msgUser
         }
         console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
         break
     }
-    msg.sent = evt.status === null
-    msg.pending = evt.status !== null
+    if (msg) {
+      msg.sent = evt.status === null
+      msg.pending = evt.status !== null
+    }
     return msg
   }
 
@@ -146,9 +157,15 @@ export function Room({ route, navigation }) {
           },
         }, {
           text: '同意', onPress(value?) {
-            client.joinRoom(room.roomId).then(() => {
-              setRefreshKey(crypto.randomUUID())
-            })
+            if (invitor) {
+              client.acceptFriend(invitor.userId, room.roomId).then(() => {
+                setRefreshKey(crypto.randomUUID())
+              })
+            } else {
+              client.joinRoom(room.roomId).then(() => {
+                setRefreshKey(crypto.randomUUID())
+              })
+            }
           },
         }
       ])
@@ -165,10 +182,12 @@ export function Room({ route, navigation }) {
   // timeline event 转为 消息
   useEffect(() => {
     const newMessages = []
-    const msgEvts = room.getLiveTimeline().getEvents().filter(e => e.getType() === EventType.RoomMessage)
+    const msgEvts = room.getLiveTimeline().getEvents()
+    // .filter(e => [EventType.RoomMessage, ].includes(e.getType() as EventType))
     if (msgEvts.length > 0) {
       msgEvts.forEach(evt => {
-        newMessages.unshift(evtToMsg(evt))
+        const msg = evtToMsg(evt)
+        if (msg) newMessages.unshift(msg)
       })
       setMessages(newMessages)
       const lastEvt = msgEvts[msgEvts.length - 1]
@@ -287,7 +306,7 @@ export function Room({ route, navigation }) {
             avatar: user.avatarUrl
           }}
           renderSend={renderSend}
-          onPressAvatar={(user) => navigation.push('Member', { userId: user._id, roomId: room.roomId })}
+          onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
         />
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>
