@@ -10,7 +10,7 @@ export interface IMemberItem {
 
 interface IProps {
     items: IMemberItem[]
-    containerStyle?: StyleProp<ViewStyle>
+    containerStyle?: any
     onAppendPress?: () => void
     onItemPress?: (IMemberItem) => void
 }
@@ -38,7 +38,7 @@ export const MemberList = ({
 
     return <>
         <View style={{ flexDirection: 'row', ...containerStyle }} onLayout={onLayout}>
-            {items.map(i => <MemberItem width={width / 5}>
+            {items.map(i => <MemberItem key={i.id} width={width / 5}>
                 {i.avatar
                     ? <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={(width / 5) - 16} containerStyle={{ backgroundColor: theme.colors.primary }} source={{ uri: i.avatar }}></Avatar>
                     : <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={(width / 5) - 16} containerStyle={{ backgroundColor: theme.colors.primary }} title={i.name[0]}></Avatar>}

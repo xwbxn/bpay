@@ -6,10 +6,10 @@ import { Badge, Icon } from '@rneui/themed';
 
 import { getCategories } from '../../service/wordpress';
 import { useMatrixClient } from '../../store/useMatrixClient';
-import { GlobalContext } from '../../store/globalContext';
 import { ChatIndex } from '../chat';
 import PostList from '../posts/list';
 import { RoomEvent } from 'matrix-js-sdk';
+import { useGlobalState } from '../../store/globalContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -17,7 +17,7 @@ export default function HomeScreen({ navigation }) {
 
     const { client } = useMatrixClient()
     const [unReadTotal, setUnReadTotal] = useState(0)
-    const { setCategories } = useContext(GlobalContext)
+    const { setCategories } = useGlobalState()
 
     useEffect(() => {
         getCategories({

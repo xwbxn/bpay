@@ -9,6 +9,7 @@ import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/t
 
 import { favTagName, hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
+import Spinner from 'react-native-loading-spinner-overlay/lib';
 
 const Session = ({ navigation }) => {
 

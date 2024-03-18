@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Icon, Image, Tab, TabView, useTheme } from '@rneui/themed';
 
-import { GlobalContext, useProfile } from '../../store/globalContext';
+import { useGlobalState, useProfile } from '../../store/globalContext';
 import PostFlatList from './components/postFlatList';
 
 const getSubCateIds = (root, cates) => {
@@ -25,7 +25,7 @@ export default function PostList({ route, navigation }) {
 
     const { theme } = useTheme()
     const { id } = route.params
-    const { categories } = useContext(GlobalContext)
+    const { categories } = useGlobalState()
     const [navItems, setNavItems] = useState([])
     const [tabIndex, setTabIndex] = useState(0)
     const profile = useProfile((state: any) => state.profile)

@@ -14,11 +14,10 @@ export const MemberProfile = ({ navigation, route }) => {
     }, [])
 
     const { theme } = useTheme()
-    const { userId, roomId } = route.params
+    const { userId } = route.params
     const { client } = useMatrixClient()
 
     const [profile, setProfile] = useState<{ userId: string, avatar_url: string, displayname: string, targetRoomId?: string, isFriend: boolean }>()
-    const { width, height } = useWindowDimensions()
     const [reason, setReason] = useState<string>()
 
     useEffect(() => {
@@ -80,59 +79,87 @@ export const MemberProfile = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     })
 
-    return (
-        <View style={styles.container}>
-            <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-                <ListItem>
-                    <Avatar size={80} rounded title={'谢'}
+    const friendSetting = (<View style={styles.container}>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem>
+                {profile?.avatar_url
+                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }}
                         containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    <ListItem.Content style={{ marginLeft: 10 }}>
-                        <ListItem.Title style={{ fontSize: 30 }}>{'谢文博'}</ListItem.Title>
-                        <ListItem.Subtitle style={{ fontSize: 15 }}>{'123123123'}</ListItem.Subtitle>
-                    </ListItem.Content>
-                </ListItem>
-            </View>
-            <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-                <ListItem containerStyle={styles.listItem}>
-                    <ListItem.Content>
-                        <ListItem.Title style={styles.listItemTitle}>设置备注</ListItem.Title>
-                    </ListItem.Content>
-                    <Text style={styles.listItemText}>{'备注'}</Text>
-                    <ListItem.Chevron></ListItem.Chevron>
-                </ListItem>
-                <ListItem containerStyle={styles.listItem}>
-                    <ListItem.Content>
-                        <ListItem.Title style={styles.listItemTitle}>消息免打扰</ListItem.Title>
-                    </ListItem.Content>
-                    <Switch style={{ height: 20 }}></Switch>
-                </ListItem>
-                <Divider></Divider>
-                <ListItem containerStyle={styles.listItem}>
-                    <ListItem.Content>
-                        <ListItem.Title style={styles.listItemTitle}>置顶聊天</ListItem.Title>
-                    </ListItem.Content>
-                    <Switch style={{ height: 20 }}></Switch>
-                </ListItem>
-            </View>
-            <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-                <ListItem containerStyle={styles.listItem}>
-                    <ListItem.Content style={{ alignItems: 'center', flexDirection: 'row' }}>
-                        <Icon size={28} color={theme.colors.primary} name='chatbox-ellipses-outline' type='ionicon'></Icon>
-                        <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary, marginLeft: 5 }}>
-                            发消息</ListItem.Title>
-                    </ListItem.Content>
-                </ListItem>
-            </View>
-            <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-                <ListItem containerStyle={styles.listItem}>
-                    <ListItem.Content style={{ alignItems: 'center' }}>
-                        <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.error }}>删除好友</ListItem.Title>
-                    </ListItem.Content>
-                </ListItem>
-            </View>
+                    : <Avatar size={80} rounded title={profile?.displayname[0]}
+                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
+                <ListItem.Content style={{ marginLeft: 10 }}>
+                    <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
+                    <ListItem.Subtitle style={{ fontSize: 15 }}>{profile?.userId}</ListItem.Subtitle>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>设置备注</ListItem.Title>
+                </ListItem.Content>
+                <Text style={styles.listItemText}>{'备注'}</Text>
+                <ListItem.Chevron></ListItem.Chevron>
+            </ListItem>
+            <ListItem containerStyle={styles.listItem}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>消息免打扰</ListItem.Title>
+                </ListItem.Content>
+                <Switch style={{ height: 20 }}></Switch>
+            </ListItem>
+            <Divider></Divider>
+            <ListItem containerStyle={styles.listItem}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>置顶聊天</ListItem.Title>
+                </ListItem.Content>
+                <Switch style={{ height: 20 }}></Switch>
+            </ListItem>
+        </View>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem} onPress={startChat}>
+                <ListItem.Content style={{ alignItems: 'center', flexDirection: 'row' }}>
+                    <Icon size={28} color={theme.colors.primary} name='chatbox-ellipses-outline' type='ionicon'></Icon>
+                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary, marginLeft: 5 }}>
+                        发消息</ListItem.Title>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem} onPress={deleteMember}>
+                <ListItem.Content style={{ alignItems: 'center' }}>
+                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.error }}>
+                        删除好友</ListItem.Title>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+    </View >)
 
-        </View >
-    )
+    const foreignerSetting = (<View style={styles.container}>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem>
+                {profile?.avatar_url
+                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }}
+                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                    : <Avatar size={80} rounded title={profile?.displayname[0]}
+                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
+                <ListItem.Content style={{ marginLeft: 10 }}>
+                    <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
+                    <ListItem.Subtitle style={{ fontSize: 15 }}>{profile?.userId}</ListItem.Subtitle>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem} onPress={inviteMember}>
+                <ListItem.Content style={{ alignItems: 'center' }}>
+                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary }}>
+                        申请添加为好友</ListItem.Title>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+    </View >)
+
+    return profile?.isFriend ? friendSetting : foreignerSetting
 }
 
 const styles = StyleSheet.create({

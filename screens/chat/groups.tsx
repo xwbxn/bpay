@@ -8,7 +8,7 @@ import { BottomSheet, Button, Input, SearchBar, Text, useTheme } from '@rneui/th
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 
-export const GroupChat = ({ navigation }) => {
+export const GroupChat = ({ navigation, route }) => {
 
     useEffect(() => {
         // set nav bar
@@ -16,6 +16,8 @@ export const GroupChat = ({ navigation }) => {
             title: '发起群聊'
         })
     }, [])
+
+    const {initValue} = route.params
 
     const { theme } = useTheme()
     const { client } = useMatrixClient()

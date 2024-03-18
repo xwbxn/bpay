@@ -9,9 +9,10 @@ import { MenuProvider } from 'react-native-popup-menu';
 import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
-import { GlobalContext, IGlobalContext } from './store/globalContext';
+import { useGlobalState } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Spinner from 'react-native-loading-spinner-overlay';
 
 const theme = createTheme({
 });
@@ -21,6 +22,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
 
   const { client } = useMatrixClient()
+  const { ready, loading } = useGlobalState()
 
   useEffect(() => {
     AsyncStorage.getItem("MATRIX_AUTH").then(data => {
@@ -34,36 +36,19 @@ export default function App() {
     })
   }, [])
 
-
-  const [globalState, setGlobalState] = useState<IGlobalContext>({
-    ready: true,
-    categories: [],
-
-    setCategories(state) {
-      setGlobalState({
-        ...globalState,
-        categories: state
-      })
-    },
-  })
-
-
-
-  return (
-    <GlobalContext.Provider value={globalState}>
-      <ThemeProvider theme={theme}>
-        <MenuProvider>
-          {globalState.ready &&
-            <NavigationContainer>
-              <Stack.Navigator screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="Home" component={HomeScreen} />
-                <Stack.Screen name="PostDetail" component={PostDetail} />
-                <Stack.Screen name="Login" component={Login} />
-              </Stack.Navigator>
-            </NavigationContainer>}
-          <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
-        </MenuProvider>
-      </ThemeProvider>
-    </GlobalContext.Provider>
-  );
+  return <>
+    <Spinner visible={loading} textContent={'Loading...'}></Spinner>
+    <ThemeProvider theme={theme}>
+      <MenuProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="PostDetail" component={PostDetail} />
+            <Stack.Screen name="Login" component={Login} />
+          </Stack.Navigator>
+        </NavigationContainer>
+        <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
+      </MenuProvider>
+    </ThemeProvider>
+  </>
 }
