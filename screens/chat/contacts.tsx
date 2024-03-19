@@ -1,13 +1,14 @@
 import { ClientEvent } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button, SearchBar, useTheme } from '@rneui/themed';
 
+import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 
-export const Contacts = ({ navigation }) => {
+export const Contacts = ({ navigation, route }) => {
 
     useEffect(() => {
         // set nav bar
@@ -16,6 +17,7 @@ export const Contacts = ({ navigation }) => {
         })
     }, [])
 
+    const { setLoading } = useGlobalState()
     const { theme } = useTheme()
     const { client } = useMatrixClient()
     const [searchVal, setSearchVal] = useState("");
@@ -80,14 +82,23 @@ export const Contacts = ({ navigation }) => {
 
     const searchUser = () => {
         const fullId = /@(.*):chat\.b-pay\.life/.test(searchVal) ? searchVal : `@${searchVal}:chat.b-pay.life`
-        client.getProfileInfo(fullId).then(res => {
-            setSearchMembers([{
-                id: fullId,
-                title: res?.displayname ?? fullId,
-                subtitle: fullId,
-                avatar: res?.avatar_url
-            }])
-        })
+        if (friends.map(i => i.id).includes(fullId)) {
+            setSearchMembers([])
+        } else {
+            setLoading(true)
+            client.getProfileInfo(fullId).then(res => {
+                setSearchMembers([{
+                    id: fullId,
+                    title: res?.displayname ?? fullId,
+                    subtitle: fullId,
+                    avatar: res?.avatar_url
+                }])
+            }).catch(e => {
+                Alert.alert('错误', e.toString())
+            }).finally(() => {
+                setLoading(false)
+            })
+        }
     }
 
     const onPressMember = (m: IListItem) => {
@@ -99,8 +110,13 @@ export const Contacts = ({ navigation }) => {
     }
 
     const onPressPublicGroup = (g: IListItem) => {
+        setLoading(true)
         client.joinRoom(g.id as string).then(room => {
             navigation.replace('Room', { id: g.id })
+        }).catch(e => {
+            Alert.alert('错误', e.toString())
+        }).finally(() => {
+            setLoading(false)
         })
     }
 

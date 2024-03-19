@@ -3,13 +3,13 @@ import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '@rneui/themed';
 
+import { useMatrixClient } from '../../store/useMatrixClient';
 import { Contacts } from './contacts';
+import { GroupChat } from './groups';
+import { MemberProfile } from './member';
 import { Room } from './room';
 import { RoomSetting } from './roomSetting';
 import Session from './sessions';
-import { MemberProfile } from './member';
-import { GroupChat } from './groups';
-import { useMatrixClient } from '../../store/useMatrixClient';
 
 const Stack = createNativeStackNavigator();
 export const ChatIndex = ({ navigation, route }) => {

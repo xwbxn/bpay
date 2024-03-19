@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MemoryCryptoStore, MemoryStore, Preset, RoomEvent, RoomMember, RoomMemberEvent, SyncState, Visibility } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
-import { useState } from 'react';
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
 
@@ -201,6 +200,15 @@ export const useMatrixClient = () => {
                     _client.deleteRoomTag(room.roomId, hiddenTagName)
                 }
             })
+        })
+
+        _client.on(RoomEvent.Name, (room) => {
+            if (room && room.normalizedName.startsWith("ernptyroornwas")) {
+                const hisFriend = room.normalizedName.split("ernptyroornwas")[1]
+                if (hisFriend) {
+                    _client.setRoomName(room.roomId, hisFriend)
+                }
+            }
         })
     }
 

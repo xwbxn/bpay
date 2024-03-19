@@ -2,9 +2,7 @@ import 'dayjs/locale/zh';
 
 import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
-import {
-  EventType, IContent, MatrixEvent, MatrixEventEvent, MsgType, NotificationCountType, ReceiptType, RoomEvent, RoomStateEvent
-} from 'matrix-js-sdk';
+import { EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
@@ -23,6 +21,7 @@ export function Room({ route, navigation }) {
   const { client } = useMatrixClient()
   const room = client.getRoom(id)
   const user = client.getUser(client.getUserId())
+  const isFriendRoom = client.isFriendRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
 
   const [messages, setMessages] = useState([])
@@ -32,7 +31,7 @@ export function Room({ route, navigation }) {
   useEffect(() => {
     // set nav bar
     navigation.setOptions({
-      title: room.name,
+      title: room?.name,
       headerRight: () => {
         return <Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
           onPress={() => { navigation.push('RoomSetting', { id: room.roomId }) }}></Icon>
@@ -49,7 +48,7 @@ export function Room({ route, navigation }) {
       name: sender.displayName ?? evt.getSender(),
       avatar: sender.avatarUrl ?? '',
     }
-    console.log('message:', evt.getId(), evt.getType())
+    console.log('message:', evt.getId(), evt.getType(), evt.getContent())
     switch (evt.event.type) {
       case EventType.RoomMessageEncrypted:
         msg = {
@@ -60,19 +59,21 @@ export function Room({ route, navigation }) {
         }
         break
       case EventType.RoomCreate:
-        msg = {
-          _id: evt.getId(),
-          text: `${evt.getContent().displayname} 创建了聊天`,
-          createdAt: evt.localTimestamp,
-          system: true,
-          user: msgUser
+        if (!isFriendRoom) {
+          msg = {
+            _id: evt.getId(),
+            text: `${evt.getSender()} 创建了群聊`,
+            createdAt: evt.localTimestamp,
+            system: true,
+            user: msgUser
+          }
         }
         break
       case EventType.RoomMember:
         if (evt.getContent().membership === 'join') {
           msg = {
             _id: evt.getId(),
-            text: `${evt.getContent().displayname} 加入了聊天`,
+            text: isFriendRoom ? `${evt.getContent().displayname} 开始了聊天` : `${evt.getContent().displayname} 加入了群聊`,
             createdAt: evt.localTimestamp,
             system: true,
             user: msgUser
@@ -80,7 +81,15 @@ export function Room({ route, navigation }) {
         } else if (evt.getContent().membership === 'leave') {
           msg = {
             _id: evt.getId(),
-            text: `${evt.getContent().displayname} 离开了聊天`,
+            text: isFriendRoom ? `${evt.getContent().displayname} 已将您从好友中删除` : `${evt.getContent().displayname} 离开了群聊`,
+            createdAt: evt.localTimestamp,
+            system: true,
+            user: msgUser
+          }
+        } else if (isFriendRoom && evt.getContent().membership === 'invite') {
+          msg = {
+            _id: evt.getId(),
+            text: `向 ${evt.getContent().displayname} 发起了好友申请`,
             createdAt: evt.localTimestamp,
             system: true,
             user: msgUser
@@ -117,21 +126,22 @@ export function Room({ route, navigation }) {
         }
         break
       default:
-        msg = {
-          _id: evt.getId(),
-          text: `[不支持的消息(${evt.getType()})]`,
-          image: client.mxcUrlToHttp(evt.getContent()?.info?.thumbnail_info?.thumbnail_url),
-          video: client.mxcUrlToHttp(evt.getContent()?.url),
-          createdAt: evt.localTimestamp,
-          user: msgUser
-        }
-        console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
+        // msg = {
+        //   _id: evt.getId(),
+        //   text: `[不支持的消息(${evt.getType()})]`,
+        //   image: client.mxcUrlToHttp(evt.getContent()?.info?.thumbnail_info?.thumbnail_url),
+        //   video: client.mxcUrlToHttp(evt.getContent()?.url),
+        //   createdAt: evt.localTimestamp,
+        //   user: msgUser
+        // }
+        // console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
         break
     }
     if (msg) {
       msg.sent = evt.status === null
       msg.pending = evt.status !== null
     }
+
     return msg
   }
 
@@ -273,12 +283,16 @@ export function Room({ route, navigation }) {
 
   // 发送按钮
   const renderSend = useCallback((props: SendProps<IMessage>) => {
+    const disabled = client.isFriendRoom(room.roomId) && room.getJoinedMemberCount() === 1
     return (
       <>
-        <Send {...props} alwaysShowSend containerStyle={{ justifyContent: 'center' }}>
+        <Send disabled={disabled}
+          {...props} alwaysShowSend containerStyle={{ justifyContent: 'center' }}>
           <View style={{ flexDirection: 'row', paddingHorizontal: 10 }}>
-            {props.text === "" && <Icon name='plus-circle' type='feather' size={30} onPress={() => { setBottomSheetShow((prev) => !prev) }}></Icon>}
-            {props.text !== "" && <MaterialIcons size={30} color={theme.colors.primary} name={'send'} />}
+            {props.text === "" && <Icon name='plus-circle' disabled={disabled} disabledStyle={{ backgroundColor: theme.colors.background }}
+              type='feather' size={30} onPress={() => { setBottomSheetShow((prev) => !prev) }}
+              color={disabled ? theme.colors.disabled : theme.colors.primary}></Icon>}
+            {props.text !== "" && <MaterialIcons size={30} color={disabled ? theme.colors.disabled : theme.colors.primary} name={'send'} />}
           </View>
         </Send>
       </>

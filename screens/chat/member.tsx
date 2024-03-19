@@ -1,8 +1,13 @@
-import { Avatar, useTheme, Text, Button, Input, ListItem, Divider, Icon } from '@rneui/themed'
-import React, { useEffect, useState } from 'react'
-import { Alert, Switch, TextInput, useWindowDimensions } from 'react-native'
-import { View, StyleSheet } from 'react-native'
-import { useMatrixClient } from '../../store/useMatrixClient'
+import * as ImagePicker from 'expo-image-picker';
+import React, { useEffect, useState } from 'react';
+import { Alert, StyleSheet, Switch, View } from 'react-native';
+import URI from 'urijs';
+
+import { Avatar, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
+
+import { useGlobalState } from '../../store/globalContext';
+import { useMatrixClient } from '../../store/useMatrixClient';
+import { IPropEditorProps, PropEditor } from './components/PropEditor';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -13,12 +18,15 @@ export const MemberProfile = ({ navigation, route }) => {
         })
     }, [])
 
+    const { setLoading } = useGlobalState()
     const { theme } = useTheme()
     const { userId } = route.params
     const { client } = useMatrixClient()
+    const isMe = userId === client.getUserId()
 
     const [profile, setProfile] = useState<{ userId: string, avatar_url: string, displayname: string, targetRoomId?: string, isFriend: boolean }>()
     const [reason, setReason] = useState<string>()
+    const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
 
     useEffect(() => {
         if (client.isFriend(userId)) {
@@ -49,10 +57,16 @@ export const MemberProfile = ({ navigation, route }) => {
         })
     }
 
-    const inviteMember = () => {
-        client.inviteFriend(userId, reason).then(() => {
+    const inviteMember = async () => {
+        setLoading(true)
+        try {
+            await client.inviteFriend(userId, reason)
             navigation.replace('Sessions')
-        })
+        } catch (e) {
+            Alert.alert('错误', e.toString())
+        } finally {
+            setLoading(false)
+        }
     }
 
     const deleteMember = () => {
@@ -64,11 +78,69 @@ export const MemberProfile = ({ navigation, route }) => {
             },
             {
                 text: '确认', onPress: async () => {
-                    await client.deleteFriend(userId)
-                    navigation.goBack()
+                    setLoading(true)
+                    try {
+                        await client.deleteFriend(userId)
+                        navigation.goBack()
+                    } finally {
+                        setLoading(false)
+                    }
+
                 }
             },
         ]);
+    }
+
+    const onSetAvatar = async () => {
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 4],
+            quality: 1,
+        });
+        if (!result.canceled) {
+            result.assets.forEach(async (a) => {
+                const fileUri = new URI(a.uri)
+                const response = await fetch(a.uri)
+                const blob = await response.blob()
+                const upload = await client.uploadContent(blob, {
+                    name: fileUri.filename()
+                })
+                const avatar_url = client.mxcUrlToHttp(upload.content_uri, 80, 80, 'scale', true, true)
+                await client.setAvatarUrl(avatar_url)
+                setProfile({
+                    ...profile,
+                    avatar_url: avatar_url
+                })
+            })
+        }
+    }
+
+    const setMyNickName = () => {
+        setEditProps({
+            isVisible: true,
+            title: '设置昵称',
+            props: {
+                name: {
+                    value: profile?.displayname,
+                    title: '昵称'
+                },
+            },
+            onSave(data) {
+                setLoading(true)
+                client.setDisplayName(data.name.value).then(() => {
+                    setProfile({
+                        ...profile, displayname: data.name.value
+                    })
+                    setEditProps({ isVisible: false })
+                }).finally(() => {
+                    setLoading(false)
+                })
+            },
+            onCancel() {
+                setEditProps({ isVisible: false })
+            },
+        })
     }
 
     const styles = StyleSheet.create({
@@ -83,9 +155,9 @@ export const MemberProfile = ({ navigation, route }) => {
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <ListItem>
                 {profile?.avatar_url
-                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }}
+                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }} onPress={() => { isMe && onSetAvatar() }}
                         containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    : <Avatar size={80} rounded title={profile?.displayname[0]}
+                    : <Avatar size={80} rounded title={profile?.displayname[0]} onPress={() => { isMe && onSetAvatar() }}
                         containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                 <ListItem.Content style={{ marginLeft: 10 }}>
                     <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
@@ -101,6 +173,7 @@ export const MemberProfile = ({ navigation, route }) => {
                 <Text style={styles.listItemText}>{'备注'}</Text>
                 <ListItem.Chevron></ListItem.Chevron>
             </ListItem>
+            <Divider></Divider>
             <ListItem containerStyle={styles.listItem}>
                 <ListItem.Content>
                     <ListItem.Title style={styles.listItemTitle}>消息免打扰</ListItem.Title>
@@ -159,7 +232,70 @@ export const MemberProfile = ({ navigation, route }) => {
         </View>
     </View >)
 
-    return profile?.isFriend ? friendSetting : foreignerSetting
+    const mySetting = (<View style={styles.container}>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem>
+                {profile?.avatar_url
+                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }} onPress={() => { isMe && onSetAvatar() }}
+                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                    : <Avatar size={80} rounded title={profile?.displayname[0]} onPress={() => { isMe && onSetAvatar() }}
+                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
+                <ListItem.Content style={{ marginLeft: 10 }}>
+                    <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
+                    <ListItem.Subtitle style={{ fontSize: 15 }}>{profile?.userId}</ListItem.Subtitle>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem} onPress={setMyNickName}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>设置昵称</ListItem.Title>
+                </ListItem.Content>
+                <Text style={styles.listItemText}>{profile?.displayname}</Text>
+                <ListItem.Chevron></ListItem.Chevron>
+            </ListItem>
+            <Divider></Divider>
+            <ListItem containerStyle={styles.listItem} onPress={onSetAvatar}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>设置头像</ListItem.Title>
+                </ListItem.Content>
+                <Avatar size={24} source={{ uri: profile?.avatar_url }}></Avatar>
+                <ListItem.Chevron></ListItem.Chevron>
+            </ListItem>
+            <Divider></Divider>
+            <ListItem containerStyle={styles.listItem}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>我的收藏</ListItem.Title>
+                </ListItem.Content>
+                <ListItem.Chevron onPress={onSetAvatar}></ListItem.Chevron>
+            </ListItem>
+        </View>
+
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem} >
+                <ListItem.Content style={{ alignItems: 'center' }}>
+                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary }}>
+                        修改密码</ListItem.Title>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
+            <ListItem containerStyle={styles.listItem} >
+                <ListItem.Content style={{ alignItems: 'center' }}>
+                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.error }}>
+                        退出登录</ListItem.Title>
+                </ListItem.Content>
+            </ListItem>
+        </View>
+    </View >)
+
+    return <>
+        <PropEditor editProps={editProps}></PropEditor>
+        {isMe && mySetting}
+        {!isMe && profile?.isFriend && friendSetting}
+        {!isMe && !profile?.isFriend && foreignerSetting}
+    </>
 }
 
 const styles = StyleSheet.create({

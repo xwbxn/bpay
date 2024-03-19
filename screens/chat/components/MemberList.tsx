@@ -1,6 +1,7 @@
-import { Avatar, Icon, Text, useTheme } from '@rneui/themed'
-import React, { useEffect, useRef, useState } from 'react'
-import { LayoutChangeEvent, StyleProp, View, ViewStyle } from 'react-native'
+import React, { useState } from 'react';
+import { LayoutChangeEvent, View, } from 'react-native';
+
+import { Avatar, Text, useTheme } from '@rneui/themed';
 
 export interface IMemberItem {
     id: string,
@@ -45,7 +46,7 @@ export const MemberList = ({
                 <Text style={{ color: theme.colors.grey3 }}>{i.name}</Text>
             </MemberItem>)}
             <MemberItem width={width / 5}>
-                <Avatar size={(width / 5) - 16} rounded
+                <Avatar size={(width / 5) - 16} rounded onPress={() => { onAppendPress && onAppendPress() }}
                     icon={{ name: 'plus', type: 'simple-line-icon', color: theme.colors.primary, size: (width / 5) - 18 }}
                     containerStyle={{ backgroundColor: theme.colors.background }}></Avatar>
             </MemberItem>

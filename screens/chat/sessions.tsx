@@ -4,12 +4,11 @@ import { ClientEvent, EventType, NotificationCountType, Room, RoomEvent } from '
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
+import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
 
 import { favTagName, hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
-import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
-import Spinner from 'react-native-loading-spinner-overlay/lib';
 
 const Session = ({ navigation }) => {
 
@@ -51,6 +50,10 @@ const Session = ({ navigation }) => {
                         </MenuOption>
                     </MenuOptions>
                 </Menu>
+            }, headerLeft: () => {
+                return <Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
+                    onPress={() => { navigation.push('Member', { userId: client.getUserId() }) }}
+                    name="user" type="font-awesome" ></Icon>
             }
         })
     }, [])
@@ -90,7 +93,6 @@ const Session = ({ navigation }) => {
             client.off(RoomEvent.MyMembership, refreshRooms)
             client.off(RoomEvent.Tags, refreshRooms)
             client.off(RoomEvent.Name, refreshRooms)
-
         }
     }, [])
 
@@ -118,7 +120,7 @@ const Session = ({ navigation }) => {
     }
 
     const handleHide = (item: Room) => {
-        if (item.getJoinedMemberCount() === 1) {
+        if (item.getInvitedAndJoinedMemberCount() === 1) {
             client.leave(item.roomId).then(() => {
                 client.forget(item.roomId)
             })
@@ -128,6 +130,7 @@ const Session = ({ navigation }) => {
     }
 
     const renderItem = ({ item }: { item: Room }) => {
+        const isFriendRoom = client.isFriendRoom(item.roomId)
         let title = item.name
         let subTitle = ''
         let updateAt = new Date().getTime()
@@ -167,7 +170,7 @@ const Session = ({ navigation }) => {
             <Menu>
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
                     <ListItem topDivider bottomDivider>
-                        <Avatar size={50} rounded title={title[0]} containerStyle={{ backgroundColor: theme.colors.primary }}>
+                        <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'} containerStyle={{ backgroundColor: theme.colors.primary }}>
                             {item.getUnreadNotificationCount() > 0
                                 && <Badge value={item.getUnreadNotificationCount()} status="error"
                                     containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}

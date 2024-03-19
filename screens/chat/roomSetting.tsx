@@ -1,20 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 
-import { Avatar, Button, Icon, ListItem, useTheme, Text, Divider, Input, Switch } from '@rneui/themed';
+import {
+    Divider, Icon, ListItem, Switch, Text, useTheme
+} from '@rneui/themed';
 
+import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
-import { IMemberItem, MemberList } from './components/MemberList';
 import { IListItem } from './components/ListView';
+import { IMemberItem, MemberList } from './components/MemberList';
+import { IPropEditorProps, PropEditor } from './components/PropEditor';
 
 export const RoomSetting = ({ navigation, route }) => {
 
+    const { setLoading } = useGlobalState()
     const { id } = route.params
     const { client } = useMatrixClient()
     const room = client.getRoom(id)
     const isFriendRoom = client.isFriendRoom(room.roomId)
     const { theme } = useTheme()
     const [roomMembers, setRoomMembers] = useState<IMemberItem[]>([])
+
+    const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
 
     useEffect(() => {
         // set nav bar
@@ -42,8 +49,15 @@ export const RoomSetting = ({ navigation, route }) => {
             },
             {
                 text: '确认', onPress: async () => {
-                    client.leave(room.roomId)
-                    navigation.replace('Sessions')
+                    setLoading(true)
+                    try {
+                        await client.leave(room.roomId)
+                        navigation.replace('Sessions')
+                    } catch (e) {
+                        Alert.alert('错误', e.toString())
+                    } finally {
+                        setLoading(false)
+                    }
                 }
             },
         ])
@@ -51,6 +65,44 @@ export const RoomSetting = ({ navigation, route }) => {
 
     const onMemberPress = (item: IListItem) => {
         navigation.push('Member', { userId: item.id, roomId: room.roomId })
+    }
+
+    const onFriendToGroup = () => {
+        const friend = roomMembers.filter(i => i.id !== client.getUserId())
+        navigation.push('GroupChat', { initMembers: friend.map(i => i.id) })
+    }
+
+    const onInviteToGroup = () => {
+        navigation.push('GroupChat', { initMembers: roomMembers.map(i => i.id), roomId: room.roomId })
+    }
+
+    const setRoomName = () => {
+        setEditProps({
+            isVisible: true,
+            title: '设置群聊名称',
+            props: {
+                name: {
+                    title: '名称',
+                    value: room.name
+                }
+            },
+            onSave(props) {
+                setLoading(true)
+                client.setRoomName(room.roomId, props.name.value)
+                    .then(() => {
+                        setEditProps({ isVisible: false })
+                        room.name = props.name.value
+                    })
+                    .catch(e => {
+                        Alert.alert('错误', e.toString())
+                    }).finally(() => {
+                        setLoading(false)
+                    })
+            },
+            onCancel() {
+                setEditProps({ isVisible: false })
+            },
+        })
     }
 
     const styles = StyleSheet.create({
@@ -64,10 +116,11 @@ export const RoomSetting = ({ navigation, route }) => {
     const groupSetting = <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} items={roomMembers}
+                onAppendPress={onInviteToGroup}
                 onItemPress={onMemberPress}></MemberList>
         </View>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem}>
+            <ListItem containerStyle={styles.listItem} onPress={setRoomName}>
                 <ListItem.Content>
                     <ListItem.Title style={styles.listItemTitle}>群聊名称</ListItem.Title>
                 </ListItem.Content>
@@ -141,6 +194,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const friendSetting = <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} onItemPress={onMemberPress}
+                onAppendPress={onFriendToGroup}
                 items={roomMembers.filter(i => i.id !== client.getUserId())}></MemberList>
         </View>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
@@ -168,5 +222,8 @@ export const RoomSetting = ({ navigation, route }) => {
         </View>
     </View>
 
-    return isFriendRoom ? friendSetting : groupSetting
+    return <>
+        <PropEditor editProps={editProps}></PropEditor>
+        {isFriendRoom ? friendSetting : groupSetting}
+    </>
 }

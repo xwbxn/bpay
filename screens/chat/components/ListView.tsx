@@ -1,5 +1,6 @@
-import { Avatar, ListItem, useTheme } from '@rneui/themed'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
+
+import { Avatar, ListItem, useTheme } from '@rneui/themed';
 
 export interface IListItem {
     id: string | number
@@ -12,6 +13,7 @@ export interface IListItem {
 
 interface IProps {
     items: IListItem[]
+    itemKey?: string
     search?: string
 
     accordion?: boolean
@@ -20,6 +22,7 @@ interface IProps {
 
     enableSelect?: boolean
     multiSelect?: boolean
+    selectedValue?: (string | number)[]
 
     onPressItem?: (item: IListItem) => void
     onLongPressItem?: (item: IListItem) => void
@@ -28,12 +31,14 @@ interface IProps {
 
 export const ListView = ({
     items,
+    itemKey = "id",
     search = "",
     accordion,
     accordionExpand = true,
     accordionTitle,
     enableSelect,
     multiSelect,
+    selectedValue = [],
     onSelected,
     onLongPressItem,
     onPressItem,
@@ -45,27 +50,34 @@ export const ListView = ({
     const [checkedItems, setCheckedItems] = useState<{ [id: string | number]: boolean }>({})
 
     useEffect(() => {
-        const _checkItems = {}
-        filterdItems.forEach(i => {
-            Object.assign(_checkItems, { [i.id]: false })
-        })
-    }, [filterdItems])
-
-    useEffect(() => {
         if (search !== "") {
             const _filterdItems = items.filter(i => i.title?.includes(search) || i.subtitle?.includes(search))
             setFilterdItems(_filterdItems)
         } else {
             setFilterdItems(items)
         }
-        console.log('items', items)
     }, [items, search])
+
+    useEffect(() => {
+        const values = multiSelect ? { ...checkedItems } : {}
+        selectedValue.forEach(i => {
+            values[i] = true
+        })
+        setCheckedItems(values)
+    }, [])
+
 
     const onCheckItem = (m) => {
         const values = multiSelect ? { ...checkedItems } : {}
         values[m.id] = !values[m.id]
         onSelected && onSelected(filterdItems.filter(i => values[i.id]))
         setCheckedItems(values)
+
+        if (values[m.id]) {
+            selectedValue.push(m.id)
+        } else {
+            selectedValue.splice(selectedValue.indexOf(m.id), 1)
+        }
     }
 
     const renderListItem = () => {
@@ -74,7 +86,8 @@ export const ListView = ({
                 <ListItem topDivider bottomDivider key={m.id}
                     onPress={() => { enableSelect ? onCheckItem(m) : onPressItem && onPressItem(m) }}
                     onLongPress={() => { onLongPressItem && onLongPressItem(m) }}>
-                    {enableSelect && <ListItem.CheckBox checked={checkedItems[m.id]} onPress={() => onCheckItem(m)}></ListItem.CheckBox>}
+                    {enableSelect && <ListItem.CheckBox checked={checkedItems[m.id]}
+                        onPress={() => onCheckItem(m)}></ListItem.CheckBox>}
                     {m.avatar
                         ? <Avatar size={50} rounded source={{ uri: m.avatar }}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>

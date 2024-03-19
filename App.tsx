@@ -37,7 +37,7 @@ export default function App() {
   }, [])
 
   return <>
-    <Spinner visible={loading} textContent={'Loading...'}></Spinner>
+    <Spinner visible={loading}></Spinner>
     <ThemeProvider theme={theme}>
       <MenuProvider>
         <NavigationContainer>
