@@ -61,7 +61,7 @@ export default function Login({ navigation, route }) {
             client.startClient()
             navigation.replace('Home')
         }).catch(res => {
-            Alert.alert(res)
+            Alert.alert(res.toString())
         })
     }
 

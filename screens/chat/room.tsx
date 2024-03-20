@@ -163,7 +163,7 @@ export function Room({ route, navigation }) {
     const refreshMessage = () => {
       setRefreshKey(crypto.randomUUID())
     }
-    if (room.tags[hiddenTagName]) {
+    if (room?.tags[hiddenTagName]) {
       client.deleteRoomTag(room.roomId, hiddenTagName)
     }
 
