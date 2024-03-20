@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { StyleSheet, TouchableOpacity, View } from 'react-native'
+import { StyleSheet } from 'react-native'
 import { Image } from 'expo-image';
 import * as vt from 'expo-video-thumbnails';
 import { Icon, useTheme } from '@rneui/themed';
@@ -14,12 +14,11 @@ export const VideoThumbnails = ({ imageProps, imageStyle, uri }) => {
         })
     }, [uri])
 
-    return <TouchableOpacity onPress={() => { }}>
+    return <>
         <Icon containerStyle={{ position: 'absolute', zIndex: 1, width: '100%', height: '100%', justifyContent: 'center' }}
             size={50} name='play' type='octicon' color={theme.colors.grey1} ></Icon>
         <Image {...imageProps} style={[styles.image, imageStyle, { opacity: 0.8 }]} source={{ uri: thumbnails }} />
-    </TouchableOpacity>
-
+    </>
 }
 
 const styles = StyleSheet.create({

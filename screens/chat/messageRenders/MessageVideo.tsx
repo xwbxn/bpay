@@ -1,17 +1,19 @@
 import PropTypes from 'prop-types';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 // TODO: support web
 import { StylePropType } from 'react-native-gifted-chat';
 import { VideoThumbnails } from './VideoThumbnails';
 
-export const MessageVideo = ({ containerStyle, lightboxProps = {}, imageProps = {}, imageStyle, currentMessage, }) => {
+export const MessageVideo = ({ containerStyle, lightboxProps = {}, imageProps = {}, imageStyle, currentMessage, onLongPress }) => {
   if (currentMessage == null) {
     return null;
   }
 
   return (<View style={[styles.container, containerStyle]}>
-    <VideoThumbnails uri={currentMessage.video} imageProps imageStyle></VideoThumbnails>
+    <TouchableOpacity onLongPress={() => onLongPress({}, currentMessage)}>
+      <VideoThumbnails uri={currentMessage.video} imageProps imageStyle></VideoThumbnails>
+    </TouchableOpacity>
   </View>);
 }
 

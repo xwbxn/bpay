@@ -389,8 +389,6 @@ export function Room({ route, navigation }) {
           onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
           renderMessageImage={MessageImage}
           renderMessageVideo={MessageVideo}
-          lightboxProps={{onLongPress:}}
-          onPress={(_, m) => { console.log('m', m) }}
         />
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>

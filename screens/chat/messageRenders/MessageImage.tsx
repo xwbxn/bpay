@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
         resizeMode: 'contain',
     },
 });
-export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = {}, imageStyle, currentMessage, }) => {
+export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = {}, imageStyle, currentMessage, onLongPress }) => {
     if (currentMessage == null) {
         return null;
     }
@@ -28,8 +28,9 @@ export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = 
         {// @ts-ignore: 2322
             <Lightbox activeProps={{
                 style: styles.imageActive,
-            }} {...lightboxProps}>
-
+            }} {...lightboxProps}
+                onLongPress={() => { onLongPress({}, currentMessage) }}
+            >
                 <Image {...imageProps} style={[styles.image, imageStyle]} source={{ uri: currentMessage.image }} />
             </Lightbox>
         }
