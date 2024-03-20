@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 
+import { RootSiblingParent } from 'react-native-root-siblings';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createTheme, ThemeProvider } from '@rneui/themed';
@@ -37,18 +38,20 @@ export default function App() {
   }, [])
 
   return <>
-    <Spinner visible={loading}></Spinner>
-    <ThemeProvider theme={theme}>
-      <MenuProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="PostDetail" component={PostDetail} />
-            <Stack.Screen name="Login" component={Login} />
-          </Stack.Navigator>
-        </NavigationContainer>
-        <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
-      </MenuProvider>
-    </ThemeProvider>
+    <RootSiblingParent>
+      <Spinner visible={loading}></Spinner>
+      <ThemeProvider theme={theme}>
+        <MenuProvider>
+          <NavigationContainer>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="PostDetail" component={PostDetail} />
+              <Stack.Screen name="Login" component={Login} />
+            </Stack.Navigator>
+          </NavigationContainer>
+          <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
+        </MenuProvider>
+      </ThemeProvider>
+    </RootSiblingParent>
   </>
 }

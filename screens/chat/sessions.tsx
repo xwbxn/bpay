@@ -1,6 +1,6 @@
 import 'moment/locale/zh-cn';
 
-import { ClientEvent, EventType, NotificationCountType, Room, RoomEvent } from 'matrix-js-sdk';
+import { ClientEvent, EventType, MsgType, NotificationCountType, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -67,9 +67,9 @@ const Session = ({ navigation }) => {
             const sortedRooms = [...client.getRooms()]
                 .filter(r => !r.tags[hiddenTagName])
                 .sort((a, b) => {
-                    if (a.tags[favTagName] && !b.tags[favTagName]) {
+                    if (client.isRoomOnTop(a.roomId) && !client.isRoomOnTop(b.roomId)) {
                         return -1
-                    } else if (!a.tags[favTagName] && b.tags[favTagName]) {
+                    } else if (!client.isRoomOnTop(a.roomId) && client.isRoomOnTop(b.roomId)) {
                         return 1
                     } return b.getLastActiveTimestamp() - a.getLastActiveTimestamp()
                 })
@@ -112,11 +112,7 @@ const Session = ({ navigation }) => {
     }
 
     const toggleFavor = (item: Room) => {
-        if (item.tags[favTagName]) {
-            client.deleteRoomTag(item.roomId, favTagName)
-        } else {
-            client.setRoomTag(item.roomId, favTagName, {})
-        }
+        client.setRoomOnTop(item.roomId, !client.isRoomOnTop(item.roomId))
     }
 
     const handleHide = (item: Room) => {
@@ -154,6 +150,9 @@ const Session = ({ navigation }) => {
                 switch (lastEvt.getType()) {
                     case EventType.RoomMessage:
                         subTitle = lastEvt.getContent().body ?? ''
+                        if (lastEvt.getContent().msgtype === MsgType.Image) {
+                            subTitle = '[图片消息]'
+                        }
                         break;
                     case EventType.RoomMember:
                         subTitle = '现在可以开始聊天了'
@@ -165,12 +164,13 @@ const Session = ({ navigation }) => {
             return <></>
         }
 
-        const isFavor = Boolean(item.tags[favTagName])
         return (
             <Menu>
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
-                    <ListItem topDivider bottomDivider>
-                        <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'} containerStyle={{ backgroundColor: theme.colors.primary }}>
+                    <ListItem topDivider bottomDivider
+                        containerStyle={client.isRoomOnTop(item.roomId) && { backgroundColor: theme.colors.grey5 }}>
+                        <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'}
+                            containerStyle={{ backgroundColor: theme.colors.primary }}>
                             {item.getUnreadNotificationCount() > 0
                                 && <Badge value={item.getUnreadNotificationCount()} status="error"
                                     containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
@@ -183,7 +183,7 @@ const Session = ({ navigation }) => {
                     </ListItem>
                 </MenuTrigger>
                 <MenuOptions customStyles={{ optionsContainer: { marginLeft: 100, marginTop: 20 } }}>
-                    <MenuOption onSelect={() => toggleFavor(item)} text={isFavor ? '取消置顶' : '置顶'} customStyles={{
+                    <MenuOption onSelect={() => toggleFavor(item)} text={client.isRoomOnTop(item.roomId) ? '取消置顶' : '置顶'} customStyles={{
                         optionText: {
                             padding: 10, fontSize: 18
                         }

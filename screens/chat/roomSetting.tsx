@@ -20,6 +20,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const isFriendRoom = client.isFriendRoom(room.roomId)
     const { theme } = useTheme()
     const [roomMembers, setRoomMembers] = useState<IMemberItem[]>([])
+    const [roomOnTop, setRoomOnTop] = useState(client.isRoomOnTop(room.roomId))
 
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
 
@@ -74,6 +75,11 @@ export const RoomSetting = ({ navigation, route }) => {
 
     const onInviteToGroup = () => {
         navigation.push('GroupChat', { initMembers: roomMembers.map(i => i.id), roomId: room.roomId })
+    }
+
+    const onTopChange = (value) => {
+        setRoomOnTop(value)
+        client.setRoomOnTop(room.roomId, value)
     }
 
     const setRoomName = () => {
@@ -179,7 +185,7 @@ export const RoomSetting = ({ navigation, route }) => {
                 <ListItem.Content>
                     <ListItem.Title style={styles.listItemTitle}>置顶聊天</ListItem.Title>
                 </ListItem.Content>
-                <Switch style={{ height: 20 }}></Switch>
+                <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>
             </ListItem>
         </View>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
@@ -217,7 +223,7 @@ export const RoomSetting = ({ navigation, route }) => {
                 <ListItem.Content>
                     <ListItem.Title style={styles.listItemTitle}>置顶聊天</ListItem.Title>
                 </ListItem.Content>
-                <Switch style={{ height: 20 }}></Switch>
+                <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>
             </ListItem>
         </View>
     </View>

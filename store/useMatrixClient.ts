@@ -146,7 +146,18 @@ class BChatClient extends MatrixClient {
 
         return await mx.setAccountData('m.direct', userIdToRoomIds);
     }
+
+    setRoomOnTop(roomId: string, onTop: boolean) {
+        return onTop ? this.setRoomTag(roomId, favTagName, {}) : this.deleteRoomTag(roomId, favTagName)
+    }
+
+    isRoomOnTop(roomId: string) {
+        return favTagName in this.getRoom(roomId).tags
+    }
 }
+
+
+
 
 let _client: BChatClient = null
 
@@ -202,6 +213,7 @@ export const useMatrixClient = () => {
             })
         })
 
+        // 更新空房间名为原名
         _client.on(RoomEvent.Name, (room) => {
             if (room && room.normalizedName.startsWith("ernptyroornwas")) {
                 const hisFriend = room.normalizedName.split("ernptyroornwas")[1]
@@ -209,6 +221,11 @@ export const useMatrixClient = () => {
                     _client.setRoomName(room.roomId, hisFriend)
                 }
             }
+        })
+
+        // 用户信息
+        _client.on(ClientEvent.AccountData, (evt) => {
+            console.log('account data: ', evt.getType(), evt.getContent())
         })
     }
 

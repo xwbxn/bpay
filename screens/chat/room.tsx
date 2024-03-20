@@ -2,6 +2,7 @@ import 'dayjs/locale/zh';
 
 import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
+import * as Clipboard from 'expo-clipboard';
 import { EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
@@ -9,10 +10,13 @@ import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted
 import URI from 'urijs';
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { Button, Divider, Icon, useTheme } from '@rneui/themed';
+import { BottomSheet, Button, Divider, Icon, ListItem, useTheme } from '@rneui/themed';
 
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { CameraType } from 'expo-image-picker';
+import Toast from 'react-native-root-toast';
+import { MessageImage } from './messageRenders/MessageImage';
+import { MessageVideo } from './messageRenders/MessageVideo';
 
 export function Room({ route, navigation }) {
 
@@ -23,8 +27,10 @@ export function Room({ route, navigation }) {
   const user = client.getUser(client.getUserId())
   const isFriendRoom = client.isFriendRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
+  const [actionSheetShow, setActionSheetShow] = useState(false)
 
   const [messages, setMessages] = useState([])
+  const [currentMessage, setCurrentMessage] = useState<IMessage>()
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
 
   // 导航条样式
@@ -48,7 +54,6 @@ export function Room({ route, navigation }) {
       name: sender.displayName ?? evt.getSender(),
       avatar: sender.avatarUrl ?? '',
     }
-    console.log('message:', evt.getId(), evt.getType(), evt.getContent())
     switch (evt.event.type) {
       case EventType.RoomMessageEncrypted:
         msg = {
@@ -124,6 +129,20 @@ export function Room({ route, navigation }) {
             user: msgUser
           }
         }
+        if (msg) {
+          msg.sent = evt.status === null
+          msg.pending = evt.status !== null
+        }
+        if (evt.isRedacted()) {
+          msg = {
+            _id: evt.getId(),
+            text: "[消息已被撤回]",
+            createdAt: 0,
+            user: msgUser,
+            pending: false,
+            sent: false
+          }
+        }
         break
       default:
         // msg = {
@@ -134,14 +153,9 @@ export function Room({ route, navigation }) {
         //   createdAt: evt.localTimestamp,
         //   user: msgUser
         // }
-        // console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
+        console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
         break
     }
-    if (msg) {
-      msg.sent = evt.status === null
-      msg.pending = evt.status !== null
-    }
-
     return msg
   }
 
@@ -299,11 +313,63 @@ export function Room({ route, navigation }) {
     )
   }, [])
 
+  const onMessageLongPress = (context, message) => {
+    setCurrentMessage(message)
+    setActionSheetShow(true)
+  }
+
+  const onRedAction = () => {
+    client.redactEvent(room.roomId, currentMessage._id as string).then(() => {
+      setActionSheetShow(false)
+    })
+  }
+
+  const onCopy = async () => {
+    await Clipboard.setStringAsync(currentMessage.text);
+    setActionSheetShow(false)
+    Toast.show('已复制到剪贴板', {
+      duration: Toast.durations.LONG,
+      position: Toast.positions.CENTER
+    });
+  }
+
+  const setMessageFavor = () => {
+    const favor = client.getAccountData('m.favor')?.getContent()?.favor || []
+    favor.push(currentMessage)
+    client.setAccountData('m.favor', { favor }).then(() => {
+      setActionSheetShow(false)
+      Toast.show('已加入收藏', {
+        duration: Toast.durations.LONG,
+        position: Toast.positions.CENTER
+      });
+    })
+  }
+
   return (
     <View style={styles.container}>
+      <BottomSheet isVisible={actionSheetShow} onBackdropPress={() => setActionSheetShow(false)}>
+        <ListItem bottomDivider onPress={onCopy}>
+          <Icon name='copy' type='octicon'></Icon>
+          <ListItem.Title>复制</ListItem.Title>
+        </ListItem>
+        <ListItem bottomDivider onPress={setMessageFavor}>
+          <Icon name='favorite-border' type='meterialicon'></Icon>
+          <ListItem.Title>收藏</ListItem.Title>
+        </ListItem>
+        {currentMessage?.user._id === client.getUserId() && currentMessage.text != '[消息已被撤回]' &&
+          <ListItem onPress={onRedAction} bottomDivider>
+            <Icon name='undo' type='meterialicon'></Icon>
+            <ListItem.Title>撤回</ListItem.Title>
+          </ListItem>}
+        <ListItem onPress={() => setActionSheetShow(false)}>
+          <Icon name='close' color={theme.colors.error} type='meterialicon'></Icon>
+          <ListItem.Title style={{ color: theme.colors.error }}>取消</ListItem.Title>
+        </ListItem>
+      </BottomSheet>
       <View style={styles.content}>
         <GiftedChat
-          locale='zh-cn'
+          locale='zh'
+          onLongPress={onMessageLongPress}
           messages={messages}
           onInputTextChanged={() => { setBottomSheetShow(false) }}
           scrollToBottom
@@ -321,6 +387,10 @@ export function Room({ route, navigation }) {
           }}
           renderSend={renderSend}
           onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
+          renderMessageImage={MessageImage}
+          renderMessageVideo={MessageVideo}
+          lightboxProps={{onLongPress:}}
+          onPress={(_, m) => { console.log('m', m) }}
         />
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>
@@ -334,7 +404,7 @@ export function Room({ route, navigation }) {
           </View>
         </View>}
       </View>
-    </View>
+    </View >
   )
 }
 
