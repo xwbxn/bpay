@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MemoryCryptoStore, MemoryStore, Preset, RoomEvent, RoomMember, RoomMemberEvent, SyncState, Visibility } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
+import { appEmitter } from '../utils/event';
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
 
@@ -157,13 +158,10 @@ class BChatClient extends MatrixClient {
 }
 
 
-
-
 let _client: BChatClient = null
 
 export const favTagName = 'm.favourite'
 export const hiddenTagName = 'm.hidden'
-
 export const useMatrixClient = () => {
 
     if (_client === null) {
@@ -194,8 +192,14 @@ export const useMatrixClient = () => {
                                 })
                             }
                         }).catch(err => {
+                            _client.stopClient()
+                            appEmitter.emit('TO_LOGIN')
                             console.log('refresh token error:', err)
                         })
+                        break
+                    case 'TypeError':
+                        _client.stopClient()
+                        appEmitter.emit('TO_LOGIN')
                         break
                 }
             }

@@ -1,6 +1,5 @@
 import { extend, RequestOptionsInit } from 'umi-request';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
 
 const request = extend({
     prefix: process.env.EXPO_PUBLIC_API_URL,

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,6 +10,7 @@ import { ChatIndex } from '../chat';
 import PostList from '../posts/list';
 import { RoomEvent } from 'matrix-js-sdk';
 import { useGlobalState } from '../../store/globalContext';
+import { appEmitter } from '../../utils/event';
 
 const Tab = createBottomTabNavigator();
 
@@ -38,6 +39,18 @@ export default function HomeScreen({ navigation }) {
             client.off(RoomEvent.Receipt, refreshUnreadTotal)
         }
     }, [])
+
+    useEffect(() => {
+        const toLogin = () => {
+            navigation.replace('Login')
+        }
+        appEmitter.on('TO_LOGIN', toLogin)
+
+        return () => {
+            appEmitter.off('TO_LOGIN', toLogin)
+        }
+    }, [])
+
 
 
     return <>

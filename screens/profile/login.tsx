@@ -4,8 +4,8 @@ import { Alert, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Image, Input, Text, useTheme } from '@rneui/themed';
-import { getAuth } from '../../service/wordpress';
-import { useProfile } from '../../store/globalContext';
+import { getAuth, getMatrixAuth } from '../../service/wordpress';
+import { useGlobalState, useProfile } from '../../store/globalContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMatrixClient } from '../../store/useMatrixClient';
 
@@ -26,30 +26,44 @@ export default function Login({ navigation, route }) {
 
 
     const { client } = useMatrixClient()
+    const { setLoading } = useGlobalState()
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [setProfile, setMatrixToken] = useProfile((state) => [state.setProfile, state.setMatrixToken])
 
-    const onLoginPress = () => {
-        AsyncStorage.removeItem("TOKEN").then(() => {
-            const token = `Basic ${base64_encode(`${username}:${password}`)}`
-            return getAuth(token).then(res => {
-                const profile = {
-                    id: res.id,
-                    name: res.name,
-                    avatar: res.avatar_urls["24"],
-                    authenticated: true
-                }
-                setProfile(profile)
-                AsyncStorage.setItem("TOKEN", token)
-                navigation.replace('Home')
-            })
-        }).catch(res => {
-            if (res.data?.code === "invalid_username") {
-                Alert.alert("用户名或密码错")
+    const onLoginPress = async () => {
+        const token = `Basic ${base64_encode(`${username}:${password}`)}`
+        try {
+            setLoading(true)
+            const bpayRes = await getAuth(token)
+            const profile = {
+                id: bpayRes.id,
+                name: bpayRes.name,
+                avatar: bpayRes.avatar_urls["24"],
+                authenticated: true
             }
-        })
+            setProfile(profile)
+            await AsyncStorage.setItem("TOKEN", token)
+            const chatAuth = await getMatrixAuth()
+            await client.clearStores()
+            const chatRes = await client.loginWithPassword(`@${chatAuth.username}:chat.b-pay.life`, chatAuth.random_password)
+            AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(chatRes))
+            if (client.clientRunning) {
+                client.stopClient()
+            }
+            client.startClient()
+            navigation.replace('Home')
+        } catch (err) {
+            console.log('err', err)
+            if (err.data?.code === "invalid_username") {
+                Alert.alert("用户名或密码错")
+            } else {
+                Alert.alert(err.toString())
+            }
+        } finally {
+            setLoading(false)
+        }
     }
 
     const onMatrixLogin = () => {
@@ -78,7 +92,7 @@ export default function Login({ navigation, route }) {
                 <Input label="密码" secureTextEntry onChangeText={setPassword} value={password}></Input>
             </View>
             <View style={{ padding: 10 }}>
-                <Button onPress={() => onMatrixLogin()}>登录</Button>
+                <Button onPress={() => onLoginPress()}>登录</Button>
             </View>
         </SafeAreaView>
     </>

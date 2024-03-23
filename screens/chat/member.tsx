@@ -8,6 +8,7 @@ import { Avatar, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
 import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -141,6 +142,14 @@ export const MemberProfile = ({ navigation, route }) => {
                 setEditProps({ isVisible: false })
             },
         })
+    }
+
+    const logOut = () => {
+        AsyncStorage.removeItem('TOKEN')
+        AsyncStorage.removeItem('MATRIX_AUTH')
+        client.stopClient()
+        client.clearStores()
+        navigation.push('Login')
     }
 
     const styles = StyleSheet.create({
@@ -281,7 +290,7 @@ export const MemberProfile = ({ navigation, route }) => {
             </ListItem>
         </View>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} >
+            <ListItem containerStyle={styles.listItem} onPress={logOut}>
                 <ListItem.Content style={{ alignItems: 'center' }}>
                     <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.error }}>
                         退出登录</ListItem.Title>
