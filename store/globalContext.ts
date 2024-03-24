@@ -1,3 +1,4 @@
+import { Room } from 'matrix-js-sdk'
 import { create } from 'zustand'
 
 export interface IGlobalState {
@@ -7,6 +8,8 @@ export interface IGlobalState {
     setCategories: (state: any) => void
     setLoading: (state: any) => void
     loadingErrorFn: () => void
+    room: Room
+    setRoom: (state: any) => void
 }
 
 export const useGlobalState = create<IGlobalState>((set) => ({
@@ -15,7 +18,9 @@ export const useGlobalState = create<IGlobalState>((set) => ({
     categories: [],
     loadingErrorFn: null,
     setCategories: (val) => set(() => ({ categories: val })),
-    setLoading: (val) => set(() => ({ loading: val }))
+    setLoading: (val) => set(() => ({ loading: val })),
+    room: null,
+    setRoom: (val) => set(() => ({ room: val }))
 }))
 
 export interface IProfile {
@@ -26,9 +31,7 @@ export interface IProfile {
 }
 export interface IProfileState {
     profile: IProfile
-    matrixToken: string
     setProfile: (IProfile) => void
-    setMatrixToken: (string) => void
 }
 
 export const useProfile = create<IProfileState>((set) => ({
@@ -38,7 +41,5 @@ export const useProfile = create<IProfileState>((set) => ({
         avatar: '',
         authenticated: false
     },
-    matrixToken: '',
     setProfile: (val) => set(() => ({ profile: val })),
-    setMatrixToken: (val) => set(() => ({ matrixToken: val }))
 }))

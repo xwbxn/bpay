@@ -23,7 +23,8 @@ export function Room({ route, navigation }) {
   const { theme } = useTheme()
   const { id } = route.params
   const { client } = useMatrixClient()
-  const room = client.getRoom(id)
+  const [room, setRoom] = useState(client.getRoom(id))
+  // const room = client.getRoom(id)
   const user = client.getUser(client.getUserId())
   const isFriendRoom = client.isFriendRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
@@ -33,6 +34,12 @@ export function Room({ route, navigation }) {
   const [currentMessage, setCurrentMessage] = useState<IMessage>()
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
 
+
+  useEffect(() => {
+    setRoom(client.getRoom(id))
+  }, [client.getRoom(id)])
+
+
   // 导航条样式
   useEffect(() => {
     // set nav bar
@@ -40,10 +47,10 @@ export function Room({ route, navigation }) {
       title: room?.name,
       headerRight: () => {
         return <Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
-          onPress={() => { navigation.push('RoomSetting', { id: room.roomId }) }}></Icon>
+          onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
       },
     })
-  }, [])
+  }, [room])
 
   // event转换为msg格式
   const evtToMsg = (evt: MatrixEvent) => {
@@ -51,8 +58,8 @@ export function Room({ route, navigation }) {
     const sender = client.getUser(evt.getSender())
     const msgUser: User = {
       _id: evt.getSender(),
-      name: sender.displayName ?? evt.getSender(),
-      avatar: sender.avatarUrl ?? '',
+      name: sender.displayName || evt.getSender(),
+      avatar: sender.avatarUrl || '',
     }
     switch (evt.event.type) {
       case EventType.RoomMessageEncrypted:
@@ -160,6 +167,9 @@ export function Room({ route, navigation }) {
   }
 
   useEffect(() => {
+    if (!room) {
+      return
+    }
     const refreshMessage = () => {
       setRefreshKey(crypto.randomUUID())
     }
@@ -201,10 +211,13 @@ export function Room({ route, navigation }) {
       room.off(RoomEvent.LocalEchoUpdated, refreshMessage)
       room.off(RoomEvent.Timeline, refreshMessage)
     }
-  }, [])
+  }, [room])
 
   // timeline event 转为 消息
   useEffect(() => {
+    if (!room) {
+      return
+    }
     const newMessages = []
     const msgEvts = room.getLiveTimeline().getEvents()
     // .filter(e => [EventType.RoomMessage, ].includes(e.getType() as EventType))

@@ -13,6 +13,7 @@ import { Button, Icon, Text, useTheme } from '@rneui/themed';
 // import VideoPlayer from 'expo-fullscreen-video-player';
 import Searchbar from '../../components/searchbar';
 import { getPost } from '../../service/wordpress';
+import { useGlobalState } from '../../store/globalContext';
 
 const customElementModels = {
     video: HTMLElementModel.fromCustomModel({
@@ -75,10 +76,14 @@ export default function PostDetail({ route, navigation }) {
     const { theme } = useTheme()
     const screenSize = useWindowDimensions()
     const [content, setContent] = useState('')
+    const { setLoading } = useGlobalState()
 
     useEffect(() => {
+        setLoading(true)
         getPost(id).then(res => {
             setContent(res.content.rendered)
+        }).finally(() => {
+            setLoading(false)
         })
     }, [id])
 

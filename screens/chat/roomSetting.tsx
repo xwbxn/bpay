@@ -16,13 +16,19 @@ export const RoomSetting = ({ navigation, route }) => {
     const { setLoading } = useGlobalState()
     const { id } = route.params
     const { client } = useMatrixClient()
-    const room = client.getRoom(id)
-    const isFriendRoom = client.isFriendRoom(room.roomId)
+    const [room, setRoom] = useState(client.getRoom(id))
+    // const room = client.getRoom(id)
+    const isFriendRoom = client.isFriendRoom(id)
     const { theme } = useTheme()
     const [roomMembers, setRoomMembers] = useState<IMemberItem[]>([])
-    const [roomOnTop, setRoomOnTop] = useState(client.isRoomOnTop(room.roomId))
+    const [roomOnTop, setRoomOnTop] = useState(client.isRoomOnTop(id))
 
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
+
+    useEffect(() => {
+        setRoom(client.getRoom(id))
+    }, [client.getRoom(id)])
+
 
     useEffect(() => {
         // set nav bar
@@ -32,6 +38,9 @@ export const RoomSetting = ({ navigation, route }) => {
     }, [])
 
     useEffect(() => {
+        if (!room) {
+            return
+        }
         setRoomMembers(room.getMembers().map(i => {
             return {
                 id: i.userId,
@@ -39,7 +48,7 @@ export const RoomSetting = ({ navigation, route }) => {
                 avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true)
             }
         }))
-    }, [])
+    }, [room])
 
     const leaveGroup = () => {
         Alert.alert("确认", "是否要退出群聊?", [
@@ -119,7 +128,7 @@ export const RoomSetting = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     })
 
-    const groupSetting = <View style={styles.container}>
+    const groupSetting = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} items={roomMembers}
                 onAppendPress={onInviteToGroup}
@@ -197,7 +206,7 @@ export const RoomSetting = ({ navigation, route }) => {
         </View>
     </View >
 
-    const friendSetting = <View style={styles.container}>
+    const friendSetting = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} onItemPress={onMemberPress}
                 onAppendPress={onFriendToGroup}

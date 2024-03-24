@@ -1,6 +1,6 @@
 import 'moment/locale/zh-cn';
 
-import { ClientEvent, EventType, MsgType, NotificationCountType, Room, RoomEvent } from 'matrix-js-sdk';
+import { ClientEvent, EventType, MsgType, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -8,7 +8,7 @@ import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-m
 
 import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
 
-import { favTagName, hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 
 const Session = ({ navigation }) => {
 
@@ -77,6 +77,8 @@ const Session = ({ navigation }) => {
         }
         refreshRooms()
 
+
+
         client.on(RoomEvent.Timeline, refreshRooms)
         client.on(RoomEvent.Receipt, refreshRooms)
         client.on(ClientEvent.Room, refreshRooms)
@@ -132,7 +134,6 @@ const Session = ({ navigation }) => {
         let updateAt = new Date().getTime()
 
         if (item.getMyMembership() === 'invite') { //收到邀请信息
-            item.setUnreadNotificationCount(NotificationCountType.Total, 1)
             if (item.getDMInviter()) {
                 subTitle = `来自${item.getDMInviter()?.split(":")[0]?.substring(1)}的好友申请`
             } else {
@@ -149,7 +150,7 @@ const Session = ({ navigation }) => {
                 updateAt = item.getLastActiveTimestamp()
                 switch (lastEvt.getType()) {
                     case EventType.RoomMessage:
-                        subTitle = lastEvt.getContent().body ?? ''
+                        subTitle = lastEvt.getContent().body || ''
                         if (lastEvt.getContent().msgtype === MsgType.Image) {
                             subTitle = '[图片消息]'
                         }

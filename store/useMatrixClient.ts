@@ -1,18 +1,24 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MemoryCryptoStore, MemoryStore, Preset, RoomEvent, RoomMember, RoomMemberEvent, SyncState, Visibility } from 'matrix-js-sdk';
+import * as Notifications from 'expo-notifications';
+import {
+    ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MemoryCryptoStore,
+    MemoryStore, Preset, RoomEvent, SyncState, Visibility
+} from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { appEmitter } from '../utils/event';
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
 
 function amendClientOpts(opts: ICreateClientOpts): ICreateClientOpts {
     opts.store =
-        opts.store ??
+        opts.store ||
         new MemoryStore({
             localStorage: global.localStorage,
         });
-    opts.scheduler = opts.scheduler ?? new MatrixScheduler();
-    opts.cryptoStore = opts.cryptoStore ?? cryptoStoreFactory();
+    opts.scheduler = opts.scheduler || new MatrixScheduler();
+    opts.cryptoStore = opts.cryptoStore || cryptoStoreFactory();
 
     return opts;
 }
@@ -35,44 +41,44 @@ class BChatClient extends MatrixClient {
         if (!this.isFriend(userId)) {
             return undefined
         }
-        const content = this.getAccountData(EventType.Direct)?.getContent() ?? {}
-        const roomId = content[userId][0] ?? undefined
-        const member = this.getRoom(roomId)?.getMember(userId) ?? undefined
-        const name = member?.name ?? userId.split(":")[0].slice(1)
+        const content = this.getAccountData(EventType.Direct)?.getContent() || {}
+        const roomId = content[userId][0] || undefined
+        const member = this.getRoom(roomId)?.getMember(userId) || undefined
+        const name = member?.name || userId.split(":")[0].slice(1)
         return {
             userId,
             roomId,
             name,
             avatar_url: member?.getAvatarUrl(this.baseUrl, 50, 50, 'crop', true, true),
-            membership: member?.membership ?? undefined
+            membership: member?.membership || undefined
         }
     }
 
     getFriends(): Friend[] {
-        const content = this.getAccountData(EventType.Direct)?.getContent() ?? {}
+        const content = this.getAccountData(EventType.Direct)?.getContent() || {}
         const result = []
         Object.keys(content).forEach(userId => {
-            const roomId = content[userId][0] ?? undefined
-            const member = this.getRoom(roomId)?.getMember(userId) ?? undefined
-            const name = member?.name ?? userId.split(":")[0].slice(1)
+            const roomId = content[userId][0] || undefined
+            const member = this.getRoom(roomId)?.getMember(userId) || undefined
+            const name = member?.name || userId.split(":")[0].slice(1)
             result.push({
                 userId,
                 roomId,
                 name,
                 avatar_url: member?.getAvatarUrl(this.baseUrl, 50, 50, 'crop', true, true),
-                membership: member?.membership ?? undefined
+                membership: member?.membership || undefined
             })
         })
         return result
     }
 
     isFriend(userId) {
-        const content = this.getAccountData(EventType.Direct)?.getContent() ?? {}
+        const content = this.getAccountData(EventType.Direct)?.getContent() || {}
         return Object.keys(content).includes(userId)
     }
 
     isFriendRoom(roomId) {
-        const content = this.getAccountData(EventType.Direct)?.getContent() ?? {}
+        const content = this.getAccountData(EventType.Direct)?.getContent() || {}
         return Object.values(content).some(i => i.includes(roomId))
     }
 
@@ -90,11 +96,8 @@ class BChatClient extends MatrixClient {
             }
             return room_id
         } catch (e) {
-            const errcodes = ['M_UNKNOWN', 'M_BAD_JSON', 'M_ROOM_IN_USE', 'M_INVALID_ROOM_STATE', 'M_UNSUPPORTED_ROOM_VERSION'];
-            if (errcodes.includes(e.errcode)) {
-                throw new Error(e);
-            }
-            throw new Error('Something went wrong!');
+            console.error('inviteFriend', e)
+            throw new Error(e);
         }
     }
 
@@ -105,8 +108,8 @@ class BChatClient extends MatrixClient {
 
     async deleteFriend(userId: string) {
         const mDirectEvent = this.getAccountData(EventType.Direct)
-        const content = mDirectEvent?.getContent() ?? {}
-        const friendRooms = content[userId] ?? []
+        const content = mDirectEvent?.getContent() || {}
+        const friendRooms = content[userId] || []
 
         friendRooms.forEach(async roomId => {
             await this.leave(roomId)
@@ -153,10 +156,35 @@ class BChatClient extends MatrixClient {
     }
 
     isRoomOnTop(roomId: string) {
-        return favTagName in this.getRoom(roomId).tags
+        return favTagName in this.getRoom(roomId)?.tags || {}
     }
 }
 
+const sendRoomNotify = async (room) => {
+    // 通知栏消息
+    if (room.getMyMembership() === 'invite') {
+        await Notifications.dismissAllNotificationsAsync()
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: `您有一条来自${room.name}的邀请`
+            },
+            trigger: null,
+        });
+    }
+}
+
+const sendTimelineNotify = async (event) => {
+    // 通知栏消息
+    if (event.getSender() !== _client.getUserId()) {
+        await Notifications.dismissAllNotificationsAsync()
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: `您有一条来自${event.getSender()}的消息`
+            },
+            trigger: null,
+        });
+    }
+}
 
 let _client: BChatClient = null
 
@@ -210,8 +238,8 @@ export const useMatrixClient = () => {
             room.on(RoomEvent.UnreadNotifications, (unreadNotifications) => {
                 console.log('emmit UnreadNotifications', unreadNotifications)
                 if (room.tags[hiddenTagName] &&
-                    ((unreadNotifications?.total ?? 0) > 0 ||
-                        (unreadNotifications?.highlight ?? 0) > 0)) {
+                    ((unreadNotifications?.total || 0) > 0 ||
+                        (unreadNotifications?.highlight || 0) > 0)) {
                     _client.deleteRoomTag(room.roomId, hiddenTagName)
                 }
             })
@@ -231,6 +259,11 @@ export const useMatrixClient = () => {
         _client.on(ClientEvent.AccountData, (evt) => {
             console.log('account data: ', evt.getType(), evt.getContent())
         })
+
+        // 通知
+        _client.on(RoomEvent.Timeline, sendTimelineNotify)
+        _client.on(ClientEvent.Room, sendRoomNotify)
+
     }
 
     return {

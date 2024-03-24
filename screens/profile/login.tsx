@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Button, Image, Input, Text, useTheme } from '@rneui/themed';
+import { Button, Icon, Image, Input, Text, useTheme } from '@rneui/themed';
 import { getAuth, getMatrixAuth } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,9 +30,15 @@ export default function Login({ navigation, route }) {
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
-    const [setProfile, setMatrixToken] = useProfile((state) => [state.setProfile, state.setMatrixToken])
+    const [showPassword, setShowPassword] = useState(false)
+    const [setProfile] = useProfile((state) => [state.setProfile])
 
     const onLoginPress = async () => {
+        if (!username || !password) {
+            Alert.alert("请填写用户名和密码")
+            return
+        }
+        await AsyncStorage.removeItem("TOKEN")
         const token = `Basic ${base64_encode(`${username}:${password}`)}`
         try {
             setLoading(true)
@@ -46,11 +52,11 @@ export default function Login({ navigation, route }) {
             setProfile(profile)
             await AsyncStorage.setItem("TOKEN", token)
             const chatAuth = await getMatrixAuth()
-            await client.clearStores()
             const chatRes = await client.loginWithPassword(`@${chatAuth.username}:chat.b-pay.life`, chatAuth.random_password)
             AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(chatRes))
             if (client.clientRunning) {
                 client.stopClient()
+                client.clearStores()
             }
             client.startClient()
             navigation.replace('Home')
@@ -66,19 +72,6 @@ export default function Login({ navigation, route }) {
         }
     }
 
-    const onMatrixLogin = () => {
-        client.loginWithPassword(username, password).then(res => {
-            AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(res))
-            if (client.clientRunning) {
-                client.stopClient()
-            }
-            client.startClient()
-            navigation.replace('Home')
-        }).catch(res => {
-            Alert.alert(res.toString())
-        })
-    }
-
     return <>
         <SafeAreaView style={{ padding: 20 }}>
             <View style={{ alignItems: 'center', height: '20%' }}>
@@ -89,7 +82,10 @@ export default function Login({ navigation, route }) {
             </View>
             <View style={{ alignItems: 'center' }} >
                 <Input label="用户名" onChangeText={setUsername} value={username}></Input>
-                <Input label="密码" secureTextEntry onChangeText={setPassword} value={password}></Input>
+                <Input label="密码" rightIcon={<Icon name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
+                    onPressIn={() => setShowPassword(true)}
+                    onPressOut={() => setShowPassword(false)}></Icon>}
+                    secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
             </View>
             <View style={{ padding: 10 }}>
                 <Button onPress={() => onLoginPress()}>登录</Button>

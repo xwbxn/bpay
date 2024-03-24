@@ -49,7 +49,8 @@
     "umi-request": "^1.4.0",
     "zustand": "^4.5.1",
     "expo-image": "~1.10.6",
-    "expo-video-thumbnails": "~7.9.0"
+    "expo-video-thumbnails": "~7.9.0",
+    "expo-notifications": "~0.27.6"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

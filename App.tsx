@@ -1,29 +1,42 @@
+import * as Notifications from 'expo-notifications';
+
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
-
+import Spinner from 'react-native-loading-spinner-overlay';
+import { MenuProvider } from 'react-native-popup-menu';
 import { RootSiblingParent } from 'react-native-root-siblings';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createTheme, ThemeProvider } from '@rneui/themed';
-import { MenuProvider } from 'react-native-popup-menu';
 
 import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
 import { useGlobalState } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Spinner from 'react-native-loading-spinner-overlay';
 
 const theme = createTheme({
 });
 const Stack = createNativeStackNavigator();
 
+// First, set the handler that will cause the notification
+// to show the alert
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  }),
+});
+
 
 export default function App() {
 
   const { client } = useMatrixClient()
-  const { ready, loading } = useGlobalState()
+  const { loading } = useGlobalState()
 
   useEffect(() => {
     AsyncStorage.getItem("MATRIX_AUTH").then(data => {

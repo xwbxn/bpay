@@ -82,7 +82,9 @@ export const MemberProfile = ({ navigation, route }) => {
                     setLoading(true)
                     try {
                         await client.deleteFriend(userId)
-                        navigation.goBack()
+                        navigation.replace('Sessions')
+                    } catch (e) {
+                        console.log(e)
                     } finally {
                         setLoading(false)
                     }
