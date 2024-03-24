@@ -17,6 +17,7 @@ import { CameraType } from 'expo-image-picker';
 import Toast from 'react-native-root-toast';
 import { MessageImage } from './messageRenders/MessageImage';
 import { MessageVideo } from './messageRenders/MessageVideo';
+import { useGlobalState } from '../../store/globalContext';
 
 export function Room({ route, navigation }) {
 
@@ -33,6 +34,8 @@ export function Room({ route, navigation }) {
   const [messages, setMessages] = useState([])
   const [currentMessage, setCurrentMessage] = useState<IMessage>()
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
+
+  const { setLoading } = useGlobalState()
 
 
   useEffect(() => {
@@ -183,21 +186,36 @@ export function Room({ route, navigation }) {
       Alert.alert("提示", tip, [
         {
           text: '拒绝', onPress(value?) {
+            setLoading(true)
             client.leave(room.roomId).then(() => {
               return client.forget(room.roomId)
             }).then(() => {
               navigation.goBack()
+            }).finally(() => {
+              setLoading(false)
             })
           },
         }, {
           text: '同意', onPress(value?) {
             if (invitor) {
+              setLoading(true)
               client.acceptFriend(invitor.userId, room.roomId).then(() => {
                 setRefreshKey(crypto.randomUUID())
+              }).catch(err => {
+                if (err.httpStatus === 404) {
+                  Alert.alert('该请求已失效')
+                  client.leave(room.roomId)
+                  navigation.goBack()
+                }
+              }).finally(() => {
+                setLoading(false)
               })
             } else {
+              setLoading(true)
               client.joinRoom(room.roomId).then(() => {
                 setRefreshKey(crypto.randomUUID())
+              }).finally(() => {
+                setLoading(false)
               })
             }
           },

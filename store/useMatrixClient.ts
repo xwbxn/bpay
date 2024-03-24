@@ -104,6 +104,7 @@ class BChatClient extends MatrixClient {
     async acceptFriend(userId, roomId) {
         await this.joinRoom(roomId)
         await this.addRoomToMDirect(roomId, userId)
+
     }
 
     async deleteFriend(userId: string) {
@@ -156,7 +157,7 @@ class BChatClient extends MatrixClient {
     }
 
     isRoomOnTop(roomId: string) {
-        return favTagName in this.getRoom(roomId)?.tags || {}
+        return favTagName in (this.getRoom(roomId)?.tags || {})
     }
 }
 
@@ -225,11 +226,12 @@ export const useMatrixClient = () => {
                             console.log('refresh token error:', err)
                         })
                         break
-                    case 'TypeError':
-                        _client.stopClient()
-                        appEmitter.emit('TO_LOGIN')
-                        break
                 }
+            }
+            if (state === SyncState.Prepared) {
+                // 通知
+                _client.on(RoomEvent.Timeline, sendTimelineNotify)
+                _client.on(ClientEvent.Room, sendRoomNotify)
             }
         })
 
@@ -259,11 +261,6 @@ export const useMatrixClient = () => {
         _client.on(ClientEvent.AccountData, (evt) => {
             console.log('account data: ', evt.getType(), evt.getContent())
         })
-
-        // 通知
-        _client.on(RoomEvent.Timeline, sendTimelineNotify)
-        _client.on(ClientEvent.Room, sendRoomNotify)
-
     }
 
     return {

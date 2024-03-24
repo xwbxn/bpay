@@ -73,21 +73,18 @@ export default function Login({ navigation, route }) {
     }
 
     return <>
-        <SafeAreaView style={{ padding: 20 }}>
-            <View style={{ alignItems: 'center', height: '20%' }}>
-                <Text style={{ fontSize: 90 }}>BPay</Text>
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+            <View style={{ alignItems: 'center', paddingTop: 80 }}>
+                <Image resizeMethod='scale' style={{ width: 200, aspectRatio: 1 }} source={require('../../assets/icon.png')}></Image>
             </View>
-            <View style={{ alignItems: 'center', height: '40%' }}>
-                <Image style={{ width: 200, height: 200 }} source={require('../../assets/icon.png')}></Image>
-            </View>
-            <View style={{ alignItems: 'center' }} >
+            <View style={{ alignItems: 'center', padding: 20 }} >
                 <Input label="用户名" onChangeText={setUsername} value={username}></Input>
                 <Input label="密码" rightIcon={<Icon name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
                     onPressIn={() => setShowPassword(true)}
                     onPressOut={() => setShowPassword(false)}></Icon>}
                     secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
             </View>
-            <View style={{ padding: 10 }}>
+            <View style={{ padding: 28 }}>
                 <Button onPress={() => onLoginPress()}>登录</Button>
             </View>
         </SafeAreaView>
