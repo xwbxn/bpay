@@ -69,8 +69,8 @@ export const Contacts = ({ navigation, route }) => {
                         right: room.join_rule
                     })
                 })
+                setPublicGroups(_publicRooms)
             })
-            setPublicGroups(_publicRooms)
         }
 
         refreshContacts()
@@ -89,12 +89,15 @@ export const Contacts = ({ navigation, route }) => {
             client.getProfileInfo(fullId).then(res => {
                 setSearchMembers([{
                     id: fullId,
-                    title: res?.displayname ?? fullId,
+                    title: res?.displayname || fullId,
                     subtitle: fullId,
                     avatar: res?.avatar_url
                 }])
             }).catch(e => {
-                Alert.alert('错误', e.toString())
+                if (e.errcode === 'M_NOT_FOUND') {
+                    Alert.alert('提示', '用户不存在')
+                }
+                console.log('e', JSON.stringify(e))
             }).finally(() => {
                 setLoading(false)
             })
@@ -109,15 +112,16 @@ export const Contacts = ({ navigation, route }) => {
         navigation.replace('Room', { id: g.id })
     }
 
-    const onPressPublicGroup = (g: IListItem) => {
+    const onPressPublicGroup = async (g: IListItem) => {
         setLoading(true)
-        client.joinRoom(g.id as string).then(room => {
+        try {
+            await client.joinRoom(g.id as string)
             navigation.replace('Room', { id: g.id })
-        }).catch(e => {
+        } catch (e) {
             Alert.alert('错误', e.toString())
-        }).finally(() => {
+        } finally {
             setLoading(false)
-        })
+        }
     }
 
     const onPressSearchMember = (m: IListItem) => {
@@ -142,9 +146,9 @@ export const Contacts = ({ navigation, route }) => {
             <ScrollView>
                 {searchMembers.length > 0 &&
                     <ListView items={searchMembers} onPressItem={onPressSearchMember} accordion accordionTitle='陌生人'></ListView>}
-                <ListView search={searchVal} items={publicGroups} onPressItem={onPressPublicGroup} accordion accordionExpand={false} accordionTitle='公共群组'></ListView>
+                <ListView search={searchVal} items={publicGroups} onPressItem={onPressPublicGroup} accordion accordionExpand={true} accordionTitle='公共群组'></ListView>
                 <ListView search={searchVal} items={friends} onPressItem={onPressMember} accordion accordionTitle='联系人'></ListView>
-                <ListView search={searchVal} items={groups} onPressItem={onPressGroup} accordion accordionTitle='我的群组'></ListView>
+                <ListView search={searchVal} items={groups} onPressItem={onPressGroup} accordion accordionTitle='我加入的群组'></ListView>
             </ScrollView>
         </View>
     </View>
