@@ -118,13 +118,7 @@ const Session = ({ navigation }) => {
     }
 
     const handleHide = (item: Room) => {
-        if (item.getInvitedAndJoinedMemberCount() === 1) {
-            client.leave(item.roomId).then(() => {
-                client.forget(item.roomId)
-            })
-        } else {
-            client.setRoomTag(item.roomId, hiddenTagName, {})
-        }
+        client.setRoomTag(item.roomId, hiddenTagName, {})
     }
 
     const renderItem = ({ item }: { item: Room }) => {
@@ -150,9 +144,20 @@ const Session = ({ navigation }) => {
                 updateAt = item.getLastActiveTimestamp()
                 switch (lastEvt.getType()) {
                     case EventType.RoomMessage:
-                        subTitle = lastEvt.getContent().body || ''
+                        let sender = ''
+                        if (!client.isFriendRoom(lastEvt.getRoomId())) {
+                            sender = lastEvt.getSender()
+                            const member = item.getMember(sender)
+                            if (member) {
+                                sender = member.name
+                            }
+                        }
+                        subTitle = (sender ? sender + ':' : '') + lastEvt.getContent().body || ''
                         if (lastEvt.getContent().msgtype === MsgType.Image) {
                             subTitle = '[图片消息]'
+                        }
+                        if (lastEvt.getContent().msgtype === MsgType.Video) {
+                            subTitle = '[视频]'
                         }
                         break;
                     case EventType.RoomMember:
@@ -177,8 +182,8 @@ const Session = ({ navigation }) => {
                                     containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
                         </Avatar>
                         <ListItem.Content>
-                            <ListItem.Title style={{ fontSize: 22 }}>{title}</ListItem.Title>
-                            <ListItem.Subtitle>{subTitle.slice(0, 20)}</ListItem.Subtitle>
+                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: 22 }}>{title}</ListItem.Title>
+                            <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1}>{subTitle}</ListItem.Subtitle>
                         </ListItem.Content>
                         <ListItem.Subtitle>{moment(updateAt).fromNow()}</ListItem.Subtitle>
                     </ListItem>

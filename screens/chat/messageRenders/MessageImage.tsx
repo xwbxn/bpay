@@ -9,8 +9,6 @@ import Lightbox from 'react-native-lightbox-v2';
 const styles = StyleSheet.create({
     container: {},
     image: {
-        width: 150,
-        height: 100,
         borderRadius: 13,
         margin: 3,
         resizeMode: 'cover',
@@ -24,6 +22,9 @@ export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = 
     if (currentMessage == null) {
         return null;
     }
+
+    console.log('currentMessage', currentMessage)
+
     return (<View style={[styles.container, containerStyle]}>
         {// @ts-ignore: 2322
             <Lightbox activeProps={{
@@ -31,7 +32,8 @@ export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = 
             }} {...lightboxProps}
                 onLongPress={() => { onLongPress({}, currentMessage) }}
             >
-                <Image {...imageProps} style={[styles.image, imageStyle]} source={{ uri: currentMessage.image }} />
+                <Image {...imageProps} style={[styles.image, imageStyle, { width: currentMessage.w, height: currentMessage.h }]}
+                    source={{ uri: currentMessage.image }} />
             </Lightbox>
         }
     </View>);

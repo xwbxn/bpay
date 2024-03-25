@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import {
-    ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MemoryCryptoStore,
+    ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MediaPrefix, MemoryCryptoStore,
     MemoryStore, Preset, RoomEvent, SyncState, Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
@@ -8,6 +8,7 @@ import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
+import URI from 'urijs';
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
 
@@ -159,6 +160,31 @@ class BChatClient extends MatrixClient {
     isRoomOnTop(roomId: string) {
         return favTagName in (this.getRoom(roomId)?.tags || {})
     }
+
+    async uploadFile(uri: string) {
+        const fileUri = new URI(uri)
+        const response = await fetch(uri)
+        const blob = await response.blob()
+        const upload = await this.uploadContent(blob, {
+            name: fileUri.filename()
+        })
+        return upload
+    }
+
+    getThumbnails(uri: string, width?: number, height?: number) {
+        const _width = width || 150
+        const _height = height || 100
+        const mediaId = uri.split("/")[3] || undefined
+        const ratio = Math.max(_width, _height) / 150
+        const ratioWidth = Math.floor(_width / ratio)
+        const ratioHeight = Math.floor(_height / ratio)
+        const thumbnail_url = `${this.baseUrl}${MediaPrefix.V3}/thumbnail/chat.b-pay.life/${mediaId}?width=${ratioWidth * 3}&height=${ratioHeight * 3}&method=scale&timeout_ms=5000`
+        return {
+            width: ratioWidth,
+            height: ratioHeight,
+            thumbnail_url
+        }
+    }
 }
 
 const sendRoomNotify = async (room) => {
@@ -250,6 +276,7 @@ export const useMatrixClient = () => {
         // 更新空房间名为原名
         _client.on(RoomEvent.Name, (room) => {
             if (room && room.normalizedName.startsWith("ernptyroornwas")) {
+                console.log('rename room', room.name, room.normalizedName)
                 const hisFriend = room.normalizedName.split("ernptyroornwas")[1]
                 if (hisFriend) {
                     _client.setRoomName(room.roomId, hisFriend)

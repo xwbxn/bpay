@@ -44,7 +44,7 @@ export const Contacts = ({ navigation, route }) => {
             const joindGroups = client.getRooms().filter(room => {
                 return (
                     room.getMyMembership() === 'join' &&
-                    room.getMembers().every(m => m.getDMInviter() === undefined)
+                    (!_friends.map(i => i.roomId).includes(room.roomId))
                 )
             })
             joindGroups.forEach(room => {

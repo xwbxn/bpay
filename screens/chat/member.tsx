@@ -62,7 +62,7 @@ export const MemberProfile = ({ navigation, route }) => {
         setLoading(true)
         try {
             await client.inviteFriend(userId, reason)
-            navigation.replace('Sessions')
+            navigation.popToTop()
         } catch (e) {
             Alert.alert('错误', e.toString())
         } finally {
@@ -82,7 +82,7 @@ export const MemberProfile = ({ navigation, route }) => {
                     setLoading(true)
                     try {
                         await client.deleteFriend(userId)
-                        navigation.replace('Sessions')
+                        navigation.popToTop()
                     } catch (e) {
                         console.log(e)
                     } finally {

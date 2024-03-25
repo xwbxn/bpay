@@ -1,23 +1,26 @@
 import 'dayjs/locale/zh';
 
+import * as Clipboard from 'expo-clipboard';
 import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
-import * as Clipboard from 'expo-clipboard';
+import * as vt from 'expo-video-thumbnails';
+import * as FileSystem from 'expo-file-system';
+
 import { EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
+import Toast from 'react-native-root-toast';
 import URI from 'urijs';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import { BottomSheet, Button, Divider, Icon, ListItem, useTheme } from '@rneui/themed';
 
+import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
-import { CameraType } from 'expo-image-picker';
-import Toast from 'react-native-root-toast';
 import { MessageImage } from './messageRenders/MessageImage';
 import { MessageVideo } from './messageRenders/MessageVideo';
-import { useGlobalState } from '../../store/globalContext';
+import { CameraType } from 'expo-image-picker';
 
 export function Room({ route, navigation }) {
 
@@ -32,7 +35,7 @@ export function Room({ route, navigation }) {
   const [actionSheetShow, setActionSheetShow] = useState(false)
 
   const [messages, setMessages] = useState([])
-  const [currentMessage, setCurrentMessage] = useState<IMessage>()
+  const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
 
   const { setLoading } = useGlobalState()
@@ -55,9 +58,15 @@ export function Room({ route, navigation }) {
     })
   }, [room])
 
+  interface IChatMessage extends IMessage {
+    w?: number,
+    h?: number,
+    origin_uri?: string
+  }
+
   // event转换为msg格式
   const evtToMsg = (evt: MatrixEvent) => {
-    let msg: IMessage = null
+    let msg: IChatMessage = null
     const sender = client.getUser(evt.getSender())
     const msgUser: User = {
       _id: evt.getSender(),
@@ -121,12 +130,20 @@ export function Room({ route, navigation }) {
           }
         }
         if (evt.getContent().msgtype == MsgType.Image) {
+          const thumbnail_info = client.getThumbnails(
+            evt.getContent().url,
+            evt.getContent().info?.w,
+            evt.getContent().info?.h)
           msg = {
             _id: evt.getId(),
             text: "",
-            image: client.mxcUrlToHttp(evt.getContent().url),
+            // image: client.mxcUrlToHttp(evt.getContent().url),
+            image: thumbnail_info.thumbnail_url,
             createdAt: evt.localTimestamp,
-            user: msgUser
+            user: msgUser,
+            w: thumbnail_info.width,
+            h: thumbnail_info.height,
+            origin_uri: client.mxcUrlToHttp(evt.getContent().url)
           }
         }
         if (evt.getContent().msgtype === MsgType.Video) {
@@ -238,7 +255,6 @@ export function Room({ route, navigation }) {
     }
     const newMessages = []
     const msgEvts = room.getLiveTimeline().getEvents()
-    // .filter(e => [EventType.RoomMessage, ].includes(e.getType() as EventType))
     if (msgEvts.length > 0) {
       msgEvts.forEach(evt => {
         const msg = evtToMsg(evt)
@@ -255,7 +271,9 @@ export function Room({ route, navigation }) {
   // 发送消息
   const sendText = useCallback((messages = []) => {
     setBottomSheetShow(false)
-    const message = messages[0]
+    const message: IMessage = messages[0]
+    message.pending = true
+    setMessages(prev => GiftedChat.append(prev, [message]))
     client.sendTextMessage(room.roomId, message.text)
   }, [client])
 
@@ -271,25 +289,51 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          const fileUri = new URI(a.uri)
-          const response = await fetch(a.uri)
-          const blob = await response.blob()
-          const upload = await client.uploadContent(blob, {
-            name: fileUri.filename()
-          })
+          const ratio = Math.max(a.width, a.height) / 150
+          const msg: IChatMessage = {
+            _id: client.makeTxnId(),
+            user: {
+              _id: user.userId,
+              name: user.displayName,
+              avatar: user.avatarUrl
+            },
+            text: '',
+            createdAt: new Date(),
+            pending: true,
+            h: Math.floor(a.height / ratio),
+            w: Math.floor(a.width / ratio)
+          }
+          if (a.type === 'image') msg.image = a.uri
+          if (a.type === 'video') msg.video = a.uri
+          setMessages(prev => GiftedChat.append(prev, [msg]))
+
+          const upload = await client.uploadFile(a.uri)
           if (a.type === 'image') {
-            client.sendImageMessage(room.roomId, upload.content_uri)
+
+            client.sendImageMessage(room.roomId, upload.content_uri, {
+              size: a.fileSize,
+              mimetype: a.mimeType,
+              w: a.width,
+              h: a.height,
+            })
           }
           if (a.type === 'video') {
+            const vtUri = await vt.getThumbnailAsync(a.uri)
+
             const content: IContent = {
               msgtype: 'm.video',
-              body: fileUri.filename(),
+              body: a.fileName,
               url: upload.content_uri,
               info: {
+                duration: a.duration,
                 thumbnail_info: {
-
+                  w: vtUri.width,
+                  h: vtUri.height,
+                  uri: vtUri.uri
                 }
-              }
+              },
+              w: a.width,
+              h: a.height
             }
             client.sendMessage(room.roomId, content)
           }
@@ -344,17 +388,20 @@ export function Room({ route, navigation }) {
     )
   }, [])
 
+  // 右键操作
   const onMessageLongPress = (context, message) => {
     setCurrentMessage(message)
     setActionSheetShow(true)
   }
 
+  // 撤回
   const onRedAction = () => {
     client.redactEvent(room.roomId, currentMessage._id as string).then(() => {
       setActionSheetShow(false)
     })
   }
 
+  // 复制消息
   const onCopy = async () => {
     await Clipboard.setStringAsync(currentMessage.text);
     setActionSheetShow(false)
@@ -364,6 +411,7 @@ export function Room({ route, navigation }) {
     });
   }
 
+  // 加入收藏
   const setMessageFavor = () => {
     const favor = client.getAccountData('m.favor')?.getContent()?.favor || []
     favor.push(currentMessage)
@@ -374,6 +422,15 @@ export function Room({ route, navigation }) {
         position: Toast.positions.CENTER
       });
     })
+  }
+
+  const onDownload = () => {
+    const url = client.mxcUrlToHttp(currentMessage.origin_uri)
+    const downloadResumable = FileSystem.createDownloadResumable(
+      currentMessage.origin_uri,
+      FileSystem.documentDirectory + 'small.mp4'
+    );
+    downloadResumable.downloadAsync()
   }
 
   return (
@@ -387,6 +444,11 @@ export function Room({ route, navigation }) {
           <Icon name='favorite-border' type='meterialicon'></Icon>
           <ListItem.Title>收藏</ListItem.Title>
         </ListItem>
+        {currentMessage?.origin_uri &&
+          <ListItem onPress={onDownload} bottomDivider>
+            <Icon name='download' type='meterialicon'></Icon>
+            <ListItem.Title>下载</ListItem.Title>
+          </ListItem>}
         {currentMessage?.user._id === client.getUserId() && currentMessage.text != '[消息已被撤回]' &&
           <ListItem onPress={onRedAction} bottomDivider>
             <Icon name='undo' type='meterialicon'></Icon>

@@ -1,6 +1,6 @@
 import { encode as base64_encode } from 'base-64';
 import React, { useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button, Icon, Image, Input, Text, useTheme } from '@rneui/themed';
@@ -74,19 +74,24 @@ export default function Login({ navigation, route }) {
 
     return <>
         <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <View style={{ alignItems: 'center', paddingTop: 80 }}>
-                <Image resizeMethod='scale' style={{ width: 200, aspectRatio: 1 }} source={require('../../assets/icon.png')}></Image>
-            </View>
-            <View style={{ alignItems: 'center', padding: 20 }} >
-                <Input label="用户名" onChangeText={setUsername} value={username}></Input>
-                <Input label="密码" rightIcon={<Icon name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
-                    onPressIn={() => setShowPassword(true)}
-                    onPressOut={() => setShowPassword(false)}></Icon>}
-                    secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
-            </View>
-            <View style={{ padding: 28 }}>
-                <Button onPress={() => onLoginPress()}>登录</Button>
-            </View>
+            <KeyboardAvoidingView behavior='padding' style={{ justifyContent: 'flex-end' }}>
+                <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                    <Image resizeMethod='scale' style={{ width: 200, height: 200 }} resizeMode='stretch' source={require('../../assets/icon.png')}></Image>
+                </View>
+                <View style={{ alignItems: 'center', paddingHorizontal: 40, marginTop: 60 }} >
+                    <Input placeholder='用户名'
+                        inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }} onChangeText={setUsername} value={username}></Input>
+                    <Input placeholder='密码'
+                        inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }}
+                        rightIcon={<Icon size={10} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
+                            onPressIn={() => setShowPassword(true)}
+                            onPressOut={() => setShowPassword(false)}></Icon>}
+                        secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
+                </View>
+                <View style={{ paddingHorizontal: 50 }}>
+                    <Button radius={10} onPress={() => onLoginPress()}>登录</Button>
+                </View>
+            </KeyboardAvoidingView>
         </SafeAreaView>
     </>
 }
