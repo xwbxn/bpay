@@ -28,7 +28,6 @@ export function Room({ route, navigation }) {
   const { id } = route.params
   const { client } = useMatrixClient()
   const [room, setRoom] = useState(client.getRoom(id))
-  // const room = client.getRoom(id)
   const user = client.getUser(client.getUserId())
   const isFriendRoom = client.isFriendRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
@@ -62,124 +61,74 @@ export function Room({ route, navigation }) {
     w?: number,
     h?: number,
     origin_uri?: string
+    filename?: string,
+    event?: MatrixEvent
   }
 
   // event转换为msg格式
   const evtToMsg = (evt: MatrixEvent) => {
-    let msg: IChatMessage = null
     const sender = client.getUser(evt.getSender())
-    const msgUser: User = {
-      _id: evt.getSender(),
-      name: sender.displayName || evt.getSender(),
-      avatar: sender.avatarUrl || '',
+    let msg: IChatMessage = {
+      _id: evt.getId(),
+      text: '',
+      createdAt: evt.localTimestamp,
+      user: {
+        _id: evt.getSender(),
+        name: sender.displayName || evt.getSender(),
+        avatar: sender.avatarUrl || '',
+      },
+      sent: evt.status === null,
+      pending: evt.status !== null
     }
     switch (evt.event.type) {
       case EventType.RoomMessageEncrypted:
-        msg = {
-          _id: evt.getId(),
-          text: `[加密消息]`,
-          createdAt: evt.localTimestamp,
-          user: msgUser
-        }
+        msg.text = `[加密消息]`
         break
       case EventType.RoomCreate:
         if (!isFriendRoom) {
-          msg = {
-            _id: evt.getId(),
-            text: `${evt.getSender()} 创建了群聊`,
-            createdAt: evt.localTimestamp,
-            system: true,
-            user: msgUser
-          }
+          msg.text = `${msg.user.name} 创建了群聊`
+          msg.system = true
         }
         break
       case EventType.RoomMember:
+        msg.system = true
         if (evt.getContent().membership === 'join') {
-          msg = {
-            _id: evt.getId(),
-            text: isFriendRoom ? `${evt.getContent().displayname} 开始了聊天` : `${evt.getContent().displayname} 加入了群聊`,
-            createdAt: evt.localTimestamp,
-            system: true,
-            user: msgUser
-          }
+          msg.text = isFriendRoom ? `${evt.getContent().displayname} 开始了聊天` : `${evt.getContent().displayname} 加入了群聊`
         } else if (evt.getContent().membership === 'leave') {
-          msg = {
-            _id: evt.getId(),
-            text: isFriendRoom ? `${evt.getContent().displayname} 已将您从好友中删除` : `${evt.getContent().displayname} 离开了群聊`,
-            createdAt: evt.localTimestamp,
-            system: true,
-            user: msgUser
-          }
+          msg.text = isFriendRoom ? `${evt.getContent().displayname} 已将您从好友中删除` : `${evt.getContent().displayname} 离开了群聊`
         } else if (isFriendRoom && evt.getContent().membership === 'invite') {
-          msg = {
-            _id: evt.getId(),
-            text: `向 ${evt.getContent().displayname} 发起了好友申请`,
-            createdAt: evt.localTimestamp,
-            system: true,
-            user: msgUser
-          }
+          msg.text = `向 ${evt.getContent().displayname} 发起了好友申请`
         }
         break
       case EventType.RoomMessage:
         if (evt.getContent().msgtype == MsgType.Text) {
-          msg = {
-            _id: evt.getId(),
-            text: evt.getContent().body,
-            createdAt: evt.localTimestamp,
-            user: msgUser
-          }
+          msg.text = evt.getContent().body
         }
         if (evt.getContent().msgtype == MsgType.Image) {
           const thumbnail_info = client.getThumbnails(
             evt.getContent().url,
             evt.getContent().info?.w,
             evt.getContent().info?.h)
-          msg = {
-            _id: evt.getId(),
-            text: "",
-            // image: client.mxcUrlToHttp(evt.getContent().url),
-            image: thumbnail_info.thumbnail_url,
-            createdAt: evt.localTimestamp,
-            user: msgUser,
-            w: thumbnail_info.width,
-            h: thumbnail_info.height,
-            origin_uri: client.mxcUrlToHttp(evt.getContent().url)
-          }
+          msg.image = thumbnail_info.thumbnail_url
+          msg.w = thumbnail_info.width
+          msg.h = thumbnail_info.height
         }
         if (evt.getContent().msgtype === MsgType.Video) {
-          msg = {
-            _id: evt.getId(),
-            text: "",
-            image: client.mxcUrlToHttp(evt.getContent().info.thumbnail_info.thumbnail_url),
-            video: client.mxcUrlToHttp(evt.getContent().url),
-            createdAt: evt.localTimestamp,
-            user: msgUser
-          }
-        }
-        if (msg) {
-          msg.sent = evt.status === null
-          msg.pending = evt.status !== null
+          msg.video = client.mxcUrlToHttp(evt.getContent().info.thumbnail_url)
+          msg.w = evt.getContent().info?.thumbnail_info?.w || 150
+          msg.h = evt.getContent().info?.thumbnail_info?.h || 100
+          // msg.video = client.mxcUrlToHttp(evt.getContent().url)
         }
         if (evt.isRedacted()) {
-          msg = {
-            _id: evt.getId(),
-            text: "[消息已被撤回]",
-            createdAt: 0,
-            user: msgUser,
-            pending: false,
-            sent: false
-          }
+          msg.text = "[消息已被撤回]"
+          msg.createdAt = 0
+          msg.pending = false
+          msg.sent = false
         }
         break
       default:
-        // msg = {
-        //   _id: evt.getId(),
-        //   text: `[不支持的消息(${evt.getType()})]`,
-        //   image: client.mxcUrlToHttp(evt.getContent()?.info?.thumbnail_info?.thumbnail_url),
-        //   video: client.mxcUrlToHttp(evt.getContent()?.url),
-        //   createdAt: evt.localTimestamp,
-        //   user: msgUser
-        // }
+        msg._id = null
+        msg.text = `[不支持的消息(${evt.getType()})]`
         console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
         break
     }
@@ -258,7 +207,7 @@ export function Room({ route, navigation }) {
     if (msgEvts.length > 0) {
       msgEvts.forEach(evt => {
         const msg = evtToMsg(evt)
-        if (msg) newMessages.unshift(msg)
+        if (msg._id) newMessages.unshift(msg)
       })
       setMessages(newMessages)
       const lastEvt = msgEvts[msgEvts.length - 1]
@@ -289,51 +238,55 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          const ratio = Math.max(a.width, a.height) / 150
-          const msg: IChatMessage = {
-            _id: client.makeTxnId(),
-            user: {
-              _id: user.userId,
-              name: user.displayName,
-              avatar: user.avatarUrl
-            },
-            text: '',
-            createdAt: new Date(),
-            pending: true,
-            h: Math.floor(a.height / ratio),
-            w: Math.floor(a.width / ratio)
-          }
-          if (a.type === 'image') msg.image = a.uri
-          if (a.type === 'video') msg.video = a.uri
-          setMessages(prev => GiftedChat.append(prev, [msg]))
-
+          // 本地预览消息
+          previewMessage(a);
+          // 上传文件
           const upload = await client.uploadFile(a.uri)
+
+          // 图片
           if (a.type === 'image') {
-
-            client.sendImageMessage(room.roomId, upload.content_uri, {
-              size: a.fileSize,
-              mimetype: a.mimeType,
-              w: a.width,
-              h: a.height,
-            })
-          }
-          if (a.type === 'video') {
-            const vtUri = await vt.getThumbnailAsync(a.uri)
-
+            const thumbnail = client.getThumbnails(upload.content_uri, a.width, a.height)
             const content: IContent = {
-              msgtype: 'm.video',
+              msgtype: MsgType.Image,
+              body: a.fileName,
+              url: upload.content_uri,
+              info: {
+                h: a.height,
+                w: a.width,
+                mimetype: a.mimeType,
+                size: a.fileSize,
+                thumbnail_url: thumbnail.thumbnail_url,
+                thumbnail_info: {
+                  w: thumbnail.width,
+                  h: thumbnail.height,
+                  mimetype: a.mimeType
+                }
+              },
+            }
+            client.sendMessage(room.roomId, content)
+          }
+          // 视频
+          if (a.type === 'video') {
+            const ratio = Math.max(a.height, a.width) / 150
+            const thumbnail = await vt.getThumbnailAsync(a.uri)
+            const uploadedThumb = await client.uploadFile(thumbnail.uri)
+            const content: IContent = {
+              msgtype: MsgType.Video,
               body: a.fileName,
               url: upload.content_uri,
               info: {
                 duration: a.duration,
+                h: a.height,
+                w: a.width,
+                mimetype: a.mimeType,
+                size: a.fileSize,
+                thumbnail_url: uploadedThumb.content_uri,
                 thumbnail_info: {
-                  w: vtUri.width,
-                  h: vtUri.height,
-                  uri: vtUri.uri
+                  w: Math.floor(thumbnail.width / ratio),
+                  h: Math.floor(thumbnail.height / ratio),
+                  minetype: ''
                 }
               },
-              w: a.width,
-              h: a.height
             }
             client.sendMessage(room.roomId, content)
           }
@@ -353,12 +306,8 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          const fileUri = new URI(a.uri)
-          const response = await fetch(a.uri)
-          const blob = await response.blob()
-          const upload = await client.uploadContent(blob, {
-            name: fileUri.filename()
-          })
+          previewMessage(a)
+          const upload = await client.uploadFile(a.uri)
           client.sendImageMessage(room.roomId, upload.content_uri)
         })
       }
@@ -424,13 +373,18 @@ export function Room({ route, navigation }) {
     })
   }
 
-  const onDownload = () => {
-    const url = client.mxcUrlToHttp(currentMessage.origin_uri)
+  // 下载
+  const onDownload = async () => {
     const downloadResumable = FileSystem.createDownloadResumable(
       currentMessage.origin_uri,
-      FileSystem.documentDirectory + 'small.mp4'
+      FileSystem.documentDirectory + currentMessage.filename
     );
-    downloadResumable.downloadAsync()
+    console.log('FileSystem.', FileSystem.documentDirectory, currentMessage.filename)
+    await downloadResumable.downloadAsync()
+    Toast.show('下载完成', {
+      duration: Toast.durations.LONG,
+      position: Toast.positions.CENTER
+    });
   }
 
   return (
@@ -497,6 +451,28 @@ export function Room({ route, navigation }) {
       </View>
     </View >
   )
+
+  function previewMessage(a: ImagePicker.ImagePickerAsset) {
+    const ratio = Math.max(a.width, a.height) / 150;
+    const msg: IChatMessage = {
+      _id: client.makeTxnId(),
+      user: {
+        _id: user.userId,
+        name: user.displayName,
+        avatar: user.avatarUrl
+      },
+      text: '',
+      createdAt: new Date(),
+      pending: true,
+      h: Math.floor(a.height / ratio),
+      w: Math.floor(a.width / ratio)
+    };
+    if (a.type === 'image')
+      msg.image = a.uri;
+    if (a.type === 'video')
+      msg.video = a.uri;
+    setMessages(prev => GiftedChat.append(prev, [msg]));
+  }
 }
 
 const styles = StyleSheet.create({

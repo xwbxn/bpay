@@ -171,10 +171,10 @@ class BChatClient extends MatrixClient {
         return upload
     }
 
-    getThumbnails(uri: string, width?: number, height?: number) {
+    getThumbnails(mxc_uri: string, width?: number, height?: number) {
         const _width = width || 150
         const _height = height || 100
-        const mediaId = uri.split("/")[3] || undefined
+        const mediaId = mxc_uri.split("/")[3] || undefined
         const ratio = Math.max(_width, _height) / 150
         const ratioWidth = Math.floor(_width / ratio)
         const ratioHeight = Math.floor(_height / ratio)

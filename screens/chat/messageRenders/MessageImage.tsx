@@ -23,8 +23,6 @@ export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = 
         return null;
     }
 
-    console.log('currentMessage', currentMessage)
-
     return (<View style={[styles.container, containerStyle]}>
         {// @ts-ignore: 2322
             <Lightbox activeProps={{

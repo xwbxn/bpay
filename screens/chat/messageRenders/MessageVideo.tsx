@@ -1,18 +1,30 @@
+import { Icon } from '@rneui/themed';
+import { Image } from 'expo-image';
+
 import PropTypes from 'prop-types';
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 // TODO: support web
 import { StylePropType } from 'react-native-gifted-chat';
-import { VideoThumbnails } from './VideoThumbnails';
 
-export const MessageVideo = ({ containerStyle, lightboxProps = {}, imageProps = {}, imageStyle, currentMessage, onLongPress }) => {
+export const MessageVideo = ({ containerStyle, imageProps = {}, imageStyle, currentMessage, onLongPress }) => {
   if (currentMessage == null) {
     return null;
   }
 
   return (<View style={[styles.container, containerStyle]}>
-    <TouchableOpacity onLongPress={() => onLongPress({}, currentMessage)}>
-      <VideoThumbnails uri={currentMessage.video} imageProps imageStyle></VideoThumbnails>
+    <TouchableOpacity style={{ maxHeight: 150, maxWidth: 180 }} onLongPress={() => onLongPress({}, currentMessage)}>
+      <View>
+        <Icon containerStyle={{
+          position: 'absolute', zIndex: 1,
+          width: currentMessage.w, height: currentMessage.h, maxHeight: 150, maxWidth: 150, justifyContent: 'center'
+        }}
+          size={50} name='play' type='octicon' color='#43484d' ></Icon>
+        <Image {...imageProps} style={[styles.image, imageStyle, {
+          opacity: 0.8,
+          width: currentMessage.w, height: currentMessage.h, maxHeight: 150, maxWidth: 150
+        }]} source={{ uri: currentMessage.video }} />
+      </View>
     </TouchableOpacity>
   </View>);
 }
@@ -28,8 +40,6 @@ MessageVideo.propTypes = {
 const styles = StyleSheet.create({
   container: {},
   image: {
-    width: 150,
-    height: 100,
     borderRadius: 13,
     margin: 3,
     resizeMode: 'cover',
