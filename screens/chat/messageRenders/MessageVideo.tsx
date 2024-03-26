@@ -7,19 +7,21 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 // TODO: support web
 import { StylePropType } from 'react-native-gifted-chat';
 
-export const MessageVideo = ({ containerStyle, imageProps = {}, imageStyle, currentMessage, onLongPress }) => {
+export const MessageVideo = ({ containerStyle, imageProps = {}, imageStyle, currentMessage, onLongPress, onPress }) => {
   if (currentMessage == null) {
     return null;
   }
 
   return (<View style={[styles.container, containerStyle]}>
-    <TouchableOpacity style={{ maxHeight: 150, maxWidth: 180 }} onLongPress={() => onLongPress({}, currentMessage)}>
+    <TouchableOpacity style={{ maxHeight: 150, maxWidth: 180 }}
+      onPress={() => onPress({}, currentMessage)}
+      onLongPress={() => onLongPress({}, currentMessage)}>
       <View>
         <Icon containerStyle={{
           position: 'absolute', zIndex: 1,
           width: currentMessage.w, height: currentMessage.h, maxHeight: 150, maxWidth: 150, justifyContent: 'center'
         }}
-          size={50} name='play' type='octicon' color='#43484d' ></Icon>
+          size={50} name={'play'} type='octicon' color='#43484d' ></Icon>
         <Image {...imageProps} style={[styles.image, imageStyle, {
           opacity: 0.8,
           width: currentMessage.w, height: currentMessage.h, maxHeight: 150, maxWidth: 150

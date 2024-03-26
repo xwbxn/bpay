@@ -5,22 +5,26 @@ import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import * as vt from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
+import * as ScreenOrientation from 'expo-screen-orientation';
+
 
 import { EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
 import Toast from 'react-native-root-toast';
-import URI from 'urijs';
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { BottomSheet, Button, Divider, Icon, ListItem, useTheme } from '@rneui/themed';
+import { BottomSheet, Button, Divider, Icon, ListItem, Overlay, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { MessageImage } from './messageRenders/MessageImage';
 import { MessageVideo } from './messageRenders/MessageVideo';
 import { CameraType } from 'expo-image-picker';
+import VideoPlayer from 'expo-video-player';
+import { ResizeMode } from 'expo-av';
+import { setStatusBarHidden } from 'expo-status-bar';
 
 export function Room({ route, navigation }) {
 
@@ -32,10 +36,12 @@ export function Room({ route, navigation }) {
   const isFriendRoom = client.isFriendRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
   const [actionSheetShow, setActionSheetShow] = useState(false)
+  const screenSize = useWindowDimensions()
 
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState<IChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
+  const [playerState, setPlayerState] = useState({ visible: false, source: '', inFullscreen: false })
 
   const { setLoading } = useGlobalState()
 
@@ -78,7 +84,8 @@ export function Room({ route, navigation }) {
         avatar: sender.avatarUrl || '',
       },
       sent: evt.status === null,
-      pending: evt.status !== null
+      pending: evt.status !== null,
+      event: evt
     }
     switch (evt.event.type) {
       case EventType.RoomMessageEncrypted:
@@ -202,15 +209,17 @@ export function Room({ route, navigation }) {
     if (!room) {
       return
     }
-    const newMessages = []
-    const msgEvts = room.getLiveTimeline().getEvents()
-    if (msgEvts.length > 0) {
-      msgEvts.forEach(evt => {
+    // const _messages = [...messages]
+    const _messages = []
+    const events = room.getLiveTimeline().getEvents()
+    if (events.length > 0) {
+      events.forEach(evt => {
+        // if (_messages.map(i => i._id).includes(evt.getId())) return
         const msg = evtToMsg(evt)
-        if (msg._id) newMessages.unshift(msg)
+        if (msg._id) _messages.unshift(msg)
       })
-      setMessages(newMessages)
-      const lastEvt = msgEvts[msgEvts.length - 1]
+      setMessages(_messages)
+      const lastEvt = events[events.length - 1]
       if (lastEvt.status === null) {
         client.sendReadReceipt(lastEvt)
       }
@@ -239,7 +248,7 @@ export function Room({ route, navigation }) {
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
           // 本地预览消息
-          previewMessage(a);
+          const txnId = previewMessage(a);
           // 上传文件
           const upload = await client.uploadFile(a.uri)
 
@@ -263,7 +272,7 @@ export function Room({ route, navigation }) {
                 }
               },
             }
-            client.sendMessage(room.roomId, content)
+            client.sendMessage(room.roomId, content, txnId)
           }
           // 视频
           if (a.type === 'video') {
@@ -288,7 +297,7 @@ export function Room({ route, navigation }) {
                 }
               },
             }
-            client.sendMessage(room.roomId, content)
+            client.sendMessage(room.roomId, content, txnId)
           }
         })
       }
@@ -306,9 +315,27 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          previewMessage(a)
+          const txnId = previewMessage(a)
           const upload = await client.uploadFile(a.uri)
-          client.sendImageMessage(room.roomId, upload.content_uri)
+          const thumbnail = client.getThumbnails(upload.content_uri, a.width, a.height)
+          const content: IContent = {
+            msgtype: MsgType.Image,
+            body: a.fileName,
+            url: upload.content_uri,
+            info: {
+              h: a.height,
+              w: a.width,
+              mimetype: a.mimeType,
+              size: a.fileSize,
+              thumbnail_url: thumbnail.thumbnail_url,
+              thumbnail_info: {
+                w: thumbnail.width,
+                h: thumbnail.height,
+                mimetype: a.mimeType
+              }
+            },
+          }
+          client.sendMessage(room.roomId, content, txnId)
         })
       }
     })()
@@ -319,7 +346,7 @@ export function Room({ route, navigation }) {
     client.scrollback(room)
   }, [client])
 
-  // 发送按钮
+  // 渲染发送按钮
   const renderSend = useCallback((props: SendProps<IMessage>) => {
     const disabled = client.isFriendRoom(room.roomId) && room.getJoinedMemberCount() === 1
     return (
@@ -337,10 +364,45 @@ export function Room({ route, navigation }) {
     )
   }, [])
 
-  // 右键操作
+  // 长按操作
   const onMessageLongPress = (context, message) => {
     setCurrentMessage(message)
     setActionSheetShow(true)
+  }
+
+  // 触摸消息
+  const onMessagePress = (context, message) => {
+    setCurrentMessage(message)
+    const evt: MatrixEvent = message.event
+    if (evt.getType() === EventType.RoomMessage && evt.getContent().msgtype === MsgType.Video) {
+      const mediaId = evt.getContent().url.split('/')[3]
+      const cacheFilename = FileSystem.cacheDirectory + mediaId
+      FileSystem.getInfoAsync(cacheFilename).then(res => {
+        if (res.exists) {
+          setPlayerState({
+            visible: true,
+            source: cacheFilename,
+            inFullscreen: false
+          })
+        } else {
+          const callback = downloadProgress => {
+            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite
+            message.text = `下载中: ${progress.toFixed(0)}%`
+            setMessages([...messages])
+          }
+          const dl = FileSystem.createDownloadResumable(client.mxcUrlToHttp(evt.getContent().url), cacheFilename, {}, callback)
+          dl.downloadAsync().then(res => {
+            message.text = ''
+            setMessages([...messages])
+            setPlayerState({
+              visible: true,
+              source: cacheFilename,
+              inFullscreen: false
+            })
+          })
+        }
+      })
+    }
   }
 
   // 撤回
@@ -387,7 +449,7 @@ export function Room({ route, navigation }) {
     });
   }
 
-  return (
+  return (<>
     <View style={styles.container}>
       <BottomSheet isVisible={actionSheetShow} onBackdropPress={() => setActionSheetShow(false)}>
         <ListItem bottomDivider onPress={onCopy}>
@@ -417,6 +479,7 @@ export function Room({ route, navigation }) {
         <GiftedChat
           locale='zh'
           onLongPress={onMessageLongPress}
+          onPress={onMessagePress}
           messages={messages}
           onInputTextChanged={() => { setBottomSheetShow(false) }}
           scrollToBottom
@@ -449,13 +512,41 @@ export function Room({ route, navigation }) {
           </View>
         </View>}
       </View>
+
     </View >
+    <Overlay isVisible={playerState.visible} overlayStyle={{ padding: 0 }} animationType='fade'>
+      <VideoPlayer videoProps={{ source: { uri: playerState.source }, resizeMode: ResizeMode.CONTAIN, shouldPlay: true }}
+        defaultControlsVisible={true}
+        style={{ width: screenSize.width, height: playerState.inFullscreen ? screenSize.height - 40 : screenSize.height }}
+        header={<Icon onPress={() => {
+          setStatusBarHidden(false)
+          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT)
+          setPlayerState({ visible: false, source: '', inFullscreen: false })
+        }} name='arrow-back' color={theme.colors.background} type='ionicon' size={40} style={{ margin: 10 }}></Icon>}
+        fullscreen={{
+          inFullscreen: playerState.inFullscreen,
+          async enterFullscreen() {
+            setStatusBarHidden(true, 'fade')
+            setPlayerState({ ...playerState, inFullscreen: true })
+            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_LEFT)
+          },
+          async exitFullscreen() {
+            setStatusBarHidden(false)
+            setPlayerState({ ...playerState, inFullscreen: false })
+            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT)
+          },
+        }}
+      ></VideoPlayer>
+    </Overlay>
+  </>
+
   )
 
   function previewMessage(a: ImagePicker.ImagePickerAsset) {
     const ratio = Math.max(a.width, a.height) / 150;
+    const txnId = client.makeTxnId()
     const msg: IChatMessage = {
-      _id: client.makeTxnId(),
+      _id: txnId,
       user: {
         _id: user.userId,
         name: user.displayName,
@@ -472,6 +563,7 @@ export function Room({ route, navigation }) {
     if (a.type === 'video')
       msg.video = a.uri;
     setMessages(prev => GiftedChat.append(prev, [msg]));
+    return txnId
   }
 }
 
