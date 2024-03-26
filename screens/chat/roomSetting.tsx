@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
     Divider, Icon, ListItem, Switch, Text, useTheme
@@ -10,6 +10,7 @@ import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem } from './components/ListView';
 import { IMemberItem, MemberList } from './components/MemberList';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import { ClientEvent, Direction, EventType, IContent, JoinRule, RoomEvent, RoomMemberEvent, RoomStateEvent, Visibility } from 'matrix-js-sdk';
 
 export const RoomSetting = ({ navigation, route }) => {
 
@@ -17,6 +18,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const { id } = route.params
     const { client } = useMatrixClient()
     const [room, setRoom] = useState(client.getRoom(id))
+    const [roomVisibility, setRoomVisibility] = useState(false)
     // const room = client.getRoom(id)
     const isFriendRoom = client.isFriendRoom(id)
     const { theme } = useTheme()
@@ -41,13 +43,21 @@ export const RoomSetting = ({ navigation, route }) => {
         if (!room) {
             return
         }
-        setRoomMembers(room.getMembers().map(i => {
-            return {
-                id: i.userId,
-                name: i.name,
-                avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true)
-            }
-        }))
+        setRoomVisibility(room.getLiveTimeline().getState(Direction.Forward).getJoinRule() === JoinRule.Public)
+        function refreshMembers() {
+            setRoomMembers(room.getJoinedMembers().map(i => {
+                return {
+                    id: i.userId,
+                    name: i.name,
+                    avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true)
+                };
+            }));
+        }
+        refreshMembers();
+        room.on(RoomStateEvent.Members, refreshMembers)
+        return () => {
+            room.off(RoomStateEvent.Members, refreshMembers)
+        }
     }, [room])
 
     const leaveGroup = () => {
@@ -91,6 +101,22 @@ export const RoomSetting = ({ navigation, route }) => {
         client.setRoomOnTop(room.roomId, value)
     }
 
+    const onRoomPublic = async (value) => {
+        try {
+            setLoading(true)
+            setRoomVisibility(value)
+            await client.sendStateEvent(room.roomId, EventType.RoomJoinRules, { join_rule: value ? JoinRule.Public : JoinRule.Invite })
+            await client.setRoomDirectoryVisibility(room.roomId, value ? Visibility.Public : Visibility.Private)
+        }
+        catch (e) {
+            Alert.alert('错误', e.toString())
+            console.error('onRoomPublic', e)
+        }
+        finally {
+            setLoading(false)
+        }
+    }
+
     const setRoomName = () => {
         setEditProps({
             isVisible: true,
@@ -131,7 +157,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const groupSetting = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} items={roomMembers}
-                onAppendPress={onInviteToGroup}
+                onSetting={onInviteToGroup}
                 onItemPress={onMemberPress}></MemberList>
         </View>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
@@ -157,6 +183,13 @@ export const RoomSetting = ({ navigation, route }) => {
                 </ListItem.Content>
                 <Text style={styles.listItemText}>{'群公告'}</Text>
                 <ListItem.Chevron></ListItem.Chevron>
+            </ListItem>
+            <Divider></Divider>
+            <ListItem containerStyle={styles.listItem}>
+                <ListItem.Content>
+                    <ListItem.Title style={styles.listItemTitle}>公共群组</ListItem.Title>
+                </ListItem.Content>
+                <Switch value={roomVisibility} onValueChange={onRoomPublic} style={{ height: 20 }}></Switch>
             </ListItem>
             <Divider></Divider>
             <ListItem containerStyle={styles.listItem}>
@@ -209,7 +242,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const friendSetting = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} onItemPress={onMemberPress}
-                onAppendPress={onFriendToGroup}
+                onSetting={onFriendToGroup}
                 items={roomMembers.filter(i => i.id !== client.getUserId())}></MemberList>
         </View>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
@@ -239,6 +272,8 @@ export const RoomSetting = ({ navigation, route }) => {
 
     return <>
         <PropEditor editProps={editProps}></PropEditor>
-        {isFriendRoom ? friendSetting : groupSetting}
+        <ScrollView>
+            {isFriendRoom ? friendSetting : groupSetting}
+        </ScrollView>
     </>
 }

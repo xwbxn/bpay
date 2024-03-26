@@ -1,4 +1,4 @@
-import { Preset } from 'matrix-js-sdk';
+import { Preset, RoomVersionStability, Visibility } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -14,7 +14,7 @@ export const GroupChat = ({ navigation, route }) => {
     useEffect(() => {
         // set nav bar
         navigation.setOptions({
-            title: route.params?.roomId ? '邀请加入' : '发起群聊'
+            title: '群组设置'
         })
     }, [])
 
@@ -23,10 +23,12 @@ export const GroupChat = ({ navigation, route }) => {
     const { client } = useMatrixClient()
     const roomId = route.params?.roomId
     const room = client.getRoom(roomId)
+    const isFriendRoom = client.isFriendRoom(roomId)
 
     const [searchVal, setSearchVal] = useState('')
+    const initMembers: string[] = route.params?.initMembers ? [...route.params.initMembers] : []
     const [members, setMembers] = useState<IListItem[]>([])
-    const [selectedValue] = useState(route.params?.initMembers || [])
+    const [selectedValue] = useState<string[]>(initMembers)
     const [isGroupOptionVisible, setIsGroupOptionVisible] = useState(false)
     const [groupName, setGroupName] = useState('')
     const [groupTopic, setGroupTopic] = useState('')
@@ -39,11 +41,32 @@ export const GroupChat = ({ navigation, route }) => {
             title: i.name,
             subtitle: i.userId,
             avatar: i.avatar_url,
+            right: i.membership
         })))
     }, [])
 
     const searchUser = (search) => {
         setSearchVal(search)
+    }
+
+    const onSetMember = async () => {
+        try {
+            setLoading(true)
+            const inviteMembers = selectedValue.filter(i => !initMembers.includes(i) && i !== client.getUserId())
+            const removeMembers = initMembers.filter(i => !selectedValue.includes(i) && i !== client.getUserId())
+            inviteMembers.forEach(async i => {
+                await client.invite(roomId, i)
+            })
+            removeMembers.forEach(async i => {
+                await client.kick(roomId, i)
+            })
+            navigation.goBack()
+        } catch (e) {
+            Alert.alert('错误', e.toString())
+            console.error('onSetMember', e)
+        } finally {
+            setLoading(false)
+        }
     }
 
     const onCreateGroup = () => {
@@ -107,7 +130,7 @@ export const GroupChat = ({ navigation, route }) => {
                 <ListView items={members} search={searchVal} selectedValue={selectedValue} enableSelect multiSelect></ListView>
             </ScrollView>
         </View>
-        <Button title={'确定'} onPress={onCreateGroup}
+        <Button title={'确定'} onPress={(roomId === undefined || isFriendRoom) ? onCreateGroup : onSetMember}
             titleStyle={{ fontSize: 18 }} containerStyle={{ backgroundColor: '#ffffff', paddingHorizontal: 10, paddingBottom: 30 }}></Button>
         <BottomSheet modalProps={{}} isVisible={isGroupOptionVisible}>
             <ListItem>

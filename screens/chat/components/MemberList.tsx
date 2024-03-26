@@ -12,7 +12,7 @@ export interface IMemberItem {
 interface IProps {
     items: IMemberItem[]
     containerStyle?: any
-    onAppendPress?: () => void
+    onSetting?: () => void
     onItemPress?: (IMemberItem) => void
 }
 
@@ -26,7 +26,7 @@ const MemberItem = ({ width, children }) => {
 export const MemberList = ({
     items,
     containerStyle,
-    onAppendPress,
+    onSetting,
     onItemPress
 }: IProps) => {
 
@@ -46,14 +46,14 @@ export const MemberList = ({
                 <Text style={{ color: theme.colors.grey3 }}>{i.name}</Text>
             </MemberItem>)}
             <MemberItem width={width / 5}>
-                <Avatar size={(width / 5) - 16} rounded onPress={() => { onAppendPress && onAppendPress() }}
-                    icon={{ name: 'plus', type: 'simple-line-icon', color: theme.colors.primary, size: (width / 5) - 18 }}
-                    containerStyle={{ backgroundColor: theme.colors.background }}></Avatar>
-            </MemberItem>
-            <MemberItem width={width / 5}>
-                <Avatar size={(width / 5) - 16} rounded
-                    icon={{ name: 'minus', type: 'simple-line-icon', color: theme.colors.primary, size: (width / 5) - 18 }}
-                    containerStyle={{ backgroundColor: theme.colors.background }}></Avatar>
+                <Avatar size={(width / 5) - 16} rounded onPress={() => { onSetting && onSetting() }}
+                    title="···"
+                    titleStyle={{ color: theme.colors.primary, fontSize: 20, fontWeight: 'bold' }}
+                    containerStyle={{
+                        backgroundColor: theme.colors.background,
+                        borderWidth: 2, borderColor: theme.colors.primary,
+                    }}>
+                </Avatar>
             </MemberItem>
         </View>
     </>
