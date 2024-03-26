@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { LayoutChangeEvent, View, } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { LayoutChangeEvent, TouchableOpacity, View, } from 'react-native';
 
 import { Avatar, Text, useTheme } from '@rneui/themed';
 
@@ -32,14 +32,21 @@ export const MemberList = ({
 
     const [width, setWidth] = useState(0)
     const { theme } = useTheme()
+    const [filtedItems, setFiltedItems] = useState([])
+    const [showMore, setShowMore] = useState(false)
+
+    useEffect(() => {
+        setFiltedItems([...items.slice(0, 14)])
+    }, [items])
 
     const onLayout = (e: LayoutChangeEvent) => {
         setWidth(e.nativeEvent.layout.width)
     }
 
-    return <>
-        <View style={{ flexDirection: 'row', ...containerStyle }} onLayout={onLayout}>
-            {items.map(i => <MemberItem key={i.id} width={width / 5}>
+    return <View>
+        <View style={{ flexDirection: 'row', ...containerStyle, flexWrap: 'wrap' }}
+            onLayout={onLayout}>
+            {filtedItems.map((i, index) => <MemberItem key={index} width={width / 5}>
                 {i.avatar
                     ? <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={(width / 5) - 16} containerStyle={{ backgroundColor: theme.colors.primary }} source={{ uri: i.avatar }}></Avatar>
                     : <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={(width / 5) - 16} containerStyle={{ backgroundColor: theme.colors.primary }} title={i.name[0]}></Avatar>}
@@ -56,5 +63,15 @@ export const MemberList = ({
                 </Avatar>
             </MemberItem>
         </View>
-    </>
+        {items.length > 14 && <View style={{ alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => {
+                if (showMore) {
+                    setFiltedItems([...items.slice(0, 14)])
+                } else {
+                    setFiltedItems([...items])
+                }
+                setShowMore(!showMore)
+            }}><Text style={{ paddingBottom: 8, color: theme.colors.grey3 }}>{(showMore ? '收起' : '显示更多')}</Text></TouchableOpacity>
+        </View>}
+    </View>
 }
