@@ -5,8 +5,8 @@ const request = extend({
     prefix: process.env.EXPO_PUBLIC_API_URL,
     timeout: 5000,
     errorHandler(error) {
-        console.log('error', error.data.code)
-        if (error.data.code === "invalid_username") {
+        console.error('http error:', JSON.stringify(error))
+        if (error.data?.code === "invalid_username") {
             AsyncStorage.removeItem("TOKEN")
         }
         throw error
