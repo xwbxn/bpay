@@ -177,35 +177,73 @@ class BChatClient extends MatrixClient {
     }
 
 
-    async uploadFile(opts: { uri: string, mimeType?: string, name: string, callback?: Function }) {
-        const res = await RNS3.put({ uri: opts.uri, name: opts.name, type: opts.mimeType }, rns3Options)
-            .progress((e) => opts.callback && opts.callback(e))
-        return { content_uri: res.body?.postResponse?.location || undefined }
+    async uploadFile(opts: { provider: 'synpase' | 's3', uri: string, mimeType?: string, name: string, callback?: Function }) {
+        if (opts.provider === 's3') {
+            const res = await RNS3.put({ uri: opts.uri, name: opts.name, type: opts.mimeType }, rns3Options)
+                .progress((e) => opts.callback && opts.callback(e))
+            return { content_uri: res.body?.postResponse?.location || undefined }
+        }
+        if (opts.provider === 'synpase') {
+            const fileUri = new URI(opts.uri)
+            const response = await fetch(opts.uri)
+            const blob = await response.blob()
+            const upload = await this.uploadContent(blob, {
+                name: fileUri.filename()
+            })
+            return { content_uri: this.mxcUrlToHttp(upload.content_uri) || undefined }
+        }
     }
 
-    async getThumbnails(opts: { uri: string, height: number, width: number, mimeType: string, name: string, callback?: Function }) {
-        let resize = {}
-        if (opts.width > opts.height) {
-            Object.assign(resize, {
-                width: 180
+    async getThumbnails(opts: {
+        provider: 'synpase' | 's3',
+        uri: string,
+        height: number,
+        width: number,
+        mimeType: string,
+        name: string,
+        callback?: Function
+    }) {
+        if (opts.provider === 's3') {
+            let resize = {}
+            if (opts.width > opts.height) {
+                Object.assign(resize, {
+                    width: 450
+                })
+            } else {
+                Object.assign(resize, {
+                    height: 450
+                })
+            }
+            const manipResult = await manipulateAsync(opts.uri, [{ resize }])
+            const upload = await this.uploadFile({
+                provider: opts.provider,
+                uri: manipResult.uri,
+                mimeType: opts.mimeType,
+                name: `${opts.name}-thumbnail`
             })
+            return {
+                thumbnail_url: upload.content_uri,
+                thumbnail_info: {
+                    w: Math.floor(manipResult.width / 3),
+                    h: Math.floor(manipResult.height / 3),
+                    type: opts.mimeType
+                }
+            }
         } else {
-            Object.assign(resize, {
-                height: 180
-            })
-        }
-        const manipResult = await manipulateAsync(opts.uri, [{ resize }])
-        const upload = await this.uploadFile({
-            uri: manipResult.uri,
-            mimeType: opts.mimeType,
-            name: `${opts.name}-thumbnail`
-        })
-        return {
-            thumbnail_url: upload.content_uri,
-            thumbnail_info: {
-                w: manipResult.width,
-                h: manipResult.height,
-                type: opts.mimeType
+            const _width = opts.width || 150
+            const _height = opts.height || 100
+            const mediaId = new URI(opts.uri).pathname().split('/').slice(-1)[0]
+            const ratio = Math.max(_width, _height) / 150
+            const ratioWidth = Math.floor(_width / ratio)
+            const ratioHeight = Math.floor(_height / ratio)
+            const thumbnail_url = `${this.baseUrl}${MediaPrefix.V3}/thumbnail/chat.b-pay.life/${mediaId}?width=${ratioWidth * 3}&height=${ratioHeight * 3}&method=scale&timeout_ms=5000`
+            return {
+                thumbnail_url: thumbnail_url,
+                thumbnail_info: {
+                    w: ratioWidth,
+                    h: ratioHeight,
+                    type: opts.mimeType
+                }
             }
         }
     }

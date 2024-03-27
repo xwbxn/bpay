@@ -115,12 +115,12 @@ export function Room({ route, navigation }) {
         }
         if (evt.getContent().msgtype == MsgType.Image) {
           const content = evt.getContent()
-          msg.image = content.thumbnail_url || content.url
+          msg.image = content.info?.thumbnail_url || content.url
           msg.w = content.info?.thumbnail_info?.w || content.w
           msg.h = content.info?.thumbnail_info?.h || content.h
         }
         if (evt.getContent().msgtype === MsgType.Video) {
-          msg.video = client.mxcUrlToHttp(evt.getContent().info.thumbnail_url)
+          msg.video = evt.getContent().info?.thumbnail_url
           msg.w = evt.getContent().info?.thumbnail_info?.w || 150
           msg.h = evt.getContent().info?.thumbnail_info?.h || 100
         }
@@ -252,6 +252,7 @@ export function Room({ route, navigation }) {
           // 上传文件
           const uname = crypto.randomUUID()
           const upload = await client.uploadFile({
+            provider: 'synpase',
             uri: a.uri,
             mimeType: a.mimeType,
             name: uname
@@ -260,9 +261,10 @@ export function Room({ route, navigation }) {
           // 图片
           if (a.type === 'image') {
             let thumbnail = {}
-            if (a.width > 180 || a.height > 180) {
+            if (a.width > 150 || a.height > 150) {
               thumbnail = await client.getThumbnails({
-                uri: a.uri,
+                provider: 'synpase',
+                uri: upload.content_uri,
                 width: a.width,
                 height: a.height,
                 mimeType: a.mimeType,
@@ -286,9 +288,10 @@ export function Room({ route, navigation }) {
           }
           // 视频
           if (a.type === 'video') {
-            const ratio = Math.max(a.height, a.width) / 180
+            const ratio = Math.max(a.height, a.width) / 150
             const thumbnail = await vt.getThumbnailAsync(a.uri)
             const uploadedThumb = await client.uploadFile({
+              provider: 'synpase',
               uri: thumbnail.uri,
               name: uname,
               mimeType: a.mimeType
@@ -332,14 +335,16 @@ export function Room({ route, navigation }) {
           const txnId = previewMessage(a)
           const uname = crypto.randomUUID()
           const upload = await client.uploadFile({
+            provider: 'synpase',
             uri: a.uri,
             name: uname,
             mimeType: a.mimeType
           })
           let thumbnail = {}
-          if (a.width > 180 || a.height > 180) {
+          if (a.width > 150 || a.height > 150) {
             thumbnail = await client.getThumbnails({
-              uri: a.uri,
+              provider: 'synpase',
+              uri: upload.content_uri,
               width: a.width,
               height: a.height,
               mimeType: a.mimeType,
@@ -396,8 +401,8 @@ export function Room({ route, navigation }) {
   const onMessagePress = (context, message) => {
     setCurrentMessage(message)
     const evt: MatrixEvent = message.event
-    if (evt.getType() === EventType.RoomMessage && evt.getContent().msgtype === MsgType.Video) {
-      const mediaId = evt.getContent().url.split('/')[3]
+    if (evt && evt.getType() === EventType.RoomMessage && evt.getContent().msgtype === MsgType.Video) {
+      const mediaId = new URL(evt.getContent().url).pathname.split('/').slice(-1)[0]
       const cacheFilename = FileSystem.cacheDirectory + mediaId
       FileSystem.getInfoAsync(cacheFilename).then(res => {
         if (res.exists) {
@@ -408,11 +413,12 @@ export function Room({ route, navigation }) {
           })
         } else {
           const callback = downloadProgress => {
-            const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite
+            const progress = downloadProgress.totalBytesWritten * 100 / downloadProgress.totalBytesExpectedToWrite
             message.text = `下载中: ${progress.toFixed(0)}%`
+            console.log(`下载中: ${JSON.stringify(downloadProgress)}`)
             setMessages([...messages])
           }
-          const dl = FileSystem.createDownloadResumable(client.mxcUrlToHttp(evt.getContent().url), cacheFilename, {}, callback)
+          const dl = FileSystem.createDownloadResumable(evt.getContent().url, cacheFilename, {}, callback)
           dl.downloadAsync().then(res => {
             message.text = ''
             setMessages([...messages])
@@ -463,7 +469,6 @@ export function Room({ route, navigation }) {
       currentMessage.origin_uri,
       FileSystem.documentDirectory + currentMessage.filename
     );
-    console.log('FileSystem.', FileSystem.documentDirectory, currentMessage.filename)
     await downloadResumable.downloadAsync()
     Toast.show('下载完成', {
       duration: Toast.durations.LONG,

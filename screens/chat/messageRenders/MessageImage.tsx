@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import PropTypes from 'prop-types';
-import React, { useState } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { StylePropType } from 'react-native-gifted-chat';
 // TODO: support web
@@ -18,33 +18,22 @@ const styles = StyleSheet.create({
         resizeMode: 'contain',
     },
 });
-
-const Renderer = ({ uri, thumbnail, style, imageProps, onLongPress, currentMessage, lightboxProps }) => {
-
-    const [actualImage, setActualImage] = useState(thumbnail || uri)
-
-    return <Lightbox activeProps={{
-        style: styles.imageActive,
-    }} {...lightboxProps}
-        onOpen={() => {
-            setActualImage(uri)
-        }}
-        onLongPress={() => { onLongPress({}, currentMessage) }}
-    >
-        <Image {...imageProps} style={style} placeholder={'加载中'}
-            source={{ uri: actualImage }} />
-    </Lightbox>
-}
-
 export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = {}, imageStyle, currentMessage, onLongPress }) => {
     if (currentMessage == null) {
         return null;
     }
-
     return (<View style={[styles.container, containerStyle]}>
-        <Renderer uri={currentMessage.image} thumbnail={currentMessage.event?.getContent()?.info?.thumbnail_url}
-            onLongPress={onLongPress} currentMessage={currentMessage} lightboxProps={lightboxProps}
-            style={[styles.image, imageStyle, { width: currentMessage.w, height: currentMessage.h }]} imageProps={imageProps}></Renderer>
+        {// @ts-ignore: 2322
+            <Lightbox activeProps={{
+                style: styles.imageActive,
+            }} {...lightboxProps}
+                onLongPress={() => { onLongPress({}, currentMessage) }}
+            >
+                <Image {...imageProps} source={{ uri: currentMessage.image }}
+                    style={[styles.image, imageStyle, { width: currentMessage.w, height: currentMessage.h }]}>
+                </Image>
+            </Lightbox>
+        }
     </View>);
 }
 MessageImage.propTypes = {
