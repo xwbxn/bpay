@@ -1,14 +1,29 @@
 import * as Notifications from 'expo-notifications';
+import { RNS3 } from 'react-native-aws3';
+
 import {
-    ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MediaPrefix, MemoryCryptoStore,
-    MemoryStore, Preset, RoomEvent, SyncState, Visibility
+    ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MediaPrefix,
+    MemoryCryptoStore, MemoryStore, Preset, RoomEvent, RoomNameType, SyncState, Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
+import URI from 'urijs';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
-import URI from 'urijs';
+import { ImagePickerAsset } from 'expo-image-picker';
+import { manipulateAsync } from 'expo-image-manipulator';
+
+const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
+console.log('chaturl: ', BASE_URL)
+const rns3Options = {
+    keyPrefix: "uploads/",
+    bucket: "bucket-chat",
+    region: "ap-northeast-1",
+    accessKey: process.env.EXPO_PUBLIC_S3_ACCESS_ID,
+    secretKey: process.env.EXPO_PUBLIC_S3_ACCESS_SECRET_KEY,
+    successActionStatus: 201
+}
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
 
@@ -161,28 +176,37 @@ class BChatClient extends MatrixClient {
         return favTagName in (this.getRoom(roomId)?.tags || {})
     }
 
-    async uploadFile(uri: string) {
-        const fileUri = new URI(uri)
-        const response = await fetch(uri)
-        const blob = await response.blob()
-        const upload = await this.uploadContent(blob, {
-            name: fileUri.filename()
-        })
-        return upload
+
+    async uploadFile(opts: { uri: string, mimeType?: string, name: string, callback?: Function }) {
+        const res = await RNS3.put({ uri: opts.uri, name: opts.name, type: opts.mimeType }, rns3Options)
+            .progress((e) => opts.callback && opts.callback(e))
+        return { content_uri: res.body?.postResponse?.location || undefined }
     }
 
-    getThumbnails(mxc_uri: string, width?: number, height?: number) {
-        const _width = width || 150
-        const _height = height || 100
-        const mediaId = mxc_uri.split("/")[3] || undefined
-        const ratio = Math.max(_width, _height) / 150
-        const ratioWidth = Math.floor(_width / ratio)
-        const ratioHeight = Math.floor(_height / ratio)
-        const thumbnail_url = `${this.baseUrl}${MediaPrefix.V3}/thumbnail/chat.b-pay.life/${mediaId}?width=${ratioWidth * 3}&height=${ratioHeight * 3}&method=scale&timeout_ms=5000`
+    async getThumbnails(opts: { uri: string, height: number, width: number, mimeType: string, name: string, callback?: Function }) {
+        let resize = {}
+        if (opts.width > opts.height) {
+            Object.assign(resize, {
+                width: 180
+            })
+        } else {
+            Object.assign(resize, {
+                height: 180
+            })
+        }
+        const manipResult = await manipulateAsync(opts.uri, [{ resize }])
+        const upload = await this.uploadFile({
+            uri: manipResult.uri,
+            mimeType: opts.mimeType,
+            name: `${opts.name}-thumbnail`
+        })
         return {
-            width: ratioWidth,
-            height: ratioHeight,
-            thumbnail_url
+            thumbnail_url: upload.content_uri,
+            thumbnail_info: {
+                w: manipResult.width,
+                h: manipResult.height,
+                type: opts.mimeType
+            }
         }
     }
 }
@@ -221,8 +245,27 @@ export const useMatrixClient = () => {
 
     if (_client === null) {
         _client = createClient({
-            baseUrl: 'https://chat.b-pay.life',
+            baseUrl: BASE_URL,
             useAuthorizationHeader: true,
+            roomNameGenerator(roomId, state) {
+                switch (state.type) {
+                    case RoomNameType.Actual:
+                        return state.name;
+                    case RoomNameType.Generated:
+                        const countWithoutMe = state.count - 1;
+                        if (!state.names.length) {
+                            return "空房间";
+                        } else if (state.names.length === 1 && countWithoutMe <= 1) {
+                            return state.names[0];
+                        } else if (state.names.length === 2 && countWithoutMe <= 2) {
+                            return `${state.names[0]} 和 ${state.names[1]}`;
+                        } else {
+                            return `${state.names[0]} 和 ${countWithoutMe} 人`;
+                        }
+                    case RoomNameType.EmptyRoom:
+                        return state.oldName || '空房间'
+                }
+            },
         })
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
@@ -261,27 +304,13 @@ export const useMatrixClient = () => {
             }
         })
 
-        // 如有新的未读通知, 则显示房间
+        // 如有新的消息, 则显示房间
         _client.on(ClientEvent.Room, (room) => {
-            room.on(RoomEvent.UnreadNotifications, (unreadNotifications) => {
-                console.log('emmit UnreadNotifications', unreadNotifications)
-                if (room.tags[hiddenTagName] &&
-                    ((unreadNotifications?.total || 0) > 0 ||
-                        (unreadNotifications?.highlight || 0) > 0)) {
+            room.on(RoomEvent.Timeline, (event) => {
+                if (room.tags[hiddenTagName]) {
                     _client.deleteRoomTag(room.roomId, hiddenTagName)
                 }
             })
-        })
-
-        // 更新空房间名为原名
-        _client.on(RoomEvent.Name, (room) => {
-            if (room && room.normalizedName.startsWith("ernptyroornwas")) {
-                console.log('rename room', room.name, room.normalizedName)
-                const hisFriend = room.normalizedName.split("ernptyroornwas")[1]
-                if (hisFriend) {
-                    _client.setRoomName(room.roomId, hisFriend)
-                }
-            }
         })
 
         // 用户信息

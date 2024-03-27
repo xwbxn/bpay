@@ -31,7 +31,6 @@ interface IProps {
 
 export const ListView = ({
     items,
-    itemKey = "id",
     search = "",
     accordion,
     accordionExpand = true,
@@ -83,7 +82,7 @@ export const ListView = ({
     const renderListItem = () => {
         return <>{filterdItems.map(m => {
             return (
-                <ListItem topDivider bottomDivider key={m.id}
+                <ListItem topDivider bottomDivider key={m.id} containerStyle={{padding: 10}}
                     onPress={() => { enableSelect ? onCheckItem(m) : onPressItem && onPressItem(m) }}
                     onLongPress={() => { onLongPressItem && onLongPressItem(m) }}>
                     {enableSelect && <ListItem.CheckBox checked={checkedItems[m.id]}
@@ -94,11 +93,11 @@ export const ListView = ({
                         : <Avatar size={50} rounded title={m.title[0]}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                     <ListItem.Content>
-                        <ListItem.Title style={{ fontSize: 22 }}>{m.title}</ListItem.Title>
-                        <ListItem.Subtitle>{m.subtitle}</ListItem.Subtitle>
+                        <ListItem.Title style={{ fontSize: 18 }}>{m.title}</ListItem.Title>
+                        <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{m.subtitle}</ListItem.Subtitle>
                     </ListItem.Content>
                     {m.right ?
-                        <ListItem.Subtitle>{m.right}</ListItem.Subtitle> :
+                        <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{m.right}</ListItem.Subtitle> :
                         <ListItem.Chevron></ListItem.Chevron>}
                 </ListItem>)
         })}</>

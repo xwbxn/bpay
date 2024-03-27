@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as vt from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as ImageManipulator from 'expo-image-manipulator';
 
 
 import { EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
@@ -42,6 +43,7 @@ export function Room({ route, navigation }) {
   const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
   const [playerState, setPlayerState] = useState({ visible: false, source: '', inFullscreen: false })
+  const [disabled, setDisabled] = useState(false)
 
   const { setLoading } = useGlobalState()
 
@@ -57,11 +59,11 @@ export function Room({ route, navigation }) {
     navigation.setOptions({
       title: room?.name,
       headerRight: () => {
-        return <Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
+        return !disabled && <Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
           onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
       },
     })
-  }, [room])
+  }, [room, disabled])
 
   interface IChatMessage extends IMessage {
     w?: number,
@@ -73,15 +75,15 @@ export function Room({ route, navigation }) {
 
   // event转换为msg格式
   const evtToMsg = (evt: MatrixEvent) => {
-    const sender = client.getUser(evt.getSender())
+    const sender = room.getMember(evt.getSender())
     let msg: IChatMessage = {
       _id: evt.getId(),
       text: '',
       createdAt: evt.localTimestamp,
       user: {
         _id: evt.getSender(),
-        name: sender.displayName || evt.getSender(),
-        avatar: sender.avatarUrl || '',
+        name: sender?.name || evt.getSender(),
+        avatar: sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || '',
       },
       sent: evt.status === null,
       pending: evt.status !== null,
@@ -112,19 +114,15 @@ export function Room({ route, navigation }) {
           msg.text = evt.getContent().body
         }
         if (evt.getContent().msgtype == MsgType.Image) {
-          const thumbnail_info = client.getThumbnails(
-            evt.getContent().url,
-            evt.getContent().info?.w,
-            evt.getContent().info?.h)
-          msg.image = thumbnail_info.thumbnail_url
-          msg.w = thumbnail_info.width
-          msg.h = thumbnail_info.height
+          const content = evt.getContent()
+          msg.image = content.thumbnail_url || content.url
+          msg.w = content.info?.thumbnail_info?.w || content.w
+          msg.h = content.info?.thumbnail_info?.h || content.h
         }
         if (evt.getContent().msgtype === MsgType.Video) {
           msg.video = client.mxcUrlToHttp(evt.getContent().info.thumbnail_url)
           msg.w = evt.getContent().info?.thumbnail_info?.w || 150
           msg.h = evt.getContent().info?.thumbnail_info?.h || 100
-          // msg.video = client.mxcUrlToHttp(evt.getContent().url)
         }
         if (evt.isRedacted()) {
           msg.text = "[消息已被撤回]"
@@ -146,6 +144,8 @@ export function Room({ route, navigation }) {
     if (!room) {
       return
     }
+    setDisabled(client.isFriendRoom(room.roomId) && room.getJoinedMemberCount() === 1)
+
     const refreshMessage = () => {
       setRefreshKey(crypto.randomUUID())
     }
@@ -250,11 +250,26 @@ export function Room({ route, navigation }) {
           // 本地预览消息
           const txnId = previewMessage(a);
           // 上传文件
-          const upload = await client.uploadFile(a.uri)
+          const uname = crypto.randomUUID()
+          const upload = await client.uploadFile({
+            uri: a.uri,
+            mimeType: a.mimeType,
+            name: uname
+          })
 
           // 图片
           if (a.type === 'image') {
-            const thumbnail = client.getThumbnails(upload.content_uri, a.width, a.height)
+            let thumbnail = {}
+            if (a.width > 180 || a.height > 180) {
+              thumbnail = await client.getThumbnails({
+                uri: a.uri,
+                width: a.width,
+                height: a.height,
+                mimeType: a.mimeType,
+                name: uname
+              })
+            }
+
             const content: IContent = {
               msgtype: MsgType.Image,
               body: a.fileName,
@@ -264,21 +279,20 @@ export function Room({ route, navigation }) {
                 w: a.width,
                 mimetype: a.mimeType,
                 size: a.fileSize,
-                thumbnail_url: thumbnail.thumbnail_url,
-                thumbnail_info: {
-                  w: thumbnail.width,
-                  h: thumbnail.height,
-                  mimetype: a.mimeType
-                }
+                ...thumbnail
               },
             }
             client.sendMessage(room.roomId, content, txnId)
           }
           // 视频
           if (a.type === 'video') {
-            const ratio = Math.max(a.height, a.width) / 150
+            const ratio = Math.max(a.height, a.width) / 180
             const thumbnail = await vt.getThumbnailAsync(a.uri)
-            const uploadedThumb = await client.uploadFile(thumbnail.uri)
+            const uploadedThumb = await client.uploadFile({
+              uri: thumbnail.uri,
+              name: uname,
+              mimeType: a.mimeType
+            })
             const content: IContent = {
               msgtype: MsgType.Video,
               body: a.fileName,
@@ -316,8 +330,22 @@ export function Room({ route, navigation }) {
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
           const txnId = previewMessage(a)
-          const upload = await client.uploadFile(a.uri)
-          const thumbnail = client.getThumbnails(upload.content_uri, a.width, a.height)
+          const uname = crypto.randomUUID()
+          const upload = await client.uploadFile({
+            uri: a.uri,
+            name: uname,
+            mimeType: a.mimeType
+          })
+          let thumbnail = {}
+          if (a.width > 180 || a.height > 180) {
+            thumbnail = await client.getThumbnails({
+              uri: a.uri,
+              width: a.width,
+              height: a.height,
+              mimeType: a.mimeType,
+              name: uname
+            })
+          }
           const content: IContent = {
             msgtype: MsgType.Image,
             body: a.fileName,
@@ -327,12 +355,7 @@ export function Room({ route, navigation }) {
               w: a.width,
               mimetype: a.mimeType,
               size: a.fileSize,
-              thumbnail_url: thumbnail.thumbnail_url,
-              thumbnail_info: {
-                w: thumbnail.width,
-                h: thumbnail.height,
-                mimetype: a.mimeType
-              }
+              ...thumbnail
             },
           }
           client.sendMessage(room.roomId, content, txnId)
@@ -348,7 +371,6 @@ export function Room({ route, navigation }) {
 
   // 渲染发送按钮
   const renderSend = useCallback((props: SendProps<IMessage>) => {
-    const disabled = client.isFriendRoom(room.roomId) && room.getJoinedMemberCount() === 1
     return (
       <>
         <Send disabled={disabled}
@@ -362,7 +384,7 @@ export function Room({ route, navigation }) {
         </Send>
       </>
     )
-  }, [])
+  }, [disabled])
 
   // 长按操作
   const onMessageLongPress = (context, message) => {

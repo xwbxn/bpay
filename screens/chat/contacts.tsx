@@ -8,6 +8,12 @@ import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 
+const membershipMap = {
+    'leave': '已删除',
+    'join': '',
+    'invite': '邀请中'
+}
+
 export const Contacts = ({ navigation, route }) => {
 
     useEffect(() => {
@@ -35,7 +41,7 @@ export const Contacts = ({ navigation, route }) => {
                 title: i.name,
                 subtitle: i.userId,
                 avatar: i.avatar_url,
-                right: i.membership,
+                right: membershipMap[i.membership] || '',
                 data: { roomId: i.roomId }
             })))
 

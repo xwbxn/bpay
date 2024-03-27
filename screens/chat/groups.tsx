@@ -1,4 +1,4 @@
-import { Preset, RoomVersionStability, Visibility } from 'matrix-js-sdk';
+import { Preset } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -49,6 +49,7 @@ export const GroupChat = ({ navigation, route }) => {
         setSearchVal(search)
     }
 
+    // 邀请或踢人
     const onSetMember = async () => {
         try {
             setLoading(true)

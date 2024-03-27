@@ -77,8 +77,6 @@ const Session = ({ navigation }) => {
         }
         refreshRooms()
 
-
-
         client.on(RoomEvent.Timeline, refreshRooms)
         client.on(RoomEvent.Receipt, refreshRooms)
         client.on(ClientEvent.Room, refreshRooms)
@@ -161,7 +159,17 @@ const Session = ({ navigation }) => {
                         }
                         break;
                     case EventType.RoomMember:
-                        subTitle = '现在可以开始聊天了'
+                        if (client.isFriendRoom(lastEvt.getRoomId())) {
+                            const lastMembership = lastEvt.getPrevContent()?.membership
+                            if (lastEvt.getContent().membership === 'leave' && lastMembership === 'invite') {
+                                subTitle = `[拒绝了您的好友申请]`
+                            } else if (lastEvt.getContent().membership === 'leave' && lastMembership === 'join') {
+                                subTitle = `[对方已不再是好友]`
+                            } else {
+                                subTitle = '[同意了您的好友申请]'
+                            }
+                        }
+                        break
                     default:
                         break;
                 }
@@ -174,7 +182,8 @@ const Session = ({ navigation }) => {
             <Menu>
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
                     <ListItem topDivider bottomDivider
-                        containerStyle={client.isRoomOnTop(item.roomId) && { backgroundColor: theme.colors.grey5 }}>
+                        containerStyle={[client.isRoomOnTop(item.roomId) && { backgroundColor: theme.colors.grey5 }
+                            , { padding: 10 }]}>
                         <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'}
                             containerStyle={{ backgroundColor: theme.colors.primary }}>
                             {item.getUnreadNotificationCount() > 0
@@ -182,10 +191,10 @@ const Session = ({ navigation }) => {
                                     containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
                         </Avatar>
                         <ListItem.Content>
-                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: 22 }}>{title}</ListItem.Title>
-                            <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1}>{subTitle}</ListItem.Subtitle>
+                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: 18 }}>{title}</ListItem.Title>
+                            <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1} style={{ color: theme.colors.grey2 }}>{subTitle}</ListItem.Subtitle>
                         </ListItem.Content>
-                        <ListItem.Subtitle>{moment(updateAt).fromNow()}</ListItem.Subtitle>
+                        <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{moment(updateAt).fromNow()}</ListItem.Subtitle>
                     </ListItem>
                 </MenuTrigger>
                 <MenuOptions customStyles={{ optionsContainer: { marginLeft: 100, marginTop: 20 } }}>
