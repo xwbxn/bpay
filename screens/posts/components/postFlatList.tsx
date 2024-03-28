@@ -34,9 +34,8 @@ const PostFlatList = (props: IProps) => {
                 >
                     <View style={{ flexDirection: 'row' }}>
                         <View style={{ width: "78%" }}>
-
                             <View style={{ flex: 1 }}>
-                                <Text style={{ fontSize: 18, fontWeight: 'bold', paddingBottom: 4 }}>{item.title.rendered}</Text>
+                                <Text numberOfLines={2} lineBreakMode='clip' style={{ fontSize: 18, fontWeight: 'bold', paddingBottom: 4 }}>{item.title.rendered}</Text>
                             </View>
                             <View style={{ paddingBottom: 2 }}>
                                 <Text style={{ color: theme.colors.grey3 }}>{category} {item._embedded.author[0].name} | {moment(item.date).format("YYYY-MM-DD")}</Text>

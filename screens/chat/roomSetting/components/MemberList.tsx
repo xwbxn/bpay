@@ -40,7 +40,7 @@ export const MemberList = ({
     }, [items])
 
     const onLayout = (e: LayoutChangeEvent) => {
-        setWidth(e.nativeEvent.layout.width)
+        setWidth(e.nativeEvent.layout.width - 1)
     }
 
     return <View>

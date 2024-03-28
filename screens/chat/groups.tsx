@@ -14,7 +14,7 @@ export const GroupChat = ({ navigation, route }) => {
     useEffect(() => {
         // set nav bar
         navigation.setOptions({
-            title: '群组设置'
+            title: '群成员'
         })
     }, [])
 
@@ -111,8 +111,8 @@ export const GroupChat = ({ navigation, route }) => {
                         : <Avatar size={80} rounded title={'群'}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                     <ListItem.Content style={{ marginLeft: 10 }}>
-                        <ListItem.Title style={{ fontSize: 30 }}>{room.name}</ListItem.Title>
-                        <ListItem.Subtitle style={{ fontSize: 15 }}>{room.roomId}</ListItem.Subtitle>
+                        <ListItem.Title style={{ fontSize: 24 }}>{room.name}</ListItem.Title>
+                        <ListItem.Subtitle>{room.roomId}</ListItem.Subtitle>
                     </ListItem.Content>
                 </ListItem>
             </View>}
