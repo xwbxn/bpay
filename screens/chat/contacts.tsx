@@ -7,6 +7,7 @@ import { Button, SearchBar, useTheme } from '@rneui/themed';
 import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
+import { randomUUID } from 'expo-crypto';
 
 const membershipMap = {
     'leave': '已删除',
@@ -26,39 +27,74 @@ export const Contacts = ({ navigation, route }) => {
     const { setLoading } = useGlobalState()
     const { theme } = useTheme()
     const { client } = useMatrixClient()
+    const [refreshKey, setRefreshKey] = useState(randomUUID())
     const [searchVal, setSearchVal] = useState("");
     const [searchMembers, setSearchMembers] = useState<IListItem[]>([])
+    const [newFriends, setNewFriends] = useState<IListItem[]>([])
     const [friends, setFriends] = useState<IListItem[]>([])
     const [groups, setGroups] = useState<IListItem[]>([])
     const [publicGroups, setPublicGroups] = useState<IListItem[]>([])
 
+    const acceptInvite = async (userId, roomId) => {
+        await client.acceptDirect(userId, roomId)
+        setRefreshKey(randomUUID())
+    }
+
+    const rejectInvite = async (roomId) => {
+        client.getRoom(roomId).updateMyMembership('leave')
+        await client.leave(roomId)
+        setRefreshKey(randomUUID())
+    }
+
     useEffect(() => {
         const refreshContacts = () => {
+            // 新的朋友
+            const _newFriends: IListItem[] = []
+            const news = client.getRooms()
+                .filter(room => client.isDirectInvitingRoom(room.roomId))
+                .filter(room => room.getMyMembership() === 'invite')
+            news.forEach(room => {
+                console.log('room', room.roomId, room.name, room.getInvitedAndJoinedMemberCount())
+                const me = room.getMember(client.getUserId())
+                const invitor = room.getMember(room.guessDMUserId())
+                const reason = me.events.member?.getContent()?.reason
+                room.updateMyMembership
+                _newFriends.push({
+                    id: invitor.userId,
+                    title: invitor.name,
+                    subtitle: reason,
+                    avatar: invitor.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true),
+                    data: { roomId: room.roomId },
+                    right: <>
+                        <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'拒绝'} onPress={() => rejectInvite(room.roomId)}></Button>
+                        <Button type='clear' title={'同意'} onPress={() => acceptInvite(invitor.userId, room.roomId)}></Button>
+                    </>
+                })
+            })
+            setNewFriends(_newFriends)
+
             // 好友
-            const _friends = client.getFriends()
+            const _friends = client.getFriends().filter(i => i.membership === 'join')
             setFriends(_friends.map(i => ({
                 id: i.userId,
                 title: i.name,
                 subtitle: i.userId,
                 avatar: i.avatar_url,
                 right: membershipMap[i.membership] || '',
-                data: { roomId: i.roomId }
+                data: { roomId: i.roomId },
             })))
 
             // 群组
             const _groups: IListItem[] = []
-            const joindGroups = client.getRooms().filter(room => {
-                return (
-                    room.getMyMembership() === 'join' &&
-                    (!_friends.map(i => i.roomId).includes(room.roomId))
-                )
-            })
+            const joindGroups = client.getRooms()
+                .filter(room => room.getMyMembership() === 'join')
+                .filter(room => !client.isDirectRoom(room.roomId))
             joindGroups.forEach(room => {
                 _groups.push({
                     id: room.roomId,
                     title: room.name,
                     subtitle: room.normalizedName,
-                    avatar: room.getAvatarUrl(client.baseUrl, 50, 50, 'crop')
+                    avatar: room.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
                 })
             })
             setGroups(_groups)
@@ -71,7 +107,7 @@ export const Contacts = ({ navigation, route }) => {
                         id: room.room_id,
                         title: room.name,
                         subtitle: room.topic,
-                        avatar: room.avatar_url,
+                        avatar: client.mxcUrlToHttp(room.avatar_url, 50, 50, 'scale'),
                         right: room.join_rule
                     })
                 })
@@ -84,7 +120,7 @@ export const Contacts = ({ navigation, route }) => {
         return () => {
             client.off(ClientEvent.DeleteRoom, refreshContacts)
         }
-    }, [])
+    }, [refreshKey])
 
     const searchUser = () => {
         const fullId = /@(.*):chat\.b-pay\.life/.test(searchVal) ? searchVal : `@${searchVal}:chat.b-pay.life`
@@ -97,7 +133,7 @@ export const Contacts = ({ navigation, route }) => {
                     id: fullId,
                     title: res?.displayname || fullId,
                     subtitle: fullId,
-                    avatar: res?.avatar_url
+                    avatar: client.mxcUrlToHttp(res?.avatar_url)
                 }])
             }).catch(e => {
                 if (e.errcode === 'M_NOT_FOUND') {
@@ -140,7 +176,7 @@ export const Contacts = ({ navigation, route }) => {
                 containerStyle={{ flex: 1, borderWidth: 0, borderColor: theme.colors.background, backgroundColor: theme.colors.background, paddingHorizontal: 12 }}
                 inputContainerStyle={{ backgroundColor: theme.colors.grey5 }}
                 round
-                placeholder='搜索好友'
+                placeholder='搜索'
                 value={searchVal}
                 onChangeText={setSearchVal}
                 onSubmitEditing={() => { searchUser() }}
@@ -152,8 +188,9 @@ export const Contacts = ({ navigation, route }) => {
             <ScrollView>
                 {searchMembers.length > 0 &&
                     <ListView items={searchMembers} onPressItem={onPressSearchMember} accordion accordionTitle='陌生人'></ListView>}
-                <ListView search={searchVal} items={publicGroups} onPressItem={onPressPublicGroup} accordion accordionExpand={true} accordionTitle='公共群组'></ListView>
-                <ListView search={searchVal} items={friends} onPressItem={onPressMember} accordion accordionTitle='联系人'></ListView>
+                <ListView items={newFriends} accordion accordionTitle='新的朋友'></ListView>
+                <ListView search={searchVal} items={publicGroups} onPressItem={onPressPublicGroup} accordion accordionExpand={false} accordionTitle='公共群组'></ListView>
+                <ListView search={searchVal} items={friends} onPressItem={onPressMember} accordion accordionTitle='我的好友'></ListView>
                 <ListView search={searchVal} items={groups} onPressItem={onPressGroup} accordion accordionTitle='我加入的群组'></ListView>
             </ScrollView>
         </View>

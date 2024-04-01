@@ -62,7 +62,7 @@ export default function Login({ navigation, route }) {
             navigation.replace('Home')
         } catch (err) {
             console.log('err', err)
-            if (err.data?.code === "invalid_username") {
+            if (err.data?.code.match(/invalid_username|incorrect_password/)) {
                 Alert.alert("用户名或密码错")
             } else {
                 Alert.alert(err.toString())

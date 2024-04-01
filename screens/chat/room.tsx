@@ -6,17 +6,16 @@ import * as ImagePicker from 'expo-image-picker';
 import * as vt from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
 import * as ScreenOrientation from 'expo-screen-orientation';
-import * as ImageManipulator from 'expo-image-manipulator';
+import _ from 'lodash'
 
-
-import { EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
+import { Direction, EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { BottomSheet, Button, Divider, Icon, ListItem, Overlay, useTheme } from '@rneui/themed';
+import { BottomSheet, Button, Dialog, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
@@ -33,14 +32,17 @@ export function Room({ route, navigation }) {
   const { id } = route.params
   const { client } = useMatrixClient()
   const [room, setRoom] = useState(client.getRoom(id))
-  const user = client.getUser(client.getUserId())
-  const isFriendRoom = client.isFriendRoom(id)
+  const [user, setUser] = useState(client.getUser(client.getUserId()))
+  const [topic, setTopic] = useState('')
+  const [showTopic, setShowTopic] = useState(false)
+  const isFriendRoom = client.isDirectRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
   const [actionSheetShow, setActionSheetShow] = useState(false)
   const screenSize = useWindowDimensions()
 
   const [messages, setMessages] = useState<IChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
+  const [readupTo, setReadUpTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
   const [playerState, setPlayerState] = useState({ visible: false, source: '', inFullscreen: false })
   const [disabled, setDisabled] = useState(false)
@@ -51,7 +53,6 @@ export function Room({ route, navigation }) {
   useEffect(() => {
     setRoom(client.getRoom(id))
   }, [client.getRoom(id)])
-
 
   // 导航条样式
   useEffect(() => {
@@ -144,11 +145,18 @@ export function Room({ route, navigation }) {
     if (!room) {
       return
     }
-    setDisabled(client.isFriendRoom(room.roomId) && room.getJoinedMemberCount() === 1)
+    setDisabled(client.isDirectRoom(room.roomId) && room.getJoinedMemberCount() === 1)
+    setReadUpTo(room.getEventReadUpTo(client.getUserId()))
 
-    const refreshMessage = () => {
-      setRefreshKey(crypto.randomUUID())
+    const topicEvents = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomTopic)
+    if (topicEvents.length > 0) {
+      setTopic(topicEvents[0].getContent().topic || '')
     }
+
+    const refreshMessage = _.debounce(() => {
+      setRefreshKey(crypto.randomUUID())
+    }, 150)
+
     if (room?.tags[hiddenTagName]) {
       client.deleteRoomTag(room.roomId, hiddenTagName)
     }
@@ -172,7 +180,7 @@ export function Room({ route, navigation }) {
           text: '同意', onPress(value?) {
             if (invitor) {
               setLoading(true)
-              client.acceptFriend(invitor.userId, room.roomId).then(() => {
+              client.acceptDirect(invitor.userId, room.roomId).then(() => {
                 setRefreshKey(crypto.randomUUID())
               }).catch(err => {
                 if (err.httpStatus === 404) {
@@ -219,9 +227,11 @@ export function Room({ route, navigation }) {
         if (msg._id) _messages.unshift(msg)
       })
       setMessages(_messages)
-      const lastEvt = events[events.length - 1]
-      if (lastEvt.status === null) {
-        client.sendReadReceipt(lastEvt)
+      const lastMsg = _messages[0]
+      console.log('lastMsg', lastMsg)
+      if (lastMsg && lastMsg.event?.status === null && lastMsg.event?.getId() !== readupTo) {
+        client.sendReadReceipt(lastMsg.event)
+        setReadUpTo(lastMsg.event.getId())
       }
     }
   }, [refreshKey])
@@ -476,8 +486,16 @@ export function Room({ route, navigation }) {
     });
   }
 
+
+
   return (<>
     <View style={styles.container}>
+      <Dialog
+        isVisible={showTopic}
+        onBackdropPress={() => setShowTopic(false)}>
+        <Dialog.Title title="群公告" />
+        <Text>{topic}</Text>
+      </Dialog>
       <BottomSheet isVisible={actionSheetShow} onBackdropPress={() => setActionSheetShow(false)}>
         <ListItem bottomDivider onPress={onCopy}>
           <Icon name='copy' type='octicon'></Icon>
@@ -497,11 +515,17 @@ export function Room({ route, navigation }) {
             <Icon name='undo' type='meterialicon'></Icon>
             <ListItem.Title>撤回</ListItem.Title>
           </ListItem>}
+        {currentMessage?.user._id !== client.getUserId() && client.canDo(id, 'redact') &&
+          <ListItem onPress={onRedAction} bottomDivider>
+            <Icon name='delete' type='meterialicon'></Icon>
+            <ListItem.Title>删除</ListItem.Title>
+          </ListItem>}
         <ListItem onPress={() => setActionSheetShow(false)}>
           <Icon name='close' color={theme.colors.error} type='meterialicon'></Icon>
           <ListItem.Title style={{ color: theme.colors.error }}>取消</ListItem.Title>
         </ListItem>
       </BottomSheet>
+      {topic !== '' && <Text style={{ padding: 8 }} numberOfLines={1} lineBreakMode='clip' onPress={() => setShowTopic(true)}>群公告: {topic}</Text>}
       <View style={styles.content}>
         <GiftedChat
           locale='zh'
@@ -518,9 +542,9 @@ export function Room({ route, navigation }) {
           showUserAvatar
           loadEarlier
           user={{
-            _id: user.userId,
-            name: user.displayName,
-            avatar: user.avatarUrl
+            _id: user?.userId,
+            name: user?.displayName,
+            avatar: user?.avatarUrl
           }}
           renderSend={renderSend}
           onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}

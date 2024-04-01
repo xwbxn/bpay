@@ -10,8 +10,8 @@ import { useMatrixClient } from '../../../store/useMatrixClient';
 import { IListItem } from '../components/ListView';
 import { IMemberItem, MemberList } from './components/MemberList';
 import { IPropEditorProps, PropEditor } from '../components/PropEditor';
-import { Direction, EventType, JoinRule, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
-import { ISettingItem, SettingList } from './components/SettingList';
+import { Direction, EventType, JoinRule, RoomStateEvent, Visibility } from 'matrix-js-sdk';
+import { ISettingItem, SettingList } from '../components/SettingList';
 
 export const RoomSetting = ({ navigation, route }) => {
 
@@ -19,13 +19,13 @@ export const RoomSetting = ({ navigation, route }) => {
     const { id } = route.params
     const { client } = useMatrixClient()
     const [room, setRoom] = useState(client.getRoom(id))
-    const [member, setMember] = useState<RoomMember>()
+    const [topic, setTopic] = useState('')
+
     const [roomVisibility, setRoomVisibility] = useState(false)
-    const isFriendRoom = client.isFriendRoom(id)
+    const isFriendRoom = client.isDirectRoom(id)
     const { theme } = useTheme()
     const [roomMembers, setRoomMembers] = useState<IMemberItem[]>([])
     const [roomOnTop, setRoomOnTop] = useState(client.isRoomOnTop(id))
-    const [roomPowerLevel, setRoomPowerLevel] = useState<{ [id: string]: any }>()
 
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
 
@@ -45,21 +45,23 @@ export const RoomSetting = ({ navigation, route }) => {
         if (!room) {
             return
         }
-        const powerLevel = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomPowerLevels)
-        if (powerLevel.length > 0) {
-            setRoomPowerLevel({ ...powerLevel[0].getContent() })
+
+        const topicEvents = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomTopic)
+        if (topicEvents.length > 0) {
+            setTopic(topicEvents[0].getContent().topic || '')
         }
-        setMember(room.getMember(client.getUserId()))
+
 
         function refreshMembers() {
-            setRoomMembers(room.getJoinedMembers().map(i => {
-                console.log('i.name, i.', i.name, i.powerLevel)
-                return {
-                    id: i.userId,
-                    name: i.name,
-                    avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true)
-                };
-            }));
+            setRoomMembers(room.getJoinedMembers()
+                .sort((a, b) => b.powerLevel - a.powerLevel)
+                .map(i => {
+                    return {
+                        id: i.userId,
+                        name: i.name,
+                        avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true)
+                    };
+                }));
         }
         refreshMembers();
 
@@ -69,6 +71,7 @@ export const RoomSetting = ({ navigation, route }) => {
         }
     }, [room])
 
+    // 退出群聊
     const leaveGroup = () => {
         Alert.alert("确认", "是否要退出群聊?", [
             {
@@ -92,24 +95,34 @@ export const RoomSetting = ({ navigation, route }) => {
         ])
     }
 
+    // 点击成员头像
     const onMemberPress = (item: IListItem) => {
         navigation.push('Member', { userId: item.id, roomId: room.roomId })
     }
 
-    const onFriendToGroup = () => {
+    // 邀请到新群
+    const onCreateRoom = () => {
         const friend = roomMembers.filter(i => i.id !== client.getUserId())
         navigation.push('GroupChat', { initMembers: friend.map(i => i.id) })
     }
 
-    const onInviteToGroup = () => {
+    // 邀请到本群
+    const onInviteMember = () => {
         navigation.push('GroupChat', { initMembers: roomMembers.map(i => i.id), roomId: room.roomId })
     }
 
+    // 删除成员
+    const onRemoveMember = () => {
+        navigation.push('GroupChat', { initMembers: roomMembers.map(i => i.id), roomId: room.roomId, removable: true })
+    }
+
+    // 设置置顶
     const onTopChange = (value) => {
         setRoomOnTop(value)
         client.setRoomOnTop(room.roomId, value)
     }
 
+    // 设置为公共聊天
     const onRoomPublic = async (value) => {
         try {
             setLoading(true)
@@ -126,8 +139,9 @@ export const RoomSetting = ({ navigation, route }) => {
         }
     }
 
+    // 设置群聊名称
     const setRoomName = () => {
-        if (member.powerLevel < roomPowerLevel.events[EventType.RoomName]) {
+        if (!client.canDo(room.roomId, 'm.room.name')) {
             Alert.alert('提示', "您无权限修改名称")
             return
         }
@@ -159,6 +173,41 @@ export const RoomSetting = ({ navigation, route }) => {
         })
     }
 
+    // 设置群公告
+    const setRoomTopic = () => {
+        if (!client.canDo(room.roomId, 'm.room.topic')) {
+            Alert.alert('提示', "您无权限修改群公告")
+            return
+        }
+        setEditProps({
+            isVisible: true,
+            title: '设置群公告',
+            props: {
+                name: {
+                    title: '公告内容',
+                    value: topic
+                }
+            },
+            onSave(props) {
+                setLoading(true)
+                client.setRoomTopic(room.roomId, props.name.value)
+                    .then(() => {
+                        setEditProps({ isVisible: false })
+                        setTopic(props.name.value)
+                    })
+                    .catch(e => {
+                        Alert.alert('错误', e.toString())
+                    }).finally(() => {
+                        setLoading(false)
+                    })
+            },
+            onCancel() {
+                setEditProps({ isVisible: false })
+            },
+        })
+    }
+
+
     const styles = StyleSheet.create({
         container: { flex: 1, backgroundColor: '#f5f5f5' },
         content: { backgroundColor: '#ffffff', marginBottom: 12, paddingHorizontal: 10 },
@@ -175,6 +224,7 @@ export const RoomSetting = ({ navigation, route }) => {
         {
             title: '消息免打扰',
             right: () => <Switch style={{ height: 20 }}></Switch>,
+            hideChevron: true,
             breakTop: true
         },
         {
@@ -195,7 +245,8 @@ export const RoomSetting = ({ navigation, route }) => {
         },
         {
             title: '群公告',
-            text: '群公告',
+            text: topic,
+            onPress: setRoomTopic
         },
         {
             title: '公共群组',
@@ -204,7 +255,11 @@ export const RoomSetting = ({ navigation, route }) => {
         {
             title: '群管理',
             onPress: () => {
-                console.log(roomPowerLevel)
+                if (!client.canDo(id, 'm.room.power_levels')) {
+                    Alert.alert('提示', '您无群管理权限')
+                    return
+                }
+                navigation.push('RoomAdmin', { id: room.roomId })
             }
         },
         {
@@ -236,7 +291,8 @@ export const RoomSetting = ({ navigation, route }) => {
     const groupSetting = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} items={roomMembers}
-                onSetting={onInviteToGroup}
+                onAppend={onInviteMember}
+                onDelete={client.canDo(id, 'kick') ? onRemoveMember : null}
                 onItemPress={onMemberPress}></MemberList>
         </View>
         <SettingList items={groupSettingItems}></SettingList>
@@ -245,7 +301,7 @@ export const RoomSetting = ({ navigation, route }) => {
     const friendSetting = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} onItemPress={onMemberPress}
-                onSetting={onFriendToGroup}
+                onAppend={onCreateRoom}
                 items={roomMembers.filter(i => i.id !== client.getUserId())}></MemberList>
         </View>
         <SettingList items={friendSettingItems}></SettingList>

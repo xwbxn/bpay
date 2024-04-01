@@ -7,7 +7,7 @@ export interface IListItem {
     title: string
     subtitle?: string
     avatar?: string
-    right?: string
+    right?: React.ReactNode
     data?: any
 }
 
@@ -22,7 +22,8 @@ interface IProps {
 
     enableSelect?: boolean
     multiSelect?: boolean
-    selectedValue?: (string | number)[]
+    selectedValues?: (string | number)[]
+    allowRemove?: boolean
 
     onPressItem?: (item: IListItem) => void
     onLongPressItem?: (item: IListItem) => void
@@ -37,7 +38,8 @@ export const ListView = ({
     accordionTitle,
     enableSelect,
     multiSelect,
-    selectedValue = [],
+    selectedValues = [],
+    allowRemove = false,
     onSelected,
     onLongPressItem,
     onPressItem,
@@ -47,6 +49,7 @@ export const ListView = ({
     const [isExpanded, setIsExpanded] = useState(accordionExpand)
     const [filterdItems, setFilterdItems] = useState(items)
     const [checkedItems, setCheckedItems] = useState<{ [id: string | number]: boolean }>({})
+    const [initValues, setInitValues] = useState([])
 
     useEffect(() => {
         if (search !== "") {
@@ -59,38 +62,43 @@ export const ListView = ({
 
     useEffect(() => {
         const values = multiSelect ? { ...checkedItems } : {}
-        selectedValue.forEach(i => {
+        selectedValues.forEach(i => {
             values[i] = true
         })
+        setInitValues([...selectedValues])
         setCheckedItems(values)
     }, [])
 
 
     const onCheckItem = (m) => {
         const values = multiSelect ? { ...checkedItems } : {}
+        if (!allowRemove && initValues.includes(m.id) && values[m.id]) {
+            return
+        }
         values[m.id] = !values[m.id]
         onSelected && onSelected(filterdItems.filter(i => values[i.id]))
         setCheckedItems(values)
 
         if (values[m.id]) {
-            selectedValue.push(m.id)
+            selectedValues.push(m.id)
         } else {
-            selectedValue.splice(selectedValue.indexOf(m.id), 1)
+            selectedValues.splice(selectedValues.indexOf(m.id), 1)
         }
     }
 
     const renderListItem = () => {
         return <>{filterdItems.map(m => {
             return (
-                <ListItem topDivider bottomDivider key={m.id} containerStyle={{padding: 10}}
+                <ListItem topDivider bottomDivider key={m.id} containerStyle={{ padding: 10 }}
                     onPress={() => { enableSelect ? onCheckItem(m) : onPressItem && onPressItem(m) }}
                     onLongPress={() => { onLongPressItem && onLongPressItem(m) }}>
                     {enableSelect && <ListItem.CheckBox checked={checkedItems[m.id]}
+                        checkedColor={!allowRemove && initValues.includes(m.id) ? theme.colors.grey4 : theme.colors.primary}
                         onPress={() => onCheckItem(m)}></ListItem.CheckBox>}
                     {m.avatar
                         ? <Avatar size={50} rounded source={{ uri: m.avatar }}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                        : <Avatar size={50} rounded title={m.title[0]}
+                        : <Avatar size={50} rounded title={m.title[0].toUpperCase()}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                     <ListItem.Content>
                         <ListItem.Title style={{ fontSize: 18 }}>{m.title}</ListItem.Title>

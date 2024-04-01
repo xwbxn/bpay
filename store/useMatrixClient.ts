@@ -2,8 +2,8 @@ import * as Notifications from 'expo-notifications';
 import { RNS3 } from 'react-native-aws3';
 
 import {
-    ClientEvent, EventType, ICreateClientOpts, MatrixClient, MatrixScheduler, MediaPrefix,
-    MemoryCryptoStore, MemoryStore, Preset, RoomEvent, RoomNameType, SyncState, Visibility
+    ClientEvent, Direction, EventType, ICreateClientOpts, MatrixClient, MatrixEvent, MatrixScheduler, MediaPrefix,
+    MemoryCryptoStore, MemoryStore, Preset, Room, RoomEvent, RoomNameType, RoomStateEvent, SyncState, Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
 import URI from 'urijs';
@@ -11,8 +11,8 @@ import URI from 'urijs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
-import { ImagePickerAsset } from 'expo-image-picker';
 import { manipulateAsync } from 'expo-image-manipulator';
+import { AppState } from 'react-native';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
 console.log('chaturl: ', BASE_URL)
@@ -54,7 +54,7 @@ type Friend = {
 class BChatClient extends MatrixClient {
 
     getFriend(userId): Friend | undefined {
-        if (!this.isFriend(userId)) {
+        if (!this.isDirectMember(userId)) {
             return undefined
         }
         const content = this.getAccountData(EventType.Direct)?.getContent() || {}
@@ -88,28 +88,69 @@ class BChatClient extends MatrixClient {
         return result
     }
 
-    isFriend(userId) {
+    isDirectMember(userId) {
         const content = this.getAccountData(EventType.Direct)?.getContent() || {}
         return Object.keys(content).includes(userId)
     }
 
-    isFriendRoom(roomId) {
+    isDirectRoom(roomId) {
         const content = this.getAccountData(EventType.Direct)?.getContent() || {}
-        return Object.values(content).some(i => i.includes(roomId))
+        if (Object.values(content).some(i => i.includes(roomId))) {
+            return true
+        }
+
+        const room = this.getRoom(roomId)
+        if (room) {
+            return room.tags[EventType.Direct] !== undefined
+        } else {
+            return false
+        }
     }
 
-    async inviteFriend(userId: string, reason?: string) {
+    getDirectRoom(userId): Room | undefined {
+        const content = this.getAccountData(EventType.Direct)?.getContent() || {}
+        const rooms = content[userId] || []
+        return rooms.length > 0 ? this.getRoom(rooms[0]) : undefined
+    }
+
+    isDirectInvitingRoom(roomId) {
+        if (!this.isDirectRoom) {
+            return false
+        }
+        const room = this.getRoom(roomId)
+        if (room === null) return false
+
+        return room.getInvitedMemberCount() === 1 && room.getJoinedMemberCount() === 1
+    }
+
+    async inviteDriect(userId: string, reason?: string) {
         try {
-            const { room_id } = await this.createRoom({
-                is_direct: true,
-                preset: Preset.TrustedPrivateChat,
-                visibility: Visibility.Private,
-                invite: [userId]
-            })
-            await this.addRoomToMDirect(room_id, userId)
-            if (reason) {
-                await this.sendTextMessage(room_id, reason)
+            let room_id = undefined
+            let room = this.getDirectRoom(userId)
+            if (room && room.getInvitedMemberCount() === 0) {
+                this.leave(room.roomId)
+            } else {
+                // may be undefined
+                room_id = room?.roomId
             }
+
+            if (room_id === undefined) {
+                room_id = (await this.createRoom({
+                    preset: Preset.TrustedPrivateChat,
+                    visibility: Visibility.Private,
+                    initial_state: [{
+                        type: EventType.Tag,
+                        content: {
+                            tags: {
+                                [EventType.Direct]: {}
+                            }
+                        }
+                    }]
+                })).room_id
+            }
+
+            await this.invite(room_id, userId, reason)
+            await this.addRoomToMDirect(room_id, userId)
             return room_id
         } catch (e) {
             console.error('inviteFriend', e)
@@ -117,13 +158,13 @@ class BChatClient extends MatrixClient {
         }
     }
 
-    async acceptFriend(userId, roomId) {
+    async acceptDirect(userId, roomId) {
         await this.joinRoom(roomId)
         await this.addRoomToMDirect(roomId, userId)
 
     }
 
-    async deleteFriend(userId: string) {
+    async deleteDirect(userId: string) {
         const mDirectEvent = this.getAccountData(EventType.Direct)
         const content = mDirectEvent?.getContent() || {}
         const friendRooms = content[userId] || []
@@ -176,6 +217,20 @@ class BChatClient extends MatrixClient {
         return favTagName in (this.getRoom(roomId)?.tags || {})
     }
 
+    canDo(roomId: string, action: 'ban' | 'invite' | 'kick' | 'redact' | 'm.room.avatar' | 'm.room.canonical_alias' | 'm.room.encryption' | 'm.room.history_visibility' | 'm.room.name' | 'm.room.power_levels' | 'm.room.server_acl' | 'm.room.tombstone' | 'm.room.topic') {
+        const room = this.getRoom(roomId)
+        if (!room) {
+            return false
+        }
+        const myPowerLevel = room.getMember(this.getUserId()).powerLevel
+        const roomState = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomPowerLevels)
+        if (roomState.length === 0) {
+            return false
+        }
+        const roomPowerLevels = roomState[0].getContent()
+        const targetPower = (action.startsWith('m.') ? roomPowerLevels.events[action] : roomPowerLevels[action]) || 0
+        return myPowerLevel >= targetPower
+    }
 
     async uploadFile(opts: { provider: 'synpase' | 's3', uri: string, mimeType?: string, name: string, callback?: Function }) {
         if (opts.provider === 's3') {
@@ -249,26 +304,37 @@ class BChatClient extends MatrixClient {
     }
 }
 
+let currentNotifId = null
+
 const sendRoomNotify = async (room) => {
     // 通知栏消息
-    if (room.getMyMembership() === 'invite') {
-        await Notifications.dismissAllNotificationsAsync()
-        await Notifications.scheduleNotificationAsync({
+    if (room.getMyMembership() === 'invite'
+        && AppState.currentState.match(/background|inactive/)) {
+        if (currentNotifId !== null) {
+            await Notifications.dismissNotificationAsync(currentNotifId)
+        }
+        currentNotifId = await Notifications.scheduleNotificationAsync({
             content: {
-                title: `您有一条来自${room.name}的邀请`
+                title: room.name,
+                body: `有新的聊天邀请`
             },
             trigger: null,
         });
     }
 }
 
-const sendTimelineNotify = async (event) => {
+const sendTimelineNotify = async (event: MatrixEvent, room: Room) => {
     // 通知栏消息
-    if (event.getSender() !== _client.getUserId()) {
-        await Notifications.dismissAllNotificationsAsync()
-        await Notifications.scheduleNotificationAsync({
+    if (event.getSender() !== _client.getUserId()
+        && event.getType() === EventType.RoomMessage
+        && AppState.currentState.match(/background|inactive/)) {
+        if (currentNotifId !== null) {
+            await Notifications.dismissNotificationAsync(currentNotifId)
+        }
+        currentNotifId = await Notifications.scheduleNotificationAsync({
             content: {
-                title: `您有一条来自${event.getSender()}的消息`
+                title: room.name,
+                body: `有新的消息`
             },
             trigger: null,
         });
@@ -308,7 +374,7 @@ export const useMatrixClient = () => {
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
         _client.on(ClientEvent.Event, (evt) => {
-            console.debug('emitted event:', evt.getId(), evt.getType(), evt.getContent())
+            console.debug('emitted event:', JSON.stringify(evt))
         })
 
         // token过期

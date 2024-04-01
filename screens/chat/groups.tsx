@@ -23,10 +23,11 @@ export const GroupChat = ({ navigation, route }) => {
     const { client } = useMatrixClient()
     const roomId = route.params?.roomId
     const room = client.getRoom(roomId)
-    const isFriendRoom = client.isFriendRoom(roomId)
+    const isFriendRoom = client.isDirectRoom(roomId)
 
     const [searchVal, setSearchVal] = useState('')
     const initMembers: string[] = route.params?.initMembers ? [...route.params.initMembers] : []
+    const removable = route.params?.removable || false
     const [members, setMembers] = useState<IListItem[]>([])
     const [selectedValue] = useState<string[]>(initMembers)
     const [isGroupOptionVisible, setIsGroupOptionVisible] = useState(false)
@@ -35,14 +36,25 @@ export const GroupChat = ({ navigation, route }) => {
     const [nameError, setNameError] = useState('')
 
     useEffect(() => {
-        const friends = client.getFriends()
-        setMembers(friends.map(i => ({
-            id: i.userId,
-            title: i.name,
-            subtitle: i.userId,
-            avatar: i.avatar_url,
-            right: i.membership
-        })))
+        if (!removable) {
+            const friends = client.getFriends()
+            setMembers(friends.map(i => ({
+                id: i.userId,
+                title: i.name,
+                subtitle: i.userId,
+                avatar: i.avatar_url,
+                right: i.membership
+            })))
+        } else {
+            const members = room.getJoinedMembers().filter(i => i.userId !== client.getUserId())
+            setMembers(members.map(i => ({
+                id: i.userId,
+                title: i.name,
+                subtitle: i.userId,
+                avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true),
+                right: i.membership
+            })))
+        }
     }, [])
 
     const searchUser = (search) => {
@@ -54,7 +66,7 @@ export const GroupChat = ({ navigation, route }) => {
         try {
             setLoading(true)
             const inviteMembers = selectedValue.filter(i => !initMembers.includes(i) && i !== client.getUserId())
-            const removeMembers = initMembers.filter(i => !selectedValue.includes(i) && i !== client.getUserId())
+            const removeMembers = removable ? initMembers.filter(i => !selectedValue.includes(i) && i !== client.getUserId()) : []
             inviteMembers.forEach(async i => {
                 await client.invite(roomId, i)
             })
@@ -128,7 +140,7 @@ export const GroupChat = ({ navigation, route }) => {
         </View>
         <View style={{ paddingHorizontal: 10, ...styles.content }}>
             <ScrollView>
-                <ListView items={members} search={searchVal} selectedValue={selectedValue} enableSelect multiSelect></ListView>
+                <ListView allowRemove={removable} items={members} search={searchVal} selectedValues={selectedValue} enableSelect multiSelect></ListView>
             </ScrollView>
         </View>
         <Button title={'确定'} onPress={(roomId === undefined || isFriendRoom) ? onCreateGroup : onSetMember}

@@ -1,5 +1,6 @@
 import 'moment/locale/zh-cn';
 
+import _ from 'lodash'
 import { ClientEvent, EventType, MsgType, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
@@ -63,9 +64,10 @@ const Session = ({ navigation }) => {
     const [rooms, setRooms] = useState([])
 
     useEffect(() => {
-        const refreshRooms = () => {
+        const refreshRooms = _.debounce(() => {
             const sortedRooms = [...client.getRooms()]
                 .filter(r => !r.tags[hiddenTagName])
+                .filter(r => !client.isDirectInvitingRoom(r.roomId))
                 .sort((a, b) => {
                     if (client.isRoomOnTop(a.roomId) && !client.isRoomOnTop(b.roomId)) {
                         return -1
@@ -74,7 +76,8 @@ const Session = ({ navigation }) => {
                     } return b.getLastActiveTimestamp() - a.getLastActiveTimestamp()
                 })
             setRooms(sortedRooms)
-        }
+        }, 150)
+
         refreshRooms()
 
         client.on(RoomEvent.Timeline, refreshRooms)
@@ -120,16 +123,23 @@ const Session = ({ navigation }) => {
     }
 
     const renderItem = ({ item }: { item: Room }) => {
-        const isFriendRoom = client.isFriendRoom(item.roomId)
+        const isFriendRoom = client.isDirectRoom(item.roomId)
+        const friend = isFriendRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
         let title = item.name
         let subTitle = ''
         let updateAt = new Date().getTime()
+        let avatar_url = isFriendRoom
+            ? friend?.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
+            : item?.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
 
         if (item.getMyMembership() === 'invite') { //收到邀请信息
             if (item.getDMInviter()) {
                 subTitle = `来自${item.getDMInviter()?.split(":")[0]?.substring(1)}的好友申请`
             } else {
-                subTitle = "邀请您加入群聊"
+                const myMember = item.getMember(client.getUserId())
+                const invitor = myMember.events.member.getSender()
+                const invotorName = item.getMember(invitor)?.name
+                subTitle = `${invotorName || item.guessDMUserId()}邀请您加入群聊`
             }
             updateAt = item.getMember(item.myUserId).events.member.localTimestamp
         } else if (item.getMyMembership() === 'join') { //已加入聊天
@@ -143,7 +153,7 @@ const Session = ({ navigation }) => {
                 switch (lastEvt.getType()) {
                     case EventType.RoomMessage:
                         let sender = ''
-                        if (!client.isFriendRoom(lastEvt.getRoomId())) {
+                        if (!client.isDirectRoom(lastEvt.getRoomId())) {
                             sender = lastEvt.getSender()
                             const member = item.getMember(sender)
                             if (member) {
@@ -159,7 +169,7 @@ const Session = ({ navigation }) => {
                         }
                         break;
                     case EventType.RoomMember:
-                        if (client.isFriendRoom(lastEvt.getRoomId())) {
+                        if (client.isDirectRoom(lastEvt.getRoomId())) {
                             const lastMembership = lastEvt.getPrevContent()?.membership
                             if (lastEvt.getContent().membership === 'leave' && lastMembership === 'invite') {
                                 subTitle = `[拒绝了您的好友申请]`
@@ -182,14 +192,20 @@ const Session = ({ navigation }) => {
             <Menu>
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
                     <ListItem topDivider bottomDivider
-                        containerStyle={[client.isRoomOnTop(item.roomId) && { backgroundColor: theme.colors.grey5 }
-                            , { padding: 10 }]}>
-                        <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'}
-                            containerStyle={{ backgroundColor: theme.colors.primary }}>
-                            {item.getUnreadNotificationCount() > 0
-                                && <Badge value={item.getUnreadNotificationCount()} status="error"
-                                    containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
-                        </Avatar>
+                        containerStyle={[client.isRoomOnTop(item.roomId) && { backgroundColor: '#f5f5f5' }, { padding: 10 }]}>
+                        {avatar_url
+                            ? <Avatar size={50} rounded source={{ uri: avatar_url }}
+                                containerStyle={{ backgroundColor: theme.colors.primary }}>
+                                {item.getUnreadNotificationCount() > 0
+                                    && <Badge value={item.getUnreadNotificationCount()} status="error"
+                                        containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
+                            </Avatar> :
+                            <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'}
+                                containerStyle={{ backgroundColor: theme.colors.primary }}>
+                                {item.getUnreadNotificationCount() > 0
+                                    && <Badge value={item.getUnreadNotificationCount()} status="error"
+                                        containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
+                            </Avatar>}
                         <ListItem.Content>
                             <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: 18 }}>{title}</ListItem.Title>
                             <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1} style={{ color: theme.colors.grey2 }}>{subTitle}</ListItem.Subtitle>

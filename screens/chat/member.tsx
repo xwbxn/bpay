@@ -3,12 +3,14 @@ import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, View } from 'react-native';
 import URI from 'urijs';
 
-import { Avatar, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
+import { Avatar, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ISettingItem, SettingList } from './components/SettingList';
+import { CardView } from './components/CardView';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -30,7 +32,7 @@ export const MemberProfile = ({ navigation, route }) => {
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
 
     useEffect(() => {
-        if (client.isFriend(userId)) {
+        if (client.isDirectMember(userId)) {
             const friend = client.getFriend(userId)
             setProfile({
                 userId: friend.userId,
@@ -52,16 +54,18 @@ export const MemberProfile = ({ navigation, route }) => {
         }
     }, [userId])
 
+    // 进入聊天室
     const startChat = () => {
         navigation.replace('Room', {
             id: profile.targetRoomId
         })
     }
 
+    // 邀请好友
     const inviteMember = async () => {
         setLoading(true)
         try {
-            await client.inviteFriend(userId, reason)
+            await client.inviteDriect(userId, reason)
             navigation.popToTop()
         } catch (e) {
             Alert.alert('错误', e.toString())
@@ -70,6 +74,7 @@ export const MemberProfile = ({ navigation, route }) => {
         }
     }
 
+    // 删除好友
     const deleteMember = () => {
         Alert.alert('请确认操作', '将删除好友和聊天记录', [
             {
@@ -81,7 +86,7 @@ export const MemberProfile = ({ navigation, route }) => {
                 text: '确认', onPress: async () => {
                     setLoading(true)
                     try {
-                        await client.deleteFriend(userId)
+                        await client.deleteDirect(userId)
                         navigation.popToTop()
                     } catch (e) {
                         console.log(e)
@@ -94,7 +99,8 @@ export const MemberProfile = ({ navigation, route }) => {
         ]);
     }
 
-    const onSetAvatar = async () => {
+    // 设置我的头像
+    const setMyAvatar = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ImagePicker.MediaTypeOptions.Images,
             allowsEditing: true,
@@ -119,6 +125,7 @@ export const MemberProfile = ({ navigation, route }) => {
         }
     }
 
+    // 设置我的昵称
     const setMyNickName = () => {
         setEditProps({
             isVisible: true,
@@ -146,6 +153,7 @@ export const MemberProfile = ({ navigation, route }) => {
         })
     }
 
+    // 登出
     const logOut = () => {
         AsyncStorage.removeItem('TOKEN')
         AsyncStorage.removeItem('MATRIX_AUTH')
@@ -162,143 +170,94 @@ export const MemberProfile = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     })
 
+
+    const friendSettingItems: ISettingItem[] = [
+        {
+            title: '设置备注',
+            text: '备注',
+        },
+        {
+            title: '消息免打扰',
+            right: () => <Switch style={{ height: 20 }}></Switch>,
+        },
+        {
+            title: '置顶聊天',
+            right: () => <Switch style={{ height: 20 }}></Switch>,
+        },
+        {
+            title: '发消息',
+            onPress: startChat,
+            breakTop: true,
+            titleStyle: { color: theme.colors.primary, alignItems: 'center' },
+            titleContainerStyle: { alignItems: 'center' },
+            hideChevron: true
+        },
+        {
+            title: '删除好友',
+            onPress: deleteMember,
+            breakTop: true,
+            titleStyle: { color: theme.colors.error, alignItems: 'center' },
+            titleContainerStyle: { alignItems: 'center' },
+            hideChevron: true
+        }
+    ]
+
+    const foreignerSettingItems: ISettingItem[] = [
+        {
+            title: '申请加为好友',
+            onPress: inviteMember,
+            breakTop: true,
+            titleStyle: { color: theme.colors.primary, alignItems: 'center' },
+            titleContainerStyle: { alignItems: 'center' },
+            hideChevron: true
+        },
+    ]
+
+    const mySettingItems: ISettingItem[] = [
+        {
+            title: '设置昵称',
+            onPress: setMyNickName,
+            text: profile?.displayname
+        },
+        {
+            title: '设置头像',
+            onPress: setMyAvatar,
+            right: () => <Avatar size={24} source={{ uri: profile?.avatar_url }}></Avatar>
+        },
+        {
+            title: '我的收藏',
+        },
+        {
+            title: '修改密码',
+            breakTop: true,
+            titleStyle: { color: theme.colors.primary, alignItems: 'center' },
+            titleContainerStyle: { alignItems: 'center' },
+            hideChevron: true
+        },
+        {
+            title: '退出登录',
+            onPress: logOut,
+            breakTop: true,
+            titleStyle: { color: theme.colors.error, alignItems: 'center' },
+            titleContainerStyle: { alignItems: 'center' },
+            hideChevron: true
+        }
+    ]
+
     const friendSetting = (<View style={styles.container}>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem>
-                {profile?.avatar_url
-                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }} onPress={() => { isMe && onSetAvatar() }}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    : <Avatar size={80} rounded title={profile?.displayname[0]} onPress={() => { isMe && onSetAvatar() }}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
-                <ListItem.Content style={{ marginLeft: 10 }}>
-                    <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
-                    <ListItem.Subtitle style={{ fontSize: 15 }}>{profile?.userId}</ListItem.Subtitle>
-                </ListItem.Content>
-            </ListItem>
-        </View>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem}>
-                <ListItem.Content>
-                    <ListItem.Title style={styles.listItemTitle}>设置备注</ListItem.Title>
-                </ListItem.Content>
-                <Text style={styles.listItemText}>{'备注'}</Text>
-                <ListItem.Chevron></ListItem.Chevron>
-            </ListItem>
-            <Divider></Divider>
-            <ListItem containerStyle={styles.listItem}>
-                <ListItem.Content>
-                    <ListItem.Title style={styles.listItemTitle}>消息免打扰</ListItem.Title>
-                </ListItem.Content>
-                <Switch style={{ height: 20 }}></Switch>
-            </ListItem>
-            <Divider></Divider>
-            <ListItem containerStyle={styles.listItem}>
-                <ListItem.Content>
-                    <ListItem.Title style={styles.listItemTitle}>置顶聊天</ListItem.Title>
-                </ListItem.Content>
-                <Switch style={{ height: 20 }}></Switch>
-            </ListItem>
-        </View>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} onPress={startChat}>
-                <ListItem.Content style={{ alignItems: 'center', flexDirection: 'row' }}>
-                    <Icon size={28} color={theme.colors.primary} name='chatbox-ellipses-outline' type='ionicon'></Icon>
-                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary, marginLeft: 5 }}>
-                        发消息</ListItem.Title>
-                </ListItem.Content>
-            </ListItem>
-        </View>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} onPress={deleteMember}>
-                <ListItem.Content style={{ alignItems: 'center' }}>
-                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.error }}>
-                        删除好友</ListItem.Title>
-                </ListItem.Content>
-            </ListItem>
-        </View>
+        <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url} />
+        <SettingList items={friendSettingItems}></SettingList>
     </View >)
 
     const foreignerSetting = (<View style={styles.container}>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem>
-                {profile?.avatar_url
-                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    : <Avatar size={80} rounded title={profile?.displayname[0]}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
-                <ListItem.Content style={{ marginLeft: 10 }}>
-                    <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
-                    <ListItem.Subtitle style={{ fontSize: 15 }}>{profile?.userId}</ListItem.Subtitle>
-                </ListItem.Content>
-            </ListItem>
-        </View>
-
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} onPress={inviteMember}>
-                <ListItem.Content style={{ alignItems: 'center' }}>
-                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary }}>
-                        申请添加为好友</ListItem.Title>
-                </ListItem.Content>
-            </ListItem>
-        </View>
+        <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url} />
+        <SettingList items={foreignerSettingItems}></SettingList>
     </View >)
 
     const mySetting = (<View style={styles.container}>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem>
-                {profile?.avatar_url
-                    ? <Avatar size={80} rounded source={{ uri: profile?.avatar_url }} onPress={() => { isMe && onSetAvatar() }}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                    : <Avatar size={80} rounded title={profile?.displayname[0]} onPress={() => { isMe && onSetAvatar() }}
-                        containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
-                <ListItem.Content style={{ marginLeft: 10 }}>
-                    <ListItem.Title style={{ fontSize: 30 }}>{profile?.displayname}</ListItem.Title>
-                    <ListItem.Subtitle style={{ fontSize: 15 }}>{profile?.userId}</ListItem.Subtitle>
-                </ListItem.Content>
-            </ListItem>
-        </View>
-
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} onPress={setMyNickName}>
-                <ListItem.Content>
-                    <ListItem.Title style={styles.listItemTitle}>设置昵称</ListItem.Title>
-                </ListItem.Content>
-                <Text style={styles.listItemText}>{profile?.displayname}</Text>
-                <ListItem.Chevron></ListItem.Chevron>
-            </ListItem>
-            <Divider></Divider>
-            <ListItem containerStyle={styles.listItem} onPress={onSetAvatar}>
-                <ListItem.Content>
-                    <ListItem.Title style={styles.listItemTitle}>设置头像</ListItem.Title>
-                </ListItem.Content>
-                <Avatar size={24} source={{ uri: profile?.avatar_url }}></Avatar>
-                <ListItem.Chevron></ListItem.Chevron>
-            </ListItem>
-            <Divider></Divider>
-            <ListItem containerStyle={styles.listItem}>
-                <ListItem.Content>
-                    <ListItem.Title style={styles.listItemTitle}>我的收藏</ListItem.Title>
-                </ListItem.Content>
-                <ListItem.Chevron onPress={onSetAvatar}></ListItem.Chevron>
-            </ListItem>
-        </View>
-
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} >
-                <ListItem.Content style={{ alignItems: 'center' }}>
-                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.primary }}>
-                        修改密码</ListItem.Title>
-                </ListItem.Content>
-            </ListItem>
-        </View>
-        <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
-            <ListItem containerStyle={styles.listItem} onPress={logOut}>
-                <ListItem.Content style={{ alignItems: 'center' }}>
-                    <ListItem.Title style={{ ...styles.listItemTitle, color: theme.colors.error }}>
-                        退出登录</ListItem.Title>
-                </ListItem.Content>
-            </ListItem>
-        </View>
+        <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url}
+            onAvatarPress={setMyAvatar} />
+        <SettingList items={mySettingItems}></SettingList>
     </View >)
 
     return <>
