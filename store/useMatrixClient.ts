@@ -94,17 +94,15 @@ class BChatClient extends MatrixClient {
     }
 
     isDirectRoom(roomId) {
+        const room = this.getRoom(roomId)
+        if (room) {
+            return room.tags[EventType.Direct] !== null
+        }
         const content = this.getAccountData(EventType.Direct)?.getContent() || {}
         if (Object.values(content).some(i => i.includes(roomId))) {
             return true
         }
-
-        const room = this.getRoom(roomId)
-        if (room) {
-            return room.tags[EventType.Direct] !== undefined
-        } else {
-            return false
-        }
+        return false
     }
 
     getDirectRoom(userId): Room | undefined {
@@ -114,13 +112,19 @@ class BChatClient extends MatrixClient {
     }
 
     isDirectInvitingRoom(roomId) {
-        if (!this.isDirectRoom) {
+        if (!this.isDirectRoom(roomId)) {
             return false
         }
         const room = this.getRoom(roomId)
         if (room === null) return false
 
-        return room.getInvitedMemberCount() === 1 && room.getJoinedMemberCount() === 1
+        const dmUserId = room.guessDMUserId()
+        const dmUser = room.getMember(dmUserId)
+        if (dmUser.events.member.getPrevContent().membership === 'invite' && dmUser.events.member.getContent().membership === 'leave') {
+            return true
+        }
+
+        return room.getInvitedMemberCount() === 1
     }
 
     async inviteDriect(userId: string, reason?: string) {
@@ -232,25 +236,17 @@ class BChatClient extends MatrixClient {
         return myPowerLevel >= targetPower
     }
 
-    async uploadFile(opts: { provider: 'synpase' | 's3', uri: string, mimeType?: string, name: string, callback?: Function }) {
-        if (opts.provider === 's3') {
-            const res = await RNS3.put({ uri: opts.uri, name: opts.name, type: opts.mimeType }, rns3Options)
-                .progress((e) => opts.callback && opts.callback(e))
-            return { content_uri: res.body?.postResponse?.location || undefined }
-        }
-        if (opts.provider === 'synpase') {
-            const fileUri = new URI(opts.uri)
-            const response = await fetch(opts.uri)
-            const blob = await response.blob()
-            const upload = await this.uploadContent(blob, {
-                name: fileUri.filename()
-            })
-            return { content_uri: this.mxcUrlToHttp(upload.content_uri) || undefined }
-        }
+    async uploadFile(opts: { uri: string, mimeType?: string, name: string, callback?: Function }) {
+        const fileUri = new URI(opts.uri)
+        const response = await fetch(opts.uri)
+        const blob = await response.blob()
+        const upload = await this.uploadContent(blob, {
+            name: fileUri.filename()
+        })
+        return { content_uri: upload.content_uri || undefined }
     }
 
     async getThumbnails(opts: {
-        provider: 'synpase' | 's3',
         uri: string,
         height: number,
         width: number,
@@ -258,47 +254,19 @@ class BChatClient extends MatrixClient {
         name: string,
         callback?: Function
     }) {
-        if (opts.provider === 's3') {
-            let resize = {}
-            if (opts.width > opts.height) {
-                Object.assign(resize, {
-                    width: 450
-                })
-            } else {
-                Object.assign(resize, {
-                    height: 450
-                })
-            }
-            const manipResult = await manipulateAsync(opts.uri, [{ resize }])
-            const upload = await this.uploadFile({
-                provider: opts.provider,
-                uri: manipResult.uri,
-                mimeType: opts.mimeType,
-                name: `${opts.name}-thumbnail`
-            })
-            return {
-                thumbnail_url: upload.content_uri,
-                thumbnail_info: {
-                    w: Math.floor(manipResult.width / 3),
-                    h: Math.floor(manipResult.height / 3),
-                    type: opts.mimeType
-                }
-            }
-        } else {
-            const _width = opts.width || 150
-            const _height = opts.height || 100
-            const mediaId = new URI(opts.uri).pathname().split('/').slice(-1)[0]
-            const ratio = Math.max(_width, _height) / 150
-            const ratioWidth = Math.floor(_width / ratio)
-            const ratioHeight = Math.floor(_height / ratio)
-            const thumbnail_url = `${this.baseUrl}${MediaPrefix.V3}/thumbnail/chat.b-pay.life/${mediaId}?width=${ratioWidth * 3}&height=${ratioHeight * 3}&method=scale&timeout_ms=5000`
-            return {
-                thumbnail_url: thumbnail_url,
-                thumbnail_info: {
-                    w: ratioWidth,
-                    h: ratioHeight,
-                    type: opts.mimeType
-                }
+
+        const _width = opts.width || 150
+        const _height = opts.height || 100
+        const ratio = Math.max(_width, _height) / 150
+        const ratioWidth = Math.floor(_width / ratio)
+        const ratioHeight = Math.floor(_height / ratio)
+        const thumbnail_url = this.mxcUrlToHttp(opts.uri, ratioWidth * 2, ratioHeight * 2, 'scale')
+        return {
+            thumbnail_url: thumbnail_url,
+            thumbnail_info: {
+                w: ratioWidth,
+                h: ratioHeight,
+                type: opts.mimeType
             }
         }
     }

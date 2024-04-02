@@ -15,7 +15,7 @@ import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { BottomSheet, Button, Dialog, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
+import { Avatar, BottomSheet, Button, Dialog, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
@@ -77,6 +77,7 @@ export function Room({ route, navigation }) {
   // event转换为msg格式
   const evtToMsg = (evt: MatrixEvent) => {
     const sender = room.getMember(evt.getSender())
+    console.log('sender.name', sender.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true))
     let msg: IChatMessage = {
       _id: evt.getId(),
       text: '',
@@ -84,7 +85,7 @@ export function Room({ route, navigation }) {
       user: {
         _id: evt.getSender(),
         name: sender?.name || evt.getSender(),
-        avatar: sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || '',
+        avatar: sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined,
       },
       sent: evt.status === null,
       pending: evt.status !== null,
@@ -98,6 +99,8 @@ export function Room({ route, navigation }) {
         if (!isFriendRoom) {
           msg.text = `${msg.user.name} 创建了群聊`
           msg.system = true
+        } else {
+          msg._id = null
         }
         break
       case EventType.RoomMember:
@@ -117,11 +120,17 @@ export function Room({ route, navigation }) {
         if (evt.getContent().msgtype == MsgType.Image) {
           const content = evt.getContent()
           msg.image = content.info?.thumbnail_url || content.url
+          if (msg.image.startsWith("mxc://")) {
+            msg.image = client.mxcUrlToHttp(msg.image)
+          }
           msg.w = content.info?.thumbnail_info?.w || content.w
           msg.h = content.info?.thumbnail_info?.h || content.h
         }
         if (evt.getContent().msgtype === MsgType.Video) {
           msg.video = evt.getContent().info?.thumbnail_url
+          if (msg.video.startsWith("mxc://")) {
+            msg.video = client.mxcUrlToHttp(msg.video)
+          }
           msg.w = evt.getContent().info?.thumbnail_info?.w || 150
           msg.h = evt.getContent().info?.thumbnail_info?.h || 100
         }
@@ -135,9 +144,10 @@ export function Room({ route, navigation }) {
       default:
         msg._id = null
         msg.text = `[不支持的消息(${evt.getType()})]`
-        console.log('timeline', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
         break
     }
+    console.log('message', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
+
     return msg
   }
 
@@ -222,13 +232,11 @@ export function Room({ route, navigation }) {
     const events = room.getLiveTimeline().getEvents()
     if (events.length > 0) {
       events.forEach(evt => {
-        // if (_messages.map(i => i._id).includes(evt.getId())) return
         const msg = evtToMsg(evt)
         if (msg._id) _messages.unshift(msg)
       })
       setMessages(_messages)
       const lastMsg = _messages[0]
-      console.log('lastMsg', lastMsg)
       if (lastMsg && lastMsg.event?.status === null && lastMsg.event?.getId() !== readupTo) {
         client.sendReadReceipt(lastMsg.event)
         setReadUpTo(lastMsg.event.getId())
@@ -262,7 +270,6 @@ export function Room({ route, navigation }) {
           // 上传文件
           const uname = crypto.randomUUID()
           const upload = await client.uploadFile({
-            provider: 'synpase',
             uri: a.uri,
             mimeType: a.mimeType,
             name: uname
@@ -273,7 +280,6 @@ export function Room({ route, navigation }) {
             let thumbnail = {}
             if (a.width > 150 || a.height > 150) {
               thumbnail = await client.getThumbnails({
-                provider: 'synpase',
                 uri: upload.content_uri,
                 width: a.width,
                 height: a.height,
@@ -301,7 +307,6 @@ export function Room({ route, navigation }) {
             const ratio = Math.max(a.height, a.width) / 150
             const thumbnail = await vt.getThumbnailAsync(a.uri)
             const uploadedThumb = await client.uploadFile({
-              provider: 'synpase',
               uri: thumbnail.uri,
               name: uname,
               mimeType: a.mimeType
@@ -345,7 +350,6 @@ export function Room({ route, navigation }) {
           const txnId = previewMessage(a)
           const uname = crypto.randomUUID()
           const upload = await client.uploadFile({
-            provider: 'synpase',
             uri: a.uri,
             name: uname,
             mimeType: a.mimeType
@@ -353,7 +357,6 @@ export function Room({ route, navigation }) {
           let thumbnail = {}
           if (a.width > 150 || a.height > 150) {
             thumbnail = await client.getThumbnails({
-              provider: 'synpase',
               uri: upload.content_uri,
               width: a.width,
               height: a.height,
@@ -534,6 +537,7 @@ export function Room({ route, navigation }) {
           messages={messages}
           onInputTextChanged={() => { setBottomSheetShow(false) }}
           scrollToBottom
+          renderUsernameOnMessage
           onLoadEarlier={LoadEarlier}
           keyboardShouldPersistTaps='never'
           onSend={messages => sendText(messages)}

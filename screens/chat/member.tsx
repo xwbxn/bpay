@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Switch, View } from 'react-native';
+import { Alert, StyleSheet, Switch, TextInput, View } from 'react-native';
 import URI from 'urijs';
 
 import { Avatar, useTheme } from '@rneui/themed';
@@ -32,7 +32,7 @@ export const MemberProfile = ({ navigation, route }) => {
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
 
     useEffect(() => {
-        if (client.isDirectMember(userId)) {
+        if (client.isDirectMember(userId) && client.getDirectRoom(userId)?.getMember(userId).membership === 'join') {
             const friend = client.getFriend(userId)
             setProfile({
                 userId: friend.userId,
@@ -66,7 +66,7 @@ export const MemberProfile = ({ navigation, route }) => {
         setLoading(true)
         try {
             await client.inviteDriect(userId, reason)
-            navigation.popToTop()
+            navigation.goBack()
         } catch (e) {
             Alert.alert('错误', e.toString())
         } finally {
@@ -251,6 +251,10 @@ export const MemberProfile = ({ navigation, route }) => {
 
     const foreignerSetting = (<View style={styles.container}>
         <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url} />
+        <View style={{ backgroundColor: '#fff', marginTop: -10, padding: 20 }}>
+            <TextInput style={{ borderRadius: 10, backgroundColor: '#eee', height: 80, lineHeight: 20, padding: 8, textAlignVertical: 'top' }} multiline={true}
+                numberOfLines={3} defaultValue={reason} onChangeText={setReason}></TextInput>
+        </View>
         <SettingList items={foreignerSettingItems}></SettingList>
     </View >)
 

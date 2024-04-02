@@ -7,11 +7,12 @@ import { StylePropType } from 'react-native-gifted-chat';
 import Lightbox from 'react-native-lightbox-v2';
 
 const styles = StyleSheet.create({
-    container: {},
+    container: {
+    },
     image: {
         borderRadius: 13,
         margin: 3,
-        resizeMode: 'cover',
+        resizeMode: 'cover'
     },
     imageActive: {
         flex: 1,
@@ -22,6 +23,15 @@ export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = 
     if (currentMessage == null) {
         return null;
     }
+
+    let { w, h } = currentMessage
+    const ratio = Math.max(currentMessage.h, currentMessage.w) / 150
+    if (ratio > 1) {
+        w = Math.floor(w / ratio)
+        h = Math.floor(h / ratio)
+    }
+
+
     return (<View style={[styles.container, containerStyle]}>
         {// @ts-ignore: 2322
             <Lightbox activeProps={{
@@ -30,7 +40,7 @@ export const MessageImage = ({ containerStyle, lightboxProps = {}, imageProps = 
                 onLongPress={() => { onLongPress({}, currentMessage) }}
             >
                 <Image {...imageProps} source={{ uri: currentMessage.image }}
-                    style={[styles.image, imageStyle, { width: currentMessage.w, height: currentMessage.h }]}>
+                    style={[styles.image, imageStyle, { width: w, height: h }]}>
                 </Image>
             </Lightbox>
         }
