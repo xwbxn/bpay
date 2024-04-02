@@ -66,8 +66,9 @@ const Session = ({ navigation }) => {
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
             const sortedRooms = [...client.getRooms()]
-                .filter(r => !r.tags[hiddenTagName])
-                .filter(r => !client.isDirectInvitingRoom(r.roomId))
+                .filter(r => !r.tags[hiddenTagName]) // 非隐藏
+                .filter(r => client.isDirectRoom(r.roomId)
+                    && (['join', 'leave'].includes(client.getRoomDirect(r.roomId)?.status))) // 非邀请
                 .sort((a, b) => {
                     if (client.isRoomOnTop(a.roomId) && !client.isRoomOnTop(b.roomId)) {
                         return -1

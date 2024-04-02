@@ -1,4 +1,4 @@
-import { ClientEvent, RoomEvent, RoomMember, RoomMemberEvent } from 'matrix-js-sdk';
+import { ClientEvent, Direction, EventType, RoomEvent, RoomMember, RoomMemberEvent } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -41,55 +41,73 @@ export const Contacts = ({ navigation, route }) => {
     }
 
     const rejectInvite = async (userId, roomId) => {
-        await client.leave(roomId)
-        client.getRoom(roomId).updateMyMembership('leave')
+        await client.rejectDirect(userId, roomId)
         setRefreshKey(randomUUID())
     }
 
     const cancelInvite = async (userId, roomId) => {
-        await client.kick(roomId, userId, 'cancel invite')
-        await client.deleteDirect(userId)
+        await client.cancelDirect(userId, roomId)
         setRefreshKey(randomUUID())
     }
 
     const refreshContacts = () => {
         setSearchVal('')
         setSearchMembers([])
+        client.getRooms().forEach(r => {
+            console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
+                JSON.stringify(r.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomMember)))
+        })
         // 新的朋友
         const _newFriends: IListItem[] = []
         const news = client.getRooms()
-            .filter(room => client.isDirectInvitingRoom(room.roomId))
-            .filter(room => room.getMyMembership() === 'invite' || room.getMyMembership() === 'join')
+            .filter(room => client.isDirectRoom(room.roomId))
+            .filter(room => ['invite', 'reject'].includes(client.getRoomDirect(room.roomId)?.status))
         news.forEach(room => {
+            const driect = client.getRoomDirect(room.roomId)
             const me = room.getMember(client.getUserId())
             const friend = room.getMember(room.guessDMUserId())
-            const reason = me.events.member?.getContent()?.reason || '[等待对方同意]'
+            let reason = me.events.member?.getContent()?.reason
+            let right
+            if (driect.invitor === me.userId && driect.status === 'invite') {
+                reason = '[已发送好友邀请]'
+                right = <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'} onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
+            } else if (driect.invitor === me.userId && driect.status === 'reject') {
+                reason = '[对方已拒绝邀请]'
+                right = <><Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'} onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
+                    <Button type='clear' title={'邀请'} onPress={() => { }}></Button></>
+            } else {
+                right = <>
+                    <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'拒绝'} onPress={() => rejectInvite(friend.userId, room.roomId)}></Button>
+                    <Button type='clear' title={'同意'} onPress={() => acceptInvite(friend.userId, room.roomId)}></Button>
+                </>
+            }
+
             _newFriends.push({
                 id: friend.userId,
                 title: friend.name,
                 subtitle: reason,
                 avatar: friend.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true),
                 data: { roomId: room.roomId },
-                right: room.getMyMembership() === 'invite' ? <>
-                    <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'拒绝'} onPress={() => rejectInvite(friend.userId, room.roomId)}></Button>
-                    <Button type='clear' title={'同意'} onPress={() => acceptInvite(friend.userId, room.roomId)}></Button>
-                </> : <>
-                    <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'} onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
-                </>
+                right: right
             })
         })
         setNewFriends(_newFriends)
 
         // 好友
-        const _friends = client.getFriends().filter(i => i.membership === 'join')
-        setFriends(_friends.map(i => ({
-            id: i.userId,
-            title: i.name,
-            subtitle: i.userId,
-            avatar: i.avatar_url,
-            right: membershipMap[i.membership] || '',
-            data: { roomId: i.roomId },
-        })))
+        const _friends = client.getRooms()
+            .filter(room => client.isDirectRoom(room.roomId))
+            .filter(room => ['join', 'leave'].includes(client.getRoomDirect(room.roomId)?.status))
+        setFriends(_friends.map(room => {
+            const friend = room.getMember(room.guessDMUserId())
+            return {
+                id: friend.userId,
+                title: friend.name,
+                subtitle: friend.userId,
+                avatar: friend.getAvatarUrl(client.baseUrl, 40, 40, 'scale', true, true),
+                right: membershipMap[friend.membership] || '',
+                data: { roomId: room.roomId },
+            }
+        }))
 
         // 群组
         const _groups: IListItem[] = []
@@ -129,17 +147,17 @@ export const Contacts = ({ navigation, route }) => {
     useEffect(() => {
         client.on(ClientEvent.DeleteRoom, refreshContacts)
         client.on(ClientEvent.Room, refreshContacts)
-        client.on(ClientEvent.AccountData, refreshContacts)
+        client.on(RoomEvent.Tags, refreshContacts)
         return () => {
             client.off(ClientEvent.DeleteRoom, refreshContacts)
             client.off(ClientEvent.Room, refreshContacts)
-            client.off(ClientEvent.AccountData, refreshContacts)
+            client.off(RoomEvent.Tags, refreshContacts)
         }
     })
 
     const searchUser = () => {
         const fullId = /@(.*):chat\.b-pay\.life/.test(searchVal) ? searchVal : `@${searchVal}:chat.b-pay.life`
-        if (friends.map(i => i.id).includes(fullId)) {
+        if (friends.map(i => i.id).includes(fullId) || newFriends.map(i => i.id).includes(fullId)) {
             setSearchMembers([])
         } else {
             setLoading(true)

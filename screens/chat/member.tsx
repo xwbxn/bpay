@@ -32,11 +32,11 @@ export const MemberProfile = ({ navigation, route }) => {
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
 
     useEffect(() => {
-        if (client.isDirectMember(userId) && client.getDirectRoom(userId)?.getMember(userId).membership === 'join') {
-            const friend = client.getFriend(userId)
+        if (client.findDirectRoom(userId)) {
+            const friend = client.findDirectRoom(userId).getMember(userId)
             setProfile({
                 userId: friend.userId,
-                avatar_url: friend.avatar_url,
+                avatar_url: friend.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true),
                 displayname: friend.name,
                 targetRoomId: friend.roomId,
                 isFriend: true
@@ -86,7 +86,7 @@ export const MemberProfile = ({ navigation, route }) => {
                 text: '确认', onPress: async () => {
                     setLoading(true)
                     try {
-                        await client.deleteDirect(userId)
+                        await client.deleteDirect(userId, client.findDirectRoom(userId).roomId)
                         navigation.popToTop()
                     } catch (e) {
                         console.log(e)

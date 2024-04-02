@@ -37,14 +37,17 @@ export const GroupChat = ({ navigation, route }) => {
 
     useEffect(() => {
         if (!removable) {
-            const friends = client.getFriends()
-            setMembers(friends.map(i => ({
-                id: i.userId,
-                title: i.name,
-                subtitle: i.userId,
-                avatar: i.avatar_url,
-                right: i.membership
-            })))
+            const rooms = client.getRooms().filter(i => client.isDirectRoom(i.roomId))
+            setMembers(rooms.map(i => {
+                const member = i.getMember(i.guessDMUserId())
+                return {
+                    id: member.userId,
+                    title: member.name,
+                    subtitle: member.userId,
+                    avatar: member.getAvatarUrl(client.baseUrl, 40, 40, 'scale', true, true),
+                    right: member.membership
+                }
+            }))
         } else {
             const members = room.getJoinedMembers().filter(i => i.userId !== client.getUserId())
             setMembers(members.map(i => ({
