@@ -1,7 +1,7 @@
 import 'moment/locale/zh-cn';
 
 import _ from 'lodash'
-import { ClientEvent, EventType, MsgType, Room, RoomEvent } from 'matrix-js-sdk';
+import { ClientEvent, Direction, EventType, MsgType, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -63,12 +63,21 @@ const Session = ({ navigation }) => {
     const { client } = useMatrixClient()
     const [rooms, setRooms] = useState([])
 
+    client.getRooms().forEach(r => {
+        console.log('r.', r.getCreator())
+        console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
+            JSON.stringify(r.getMembers().map(i => [i.name, i.membership, i.events.member?.getContent(), i.events.member?.getPrevContent()])))
+    })
+
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
             const sortedRooms = [...client.getRooms()]
                 .filter(r => !r.tags[hiddenTagName]) // 非隐藏
+                .filter(r => r.getMyMembership() === 'join')
                 .filter(r => client.isDirectRoom(r.roomId)
-                    && (['join', 'leave'].includes(client.getRoomDirect(r.roomId)?.status))) // 非邀请
+                    ? (r.getMember(r.guessDMUserId()).membership === 'join'
+                        || (r.getMember(r.guessDMUserId()).membership === 'leave' && r.getMember(r.guessDMUserId()).events.member.getPrevContent().membership === 'join'))
+                    : true)
                 .sort((a, b) => {
                     if (client.isRoomOnTop(a.roomId) && !client.isRoomOnTop(b.roomId)) {
                         return -1
@@ -144,46 +153,39 @@ const Session = ({ navigation }) => {
             }
             updateAt = item.getMember(item.myUserId).events.member.localTimestamp
         } else if (item.getMyMembership() === 'join') { //已加入聊天
-            if (item.getInvitedMemberCount() == 1 && item.getInvitedAndJoinedMemberCount() == 2) {
-                //发起单聊等待对方同意
-                subTitle = '等待对方同意'
-            } else {
-                // 预览消息
-                const lastEvt = item.getLastLiveEvent()
-                updateAt = item.getLastActiveTimestamp()
-                switch (lastEvt.getType()) {
-                    case EventType.RoomMessage:
-                        let sender = ''
-                        if (!client.isDirectRoom(lastEvt.getRoomId())) {
-                            sender = lastEvt.getSender()
-                            const member = item.getMember(sender)
-                            if (member) {
-                                sender = member.name
-                            }
+            // 预览消息
+            const lastEvt = item.getLastLiveEvent()
+            updateAt = item.getLastActiveTimestamp()
+            switch (lastEvt.getType()) {
+                case EventType.RoomMessage:
+                    let sender = ''
+                    if (!client.isDirectRoom(lastEvt.getRoomId())) {
+                        sender = lastEvt.getSender()
+                        const member = item.getMember(sender)
+                        if (member) {
+                            sender = member.name
                         }
-                        subTitle = (sender ? sender + ':' : '') + lastEvt.getContent().body || ''
-                        if (lastEvt.getContent().msgtype === MsgType.Image) {
-                            subTitle = '[图片消息]'
+                    }
+                    subTitle = (sender ? sender + ':' : '') + lastEvt.getContent().body || ''
+                    if (lastEvt.getContent().msgtype === MsgType.Image) {
+                        subTitle = '[图片消息]'
+                    }
+                    if (lastEvt.getContent().msgtype === MsgType.Video) {
+                        subTitle = '[视频]'
+                    }
+                    break;
+                case EventType.RoomMember:
+                    if (client.isDirectRoom(lastEvt.getRoomId())) {
+                        const lastMembership = lastEvt.getPrevContent()?.membership
+                        if (lastEvt.getContent().membership === 'leave' && lastMembership === 'join') {
+                            subTitle = `[对方已不再是好友]`
+                        } else {
+                            subTitle = '[可以开始聊天了]'
                         }
-                        if (lastEvt.getContent().msgtype === MsgType.Video) {
-                            subTitle = '[视频]'
-                        }
-                        break;
-                    case EventType.RoomMember:
-                        if (client.isDirectRoom(lastEvt.getRoomId())) {
-                            const lastMembership = lastEvt.getPrevContent()?.membership
-                            if (lastEvt.getContent().membership === 'leave' && lastMembership === 'invite') {
-                                subTitle = `[拒绝了您的好友申请]`
-                            } else if (lastEvt.getContent().membership === 'leave' && lastMembership === 'join') {
-                                subTitle = `[对方已不再是好友]`
-                            } else {
-                                subTitle = '[同意了您的好友申请]'
-                            }
-                        }
-                        break
-                    default:
-                        break;
-                }
+                    }
+                    break
+                default:
+                    break;
             }
         } else if (item.getMyMembership() === 'leave') {
             return <></>

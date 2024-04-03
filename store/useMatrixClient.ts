@@ -27,7 +27,7 @@ const rns3Options = {
 interface IDirectRoom {
     invitor: string
     invitee: string
-    status: 'invite' | 'reject' | 'join' | 'leave'
+    reason: string
 }
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
@@ -50,99 +50,17 @@ export function createClient(opts: ICreateClientOpts): BChatClient {
 
 class BChatClient extends MatrixClient {
 
-    // getFriend(userId): Friend | undefined {
-    //     if (!this.isDirectMember(userId)) {
-    //         return undefined
-    //     }
-    //     const content = this.getAccountData(EventType.Direct)?.getContent() || {}
-    //     const roomId = content[userId][0] || undefined
-    //     const member = this.getRoom(roomId)?.getMember(userId) || undefined
-    //     const name = member?.name || userId.split(":")[0].slice(1)
-    //     return {
-    //         userId,
-    //         roomId,
-    //         name,
-    //         avatar_url: member?.getAvatarUrl(this.baseUrl, 50, 50, 'crop', true, true),
-    //         membership: member?.membership || undefined
-    //     }
-    // }
-
-    // getFriends(): Friend[] {
-    //     const content = this.getAccountData(EventType.Direct)?.getContent() || {}
-    //     const result = []
-    //     Object.keys(content).forEach(userId => {
-    //         const roomId = content[userId][0] || undefined
-    //         const member = this.getRoom(roomId)?.getMember(userId) || undefined
-    //         const name = member?.name || userId.split(":")[0].slice(1)
-    //         result.push({
-    //             userId,
-    //             roomId,
-    //             name,
-    //             avatar_url: member?.getAvatarUrl(this.baseUrl, 50, 50, 'crop', true, true),
-    //             membership: member?.membership || undefined
-    //         })
-    //     })
-    //     return result
-    // }
-
-    // isDirectMember(userId) {
-    //     const content = this.getAccountData(EventType.Direct)?.getContent() || {}
-    //     return Object.keys(content).includes(userId)
-    // }
-
     isDirectRoom(roomId) {
         const room = this.getRoom(roomId)
         if (!room) {
             return false
         }
 
-        const content = this.getAccountData(EventType.Direct)?.getContent() || {}
-        if (Object.values(content).some(i => i.includes(roomId))) {
-            return true
-        }
-
-        const me = room.getMember(this.getUserId())
-        if (!me) {
+        const createEvent = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomCreate)[0]
+        if (!createEvent) {
             return false
         }
-
-        return me.membership === 'invite' && (me.events.member.getContent().is_direct || me.events.member.getPrevContent().is_direct)
-    }
-
-    getRoomDirect(roomId): IDirectRoom {
-        const room = this.getRoom(roomId)
-        if (!room) {
-            return null
-        }
-        const memberEvts = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomMember)
-        const evt = memberEvts.find(m => m.getSender() !== m.getStateKey())
-        if (!evt) {
-            return null
-        }
-        let status: "invite" | "reject" | "join" | "leave"
-        if (room.getMyMembership() === 'join' && room.getMember(room.guessDMUserId()).membership === 'join') {
-            status = 'join'
-        }
-        if (room.getMyMembership() === 'invite' && room.getMember(room.guessDMUserId()).membership === 'join') {
-            status = 'invite'
-        }
-        if (room.getMyMembership() === 'join' && room.getMember(room.guessDMUserId()).membership === 'invite') {
-            status = 'invite'
-        }
-        if (room.getMyMembership() === 'join' && room.getMember(room.guessDMUserId()).membership === 'leave') {
-            if (room.getMember(room.guessDMUserId()).events.member.getPrevContent().membership === 'invite') {
-                status = 'reject'
-            } else {
-                status = 'leave'
-            }
-        }
-
-        const direct: IDirectRoom = {
-            invitor: evt.getSender(),
-            invitee: evt.getStateKey(),
-            status: status
-        }
-        return direct
+        return Object.hasOwn(createEvent.getContent(), EventType.Direct)
     }
 
     findDirectRoom(userId: string): Room {
@@ -152,28 +70,6 @@ class BChatClient extends MatrixClient {
         return room
     }
 
-    // getDirectRoom(userId): Room | undefined {
-    //     const content = this.getAccountData(EventType.Direct)?.getContent() || {}
-    //     const rooms = content[userId] || []
-    //     return rooms.length > 0 ? this.getRoom(rooms[0]) : undefined
-    // }
-
-    // isDirectInvitingRoom(roomId) {
-    //     if (!this.isDirectRoom(roomId)) {
-    //         return false
-    //     }
-    //     const room = this.getRoom(roomId)
-    //     if (room === null) return false
-
-    //     const dmUserId = room.guessDMUserId()
-    //     const dmUser = room.getMember(dmUserId)
-    //     if (dmUser.events.member.getPrevContent().membership === 'invite' && dmUser.events.member.getContent().membership === 'leave') {
-    //         return true
-    //     }
-
-    //     return room.getInvitedMemberCount() === 1
-    // }
-
     async inviteDriect(userId: string, reason?: string) {
         try {
             let room = this.findDirectRoom(userId)
@@ -182,12 +78,18 @@ class BChatClient extends MatrixClient {
             }
 
             const room_id = (await this.createRoom({
-                preset: Preset.TrustedPrivateChat,
+                preset: Preset.PrivateChat,
                 visibility: Visibility.Private,
                 is_direct: true,
-                invite: [userId]
+                invite: [userId],
+                creation_content: {
+                    [EventType.Direct]: {
+                        invitor: this.getUserId(),
+                        invitee: userId,
+                        reason
+                    }
+                },
             })).room_id
-            await this.invite(room_id, userId, reason)
             await this.addRoomToMDirect(room_id, userId)
             return room_id
         } catch (e) {
@@ -197,23 +99,30 @@ class BChatClient extends MatrixClient {
     }
 
     async acceptDirect(userId, roomId) {
+        await this.deleteDirect(userId)
         await this.joinRoom(roomId)
         await this.addRoomToMDirect(roomId, userId)
     }
 
     async cancelDirect(userId, roomId) {
-        await this.deleteDirect(userId, roomId)
+        try {
+            await this.kick(roomId, userId, 'cancel')
+        } catch (e) {
+            console.warn('cancelDirect', e.toString())
+        }
+        await this.deleteDirect(userId)
     }
 
     async rejectDirect(userId, roomId) {
         await this.leave(roomId)
+        await this.forget(roomId)
     }
 
-    async deleteDirect(userId: string, roomId: string) {
+    async deleteDirect(userId: string) {
         const mDirectEvent = this.getAccountData(EventType.Direct)
         const content = mDirectEvent?.getContent() || {}
-        const friendRooms = content[userId] || []
 
+        const friendRooms = content[userId] || []
         friendRooms.forEach(async roomId => {
             await this.leave(roomId)
             await this.forget(roomId)
@@ -224,7 +133,7 @@ class BChatClient extends MatrixClient {
 
     async addRoomToMDirect(roomId, userId) {
         const mx = this
-        const mDirectsEvent = mx.getAccountData('m.direct');
+        const mDirectsEvent = mx.getAccountData(EventType.Direct);
         let userIdToRoomIds = {};
 
         if (typeof mDirectsEvent !== 'undefined') userIdToRoomIds = mDirectsEvent.getContent();
@@ -251,7 +160,7 @@ class BChatClient extends MatrixClient {
             userIdToRoomIds[userId] = roomIds;
         }
 
-        return await mx.setAccountData('m.direct', userIdToRoomIds);
+        return await mx.setAccountData(EventType.Direct, userIdToRoomIds);
     }
 
     setRoomOnTop(roomId: string, onTop: boolean) {

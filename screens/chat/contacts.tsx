@@ -10,7 +10,7 @@ import { IListItem, ListView } from './components/ListView';
 import { randomUUID } from 'expo-crypto';
 
 const membershipMap = {
-    'leave': '已删除',
+    'leave': '无效',
     'join': '',
     'invite': '邀请中'
 }
@@ -66,38 +66,58 @@ export const Contacts = ({ navigation, route }) => {
         client.getRooms().forEach(r => {
             console.log('r.', r.getCreator())
             console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
-                JSON.stringify(r.getMembers().map(i => [i.name, i.membership, i.events.member.getPrevContent()])))
-            console.log(r.getMembers().map(i => [i.name, i.membership, i.events.member.getContent(), i.events.member.getClearContent()]))
+                JSON.stringify(r.getMembers().map(i => [i.powerLevel, i.name, i.membership, i.events.member.getContent()])))
         })
         // 新的朋友
         const _newFriends: IListItem[] = []
         const news = client.getRooms()
             .filter(room => client.isDirectRoom(room.roomId))
-            .filter(room => ['invite', 'reject'].includes(client.getRoomDirect(room.roomId)?.status))
+            .filter(room => room.getMyMembership() === 'invite' // 别人邀请我
+                || (room.getMyMembership() === 'join' && room.getMember(room.guessDMUserId()).membership === 'invite') // 我邀请别人
+                || (room.getMyMembership() === 'join' && room.getMember(room.guessDMUserId()).membership === 'leave'
+                    && room.getMember(room.guessDMUserId()).events.member.getPrevContent().membership === 'invite')// 别人拒绝了
+                || (room.getMyMembership() === 'leave'
+                    && room.getMember(client.getUserId()).events.member.getPrevContent().membership === 'invite'
+                    && room.getMember(room.guessDMUserId()).membership === 'join')) //别人取消了
         news.forEach(room => {
-            const driect = client.getRoomDirect(room.roomId)
+            const { invitor, invitee, reason } = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomCreate)[0].getContent()[EventType.Direct]
             const me = room.getMember(client.getUserId())
             const friend = room.getMember(room.guessDMUserId())
-            let reason = me.events.member?.getContent()?.reason
+            let subTitle
             let right
-            if (driect.invitor === me.userId && driect.status === 'invite') {
-                reason = '[已发送好友邀请]'
-                right = <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'} onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
-            } else if (driect.invitor === me.userId && driect.status === 'reject') {
-                reason = '[对方已拒绝邀请]'
-                right = <><Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'} onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
-                    <Button type='clear' title={'邀请'} onPress={() => { }}></Button></>
-            } else {
+            if (invitor === me.userId && friend.membership === 'invite') {
+                subTitle = '[已发送好友邀请]'
+                right = <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'}
+                    onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
+            } else if (invitor === me.userId && friend.membership === 'leave' && friend.events.member.getPrevContent().membership === 'invite') {
+                subTitle = '[对方已拒绝邀请]'
+                right = <><Button titleStyle={{ color: theme.colors.error }} type='clear' title={'取消'}
+                    onPress={() => cancelInvite(friend.userId, room.roomId)}></Button>
+                    <Button type='clear' title={'邀请'} onPress={async () => {
+                        await cancelInvite(friend.userId, room.roomId)
+                        navigation.push('Member', { userId: friend.userId })
+                    }}></Button></>
+            } else if (invitee === me.userId && me.membership === 'leave') {
+                subTitle = '[已失效]'
+                right = <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'删除'}
+                    onPress={() => {
+                        client.forget(room.roomId)
+                    }}></Button>
+            }
+            else {
+                subTitle = reason
                 right = <>
-                    <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'拒绝'} onPress={() => rejectInvite(friend.userId, room.roomId)}></Button>
-                    <Button type='clear' title={'同意'} onPress={() => acceptInvite(friend.userId, room.roomId)}></Button>
+                    <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'拒绝'}
+                        onPress={() => rejectInvite(friend.userId, room.roomId)}></Button>
+                    <Button type='clear' title={'同意'}
+                        onPress={() => acceptInvite(friend.userId, room.roomId)}></Button>
                 </>
             }
 
             _newFriends.push({
                 id: friend.userId,
                 title: friend.name,
-                subtitle: reason,
+                subtitle: subTitle,
                 avatar: friend.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true),
                 data: { roomId: room.roomId },
                 right: right
@@ -107,9 +127,14 @@ export const Contacts = ({ navigation, route }) => {
 
         // 好友
         const _friends = client.getRooms()
-            .filter(room => joinedRooms.includes(room.roomId))
+            .filter(room => room.getMyMembership() === 'join')
             .filter(room => client.isDirectRoom(room.roomId))
-            .filter(room => ['join', 'leave'].includes(client.getRoomDirect(room.roomId)?.status))
+            .filter(room => room.getMyMembership() === 'join' && (room.getMember(room.guessDMUserId()).membership === 'join' // 正常聊天
+                || (room.getMember(room.guessDMUserId()).membership === 'leave'
+                    && room.getMember(room.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 别人退了
+            )
+
+        // .filter(room => ['join', 'leave'].includes(client.getDirect(room.roomId)?.status))
         setFriends(_friends.map(room => {
             const friend = room.getMember(room.guessDMUserId())
             return {
@@ -125,7 +150,7 @@ export const Contacts = ({ navigation, route }) => {
         // 群组
         const _groups: IListItem[] = []
         const joindGroups = client.getRooms()
-            .filter(room => joinedRooms.includes(room.roomId))
+            .filter(room => room.getMyMembership() === 'join')
             .filter(room => !client.isDirectRoom(room.roomId))
         joindGroups.forEach(room => {
             _groups.push({

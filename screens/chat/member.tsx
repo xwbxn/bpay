@@ -86,7 +86,7 @@ export const MemberProfile = ({ navigation, route }) => {
                 text: '确认', onPress: async () => {
                     setLoading(true)
                     try {
-                        await client.deleteDirect(userId, client.findDirectRoom(userId).roomId)
+                        await client.deleteDirect(userId)
                         navigation.popToTop()
                     } catch (e) {
                         console.log(e)
