@@ -83,7 +83,7 @@ export default function Login({ navigation, route }) {
                         inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }} onChangeText={setUsername} value={username}></Input>
                     <Input placeholder='密码'
                         inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }}
-                        rightIcon={<Icon size={10} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
+                        rightIcon={<Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
                             onPressIn={() => setShowPassword(true)}
                             onPressOut={() => setShowPassword(false)}></Icon>}
                         secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>

@@ -34,6 +34,7 @@ export const Contacts = ({ navigation, route }) => {
     const [friends, setFriends] = useState<IListItem[]>([])
     const [groups, setGroups] = useState<IListItem[]>([])
     const [publicGroups, setPublicGroups] = useState<IListItem[]>([])
+    const [joinedRooms, setJoinedRooms] = useState([])
 
     const acceptInvite = async (userId, roomId) => {
         await client.acceptDirect(userId, roomId)
@@ -50,12 +51,23 @@ export const Contacts = ({ navigation, route }) => {
         setRefreshKey(randomUUID())
     }
 
+    useEffect(() => {
+        client.getJoinedRooms().then(res => {
+            console.log('res.', res.joined_rooms)
+            setJoinedRooms(res.joined_rooms)
+        })
+    }, [])
+
+
     const refreshContacts = () => {
         setSearchVal('')
         setSearchMembers([])
+
         client.getRooms().forEach(r => {
+            console.log('r.', r.getCreator())
             console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
-                JSON.stringify(r.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomMember)))
+                JSON.stringify(r.getMembers().map(i => [i.name, i.membership, i.events.member.getPrevContent()])))
+            console.log(r.getMembers().map(i => [i.name, i.membership, i.events.member.getContent(), i.events.member.getClearContent()]))
         })
         // 新的朋友
         const _newFriends: IListItem[] = []
@@ -95,6 +107,7 @@ export const Contacts = ({ navigation, route }) => {
 
         // 好友
         const _friends = client.getRooms()
+            .filter(room => joinedRooms.includes(room.roomId))
             .filter(room => client.isDirectRoom(room.roomId))
             .filter(room => ['join', 'leave'].includes(client.getRoomDirect(room.roomId)?.status))
         setFriends(_friends.map(room => {
@@ -112,7 +125,7 @@ export const Contacts = ({ navigation, route }) => {
         // 群组
         const _groups: IListItem[] = []
         const joindGroups = client.getRooms()
-            .filter(room => room.getMyMembership() === 'join')
+            .filter(room => joinedRooms.includes(room.roomId))
             .filter(room => !client.isDirectRoom(room.roomId))
         joindGroups.forEach(room => {
             _groups.push({
@@ -142,7 +155,7 @@ export const Contacts = ({ navigation, route }) => {
 
     useEffect(() => {
         refreshContacts()
-    }, [refreshKey])
+    }, [refreshKey, joinedRooms])
 
     useEffect(() => {
         client.on(ClientEvent.DeleteRoom, refreshContacts)
@@ -157,7 +170,9 @@ export const Contacts = ({ navigation, route }) => {
 
     const searchUser = () => {
         const fullId = /@(.*):chat\.b-pay\.life/.test(searchVal) ? searchVal : `@${searchVal}:chat.b-pay.life`
-        if (friends.map(i => i.id).includes(fullId) || newFriends.map(i => i.id).includes(fullId)) {
+        if (friends.map(i => i.id).includes(fullId)
+            || newFriends.map(i => i.id).includes(fullId)
+            || fullId === client.getUserId()) {
             setSearchMembers([])
         } else {
             setLoading(true)
