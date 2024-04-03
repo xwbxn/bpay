@@ -101,8 +101,12 @@ class BChatClient extends MatrixClient {
             return true
         }
 
-        const memberEvts = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomMember)
-        return memberEvts.some(m => m.getContent().is_direct || m.getPrevContent().is_direct)
+        const me = room.getMember(this.getUserId())
+        if (!me) {
+            return false
+        }
+
+        return me.membership === 'invite' && (me.events.member.getContent().is_direct || me.events.member.getPrevContent().is_direct)
     }
 
     getRoomDirect(roomId): IDirectRoom {
