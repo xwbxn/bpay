@@ -18,6 +18,9 @@ import { useGlobalState } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
 
 const theme = createTheme({
+  lightColors: {
+    primary: '#3259CE'
+  }
 });
 const Stack = createNativeStackNavigator();
 

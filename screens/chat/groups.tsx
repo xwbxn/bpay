@@ -1,13 +1,22 @@
-import { Preset } from 'matrix-js-sdk';
+import { EventType, JoinRule, Preset, Visibility } from 'matrix-js-sdk';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ListItem } from '@rneui/base';
-import { Avatar, BottomSheet, Button, Input, SearchBar, Text, useTheme } from '@rneui/themed';
+import { Avatar, BottomSheet, Button, CheckBox, Input, SearchBar, Switch, Text, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
+import { ISettingItem, SettingList } from './components/SettingList';
+import { IPropEditorProps, PropEditor } from './components/PropEditor';
+
+export interface IRoomSetting {
+    name: string,
+    topic: string,
+    joinRule: JoinRule,
+    visibilty: boolean
+}
 
 export const GroupChat = ({ navigation, route }) => {
 
@@ -23,17 +32,21 @@ export const GroupChat = ({ navigation, route }) => {
     const { client } = useMatrixClient()
     const roomId = route.params?.roomId
     const room = client.getRoom(roomId)
-    const isFriendRoom = client.isDirectRoom(roomId)
+    const isDirectRoom = client.isDirectRoom(roomId)
 
     const [searchVal, setSearchVal] = useState('')
     const initMembers: string[] = route.params?.initMembers ? [...route.params.initMembers] : []
     const removable = route.params?.removable || false
     const [members, setMembers] = useState<IListItem[]>([])
     const [selectedValue] = useState<string[]>(initMembers)
-    const [isGroupOptionVisible, setIsGroupOptionVisible] = useState(false)
-    const [groupName, setGroupName] = useState('')
-    const [groupTopic, setGroupTopic] = useState('')
-    const [nameError, setNameError] = useState('')
+    const [isRoomOptionVisible, setIsRoomOptionVisible] = useState(false)
+    const [roomSetting, setRoomSetting] = useState<IRoomSetting>({
+        name: '',
+        topic: '',
+        joinRule: JoinRule.Invite,
+        visibilty: false
+    })
+    const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
 
     useEffect(() => {
         if (!removable) {
@@ -86,25 +99,36 @@ export const GroupChat = ({ navigation, route }) => {
     }
 
     const onCreateGroup = () => {
-        if (selectedValue.length == 0) {
-            Alert.alert("至少需要选择一个联系人")
-            return
-        }
-        setIsGroupOptionVisible(true)
+        setIsRoomOptionVisible(true)
     }
 
     const createGroup = () => {
-        if (groupName === '') {
-            setNameError('必填项')
+        if (roomSetting.name === '') {
+            Alert.alert('提示', '群名称不能为空')
             return
         }
         setLoading(true)
         client.createRoom({
             is_direct: false,
-            preset: Preset.PrivateChat,
+            visibility: roomSetting.visibilty ? Visibility.Public : Visibility.Private,
             invite: selectedValue,
-            name: groupName,
-            topic: groupTopic
+            name: roomSetting.name,
+            topic: roomSetting.topic,
+            initial_state: [
+                {
+                    type: EventType.RoomJoinRules,
+                    content: {
+                        join_rule: roomSetting.joinRule
+                    }
+                },
+                {
+                    type: EventType.RoomHistoryVisibility,
+                    content: {
+                        history_visibility: roomSetting.visibilty ? 'world_readable' : 'joined'
+                    }
+                }
+            ]
+
         }).then((res) => {
             navigation.replace('Room', {
                 id: res.room_id
@@ -116,7 +140,111 @@ export const GroupChat = ({ navigation, route }) => {
         })
     }
 
+    // 设置群聊名称
+    const setGroupName = () => {
+        setEditProps({
+            isVisible: true,
+            title: '设置群聊名称',
+            props: {
+                name: {
+                    title: '名称',
+                    value: roomSetting.name
+                }
+            },
+            onSave(props) {
+                setRoomSetting({ ...roomSetting, name: props.name.value })
+                setEditProps({ isVisible: false })
+            },
+            onCancel() {
+                setEditProps({ isVisible: false })
+            },
+        })
+    }
+
+    // 设置群聊名称
+    const setGroupTopic = () => {
+        setEditProps({
+            isVisible: true,
+            title: '设置群聊话题',
+            props: {
+                name: {
+                    title: '话题',
+                    value: roomSetting.topic
+                }
+            },
+            onSave(props) {
+                setRoomSetting({ ...roomSetting, topic: props.name.value })
+                setEditProps({ isVisible: false })
+            },
+            onCancel() {
+                setEditProps({ isVisible: false })
+            },
+        })
+    }
+
+
+    const groupSettingItems: ISettingItem[] = [
+        {
+            title: '群组设置',
+            titleStyle: { fontWeight: 'bold' },
+            hideChevron: true
+        },
+        {
+            title: '群名称',
+            text: roomSetting.name,
+            onPress: setGroupName
+        },
+        {
+            title: '群话题',
+            text: roomSetting.topic,
+            onPress: setGroupTopic
+        },
+        {
+            title: '公共群组',
+            right: () => <Switch value={roomSetting.visibilty} onValueChange={() => {
+                setRoomSetting({ ...roomSetting, visibilty: !roomSetting.visibilty, joinRule: roomSetting.visibilty ? JoinRule.Invite : JoinRule.Public })
+            }} style={{ height: 20 }}></Switch>,
+        },
+        {
+            title: '邀请方式',
+            right: () => <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {roomSetting.visibilty ? <><CheckBox
+                    checked={roomSetting.joinRule === JoinRule.Public}
+                    onPress={() => { setRoomSetting({ ...roomSetting, joinRule: JoinRule.Public }) }}
+                    title='公开'
+                    size={25}
+                    containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}
+                    textStyle={{ marginLeft: 0, marginRight: 5 }}
+                    checkedIcon="dot-circle-o"
+                    uncheckedIcon="circle-o"
+                />
+                    <CheckBox
+                        checked={roomSetting.joinRule === 'knock'}
+                        onPress={() => { setRoomSetting({ ...roomSetting, joinRule: JoinRule.Knock }) }}
+                        title='申请'
+                        containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}
+                        textStyle={{ marginLeft: 0, marginRight: 5 }}
+                        size={25}
+                        checkedIcon="dot-circle-o"
+                        uncheckedIcon="circle-o"
+                    /></>
+                    :
+                    <CheckBox
+                        checked={roomSetting.joinRule === 'invite'}
+                        onPress={() => { setRoomSetting({ ...roomSetting, joinRule: JoinRule.Invite }) }}
+                        title='邀请'
+                        size={25}
+                        containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}
+                        textStyle={{ marginLeft: 0, marginRight: 5 }}
+                        checkedIcon="dot-circle-o"
+                        uncheckedIcon="circle-o"
+                    />}
+            </View>
+        },
+    ]
+
     return <View style={styles.container}>
+        <PropEditor editProps={editProps}></PropEditor>
         {room &&
             <View style={{ backgroundColor: theme.colors.background }}>
                 <ListItem>
@@ -146,22 +274,29 @@ export const GroupChat = ({ navigation, route }) => {
                 <ListView allowRemove={removable} items={members} search={searchVal} selectedValues={selectedValue} enableSelect multiSelect></ListView>
             </ScrollView>
         </View>
-        <Button title={'确定'} onPress={(roomId === undefined || isFriendRoom) ? onCreateGroup : onSetMember}
+        <Button title={'确定'} onPress={(roomId === undefined || isDirectRoom) ? onCreateGroup : () => {
+            Alert.alert('提示', '请确认群成员操作', [
+                {
+                    text: '取消'
+                },
+                {
+                    text: '确定',
+                    onPress(value?) {
+                        onSetMember()
+                    },
+                }
+            ])
+        }}
             titleStyle={{ fontSize: 18 }} containerStyle={{ backgroundColor: '#ffffff', paddingHorizontal: 10, paddingBottom: 30 }}></Button>
-        <BottomSheet modalProps={{}} isVisible={isGroupOptionVisible}>
-            <ListItem>
-                <ListItem>
-                    <Text h4>确认群组设置</Text>
-                </ListItem>
-            </ListItem>
-            <ListItem>
-                <ListItem.Content>
-                    <Input value={groupName} onChangeText={setGroupName} placeholder='群组名称(必填)' errorMessage={nameError}></Input>
-                    <Input value={groupTopic} onChangeText={setGroupTopic} placeholder='群组话题(选填)'></Input>
-                </ListItem.Content>
-            </ListItem>
-            <Button containerStyle={styles.buttonContainer} onPress={createGroup}>确定</Button>
-            <Button containerStyle={styles.buttonContainer} color={'error'} onPress={() => setIsGroupOptionVisible(false)}>取消</Button>
+        <BottomSheet modalProps={{}} isVisible={isRoomOptionVisible}>
+            <SettingList items={groupSettingItems} ></SettingList>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', backgroundColor: theme.colors.background }}>
+                <Button type='outline' buttonStyle={{ borderColor: theme.colors.error }}
+                    containerStyle={styles.buttonContainer}
+                    titleStyle={{ color: theme.colors.error }}
+                    onPress={() => setIsRoomOptionVisible(false)}>取消</Button>
+                <Button containerStyle={styles.buttonContainer} onPress={createGroup}>确定</Button>
+            </View>
         </BottomSheet>
     </View>
 }
@@ -170,8 +305,8 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
     content: { backgroundColor: '#ffffff', flex: 1 },
     buttonContainer: {
-        paddingHorizontal: 20,
         paddingVertical: 10,
+        width: '44%',
         backgroundColor: '#ffffff'
     }
 })

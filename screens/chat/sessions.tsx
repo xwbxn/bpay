@@ -1,15 +1,16 @@
 import 'moment/locale/zh-cn';
 
 import _ from 'lodash'
-import { ClientEvent, Direction, EventType, MsgType, Room, RoomEvent } from 'matrix-js-sdk';
+import { ClientEvent, Direction, EventType, JoinRule, MsgType, Room, RoomEvent, RoomMemberEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
-import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Image } from '@rneui/themed';
 
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import { useAssets } from 'expo-asset';
 
 const Session = ({ navigation }) => {
 
@@ -33,7 +34,9 @@ const Session = ({ navigation }) => {
             title: '聊天', headerRight: () => {
                 return <Menu>
                     <MenuTrigger>
-                        <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30} />
+                        <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30} ></Icon>
+                        {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
+                            badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}
                     </MenuTrigger>
                     <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20 } }}>
                         <MenuOption onSelect={onContactPress}>
@@ -62,22 +65,19 @@ const Session = ({ navigation }) => {
     const { theme } = useTheme()
     const { client } = useMatrixClient()
     const [rooms, setRooms] = useState([])
-
-    client.getRooms().forEach(r => {
-        console.log('r.', r.getCreator())
-        console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
-            JSON.stringify(r.getMembers().map(i => [i.name, i.membership, i.events.member?.getContent(), i.events.member?.getPrevContent()])))
-    })
+    const [inviteBadge, setInviteBadge] = useState(0)
 
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
             const sortedRooms = [...client.getRooms()]
-                .filter(r => !r.tags[hiddenTagName]) // 非隐藏
-                .filter(r => r.getMyMembership() === 'join')
+                .filter(r => !r.tags[hiddenTagName])
+                // 单聊需要显示对方退出的, 群聊各种状态均需要显示
                 .filter(r => client.isDirectRoom(r.roomId)
-                    ? (r.getMember(r.guessDMUserId()).membership === 'join'
-                        || (r.getMember(r.guessDMUserId()).membership === 'leave' && r.getMember(r.guessDMUserId()).events.member.getPrevContent().membership === 'join'))
-                    : true)
+                    ? ((r.getMyMembership() === 'join' && r.getMember(r.guessDMUserId()).membership === 'join') // 正常单聊
+                        || (r.getMyMembership() === 'join'
+                            && r.getMember(r.guessDMUserId()).membership === 'leave'
+                            && r.getMember(r.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 对方退出单聊
+                    : !!r.getMember(client.getUserId()))
                 .sort((a, b) => {
                     if (client.isRoomOnTop(a.roomId) && !client.isRoomOnTop(b.roomId)) {
                         return -1
@@ -86,6 +86,7 @@ const Session = ({ navigation }) => {
                     } return b.getLastActiveTimestamp() - a.getLastActiveTimestamp()
                 })
             setRooms(sortedRooms)
+            setInviteBadge(client.getRooms().reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
         }, 150)
 
         refreshRooms()
@@ -94,7 +95,7 @@ const Session = ({ navigation }) => {
         client.on(RoomEvent.Receipt, refreshRooms)
         client.on(ClientEvent.Room, refreshRooms)
         client.on(ClientEvent.DeleteRoom, refreshRooms)
-        client.on(RoomEvent.MyMembership, refreshRooms)
+        client.on(RoomMemberEvent.Membership, refreshRooms)
         client.on(RoomEvent.Tags, refreshRooms)
         client.on(RoomEvent.Name, refreshRooms)
 
@@ -103,7 +104,7 @@ const Session = ({ navigation }) => {
             client.off(RoomEvent.Receipt, refreshRooms)
             client.off(ClientEvent.Room, refreshRooms)
             client.off(ClientEvent.DeleteRoom, refreshRooms)
-            client.off(RoomEvent.MyMembership, refreshRooms)
+            client.off(RoomMemberEvent.Membership, refreshRooms)
             client.off(RoomEvent.Tags, refreshRooms)
             client.off(RoomEvent.Name, refreshRooms)
         }
@@ -133,24 +134,21 @@ const Session = ({ navigation }) => {
     }
 
     const renderItem = ({ item }: { item: Room }) => {
-        const isFriendRoom = client.isDirectRoom(item.roomId)
-        const friend = isFriendRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
+        const isDirectRoom = client.isDirectRoom(item.roomId)
+        const directMember = isDirectRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
+        const createEvt = item.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomCreate)
         let title = item.name
-        let subTitle = ''
-        let updateAt = new Date().getTime()
-        let avatar_url = isFriendRoom
-            ? friend?.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
+        let subTitle = `[${item.getMember(createEvt[0]?.getSender())?.name} 发起了聊天]`
+        let updateAt = createEvt[0]?.localTimestamp
+        let avatar_url = isDirectRoom
+            ? directMember?.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
             : item?.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
 
-        if (item.getMyMembership() === 'invite') { //收到邀请信息
-            if (item.getDMInviter()) {
-                subTitle = `来自${item.getDMInviter()?.split(":")[0]?.substring(1)}的好友申请`
-            } else {
-                const myMember = item.getMember(client.getUserId())
-                const invitor = myMember.events.member.getSender()
-                const invotorName = item.getMember(invitor)?.name
-                subTitle = `${invotorName || item.guessDMUserId()}邀请您加入群聊`
-            }
+        if (item.getMyMembership() === 'invite') { // 只有群邀请在这里显示
+            const myMember = item.getMember(client.getUserId())
+            const invitor = myMember.events.member.getSender()
+            const invotorName = item.getMember(invitor)?.name
+            subTitle = `[${invotorName || item.guessDMUserId()} 邀请您加入群聊]`
             updateAt = item.getMember(item.myUserId).events.member.localTimestamp
         } else if (item.getMyMembership() === 'join') { //已加入聊天
             // 预览消息
@@ -187,6 +185,13 @@ const Session = ({ navigation }) => {
                 default:
                     break;
             }
+
+            // 有群审批
+            if (item.getMember(item.myUserId).powerLevel >= 50
+                && item.getMembers().filter(m => m.membership === JoinRule.Knock).length > 0) {
+                subTitle = `[您有${item.getMembers().filter(m => m.membership === JoinRule.Knock).length}个入群申请待审批]`
+                updateAt = new Date().getTime()
+            }
         } else if (item.getMyMembership() === 'leave') {
             return <></>
         }
@@ -203,7 +208,7 @@ const Session = ({ navigation }) => {
                                     && <Badge value={item.getUnreadNotificationCount()} status="error"
                                         containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
                             </Avatar> :
-                            <Avatar size={50} rounded title={isFriendRoom ? title[0] : '群'}
+                            <Avatar size={50} rounded title={isDirectRoom ? title[0] : '群'}
                                 containerStyle={{ backgroundColor: theme.colors.primary }}>
                                 {item.getUnreadNotificationCount() > 0
                                     && <Badge value={item.getUnreadNotificationCount()} status="error"

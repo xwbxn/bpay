@@ -1,11 +1,13 @@
 import { View, ScrollView } from 'react-native'
 import React from 'react'
 import { IListItem, ListView } from './ListView'
-import { Button, Header, Overlay, useTheme } from '@rneui/themed'
+import { Button, Header, Overlay, useTheme, Text } from '@rneui/themed'
 
 interface IListItemPickerProps {
+    title?: string,
     isVisible: boolean
     items: IListItem[]
+    enableSelect?: boolean
     selectedValues?: string[]
     allowRemove?: boolean
     searchVal?: string
@@ -15,25 +17,31 @@ interface IListItemPickerProps {
 
 export default function ListItemPicker(opts: IListItemPickerProps) {
 
-    const { isVisible, items, selectedValues, allowRemove, searchVal, onOk, onCancel } = opts
+    const { title, isVisible, items, selectedValues, allowRemove, searchVal, onOk, onCancel, enableSelect = true } = opts
     const { theme } = useTheme()
 
     return (
         <Overlay isVisible={isVisible} overlayStyle={{ padding: 0 }} fullScreen={true}>
             <Header containerStyle={{ height: 60 }} leftComponent={{ icon: 'arrow-left', type: 'material-community', onPress: () => onCancel && onCancel(), iconStyle: { color: theme.colors.background } }}
-                centerComponent={{ text: '设置管理员', style: { fontSize: 20, color: theme.colors.background, fontWeight: 'bold' } }}></Header>
+                centerComponent={{ text: title, style: { fontSize: 20, color: theme.colors.background, fontWeight: 'bold' } }}></Header>
             <View style={{ flex: 1, paddingHorizontal: 10 }}>
                 <ScrollView>
-                    <ListView allowRemove={allowRemove}
-                        items={items}
-                        search={searchVal}
-                        selectedValues={selectedValues}
-                        enableSelect multiSelect></ListView>
+                    {items.length > 0 ?
+                        <ListView allowRemove={allowRemove}
+                            items={items}
+                            search={searchVal}
+                            selectedValues={selectedValues}
+                            enableSelect={enableSelect} multiSelect></ListView>
+                        :
+                        <View style={{ paddingVertical: 100, alignItems: 'center' }}>
+                            <Text h3 h3Style={{color:theme.colors.disabled}}>没有信息了</Text>
+                        </View>
+                    }
                 </ScrollView>
             </View>
-            <Button containerStyle={{ padding: 10 }} title={'确定'} onPress={() => {
+            {onOk && <Button containerStyle={{ padding: 10 }} title={'确定'} onPress={() => {
                 onOk && onOk()
-            }}></Button>
+            }}></Button>}
         </Overlay >
     )
 }

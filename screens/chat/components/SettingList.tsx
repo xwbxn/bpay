@@ -5,14 +5,17 @@ import { StyleProp, View, ViewStyle, StyleSheet, TextStyle } from 'react-native'
 
 export interface ISettingItem {
     title: string
+    subTitle?: string
     text?: string
     textStyle?: StyleProp<TextStyle>
     titleStyle?: StyleProp<TextStyle>
+    subTitleStyle?: StyleProp<TextStyle>
     titleContainerStyle?: StyleProp<ViewStyle>
     right?: () => React.JSX.Element
     onPress?: () => void,
     breakTop?: boolean,
-    hideChevron?: boolean
+    hideChevron?: boolean,
+    hidden?: boolean
 }
 
 interface ISettingList {
@@ -30,11 +33,12 @@ export const SettingList = (opts: ISettingList) => {
         content: { backgroundColor: '#ffffff', paddingHorizontal: 10 },
         defaultListItem: { margin: 0, paddingVertical: 14 },
         defaultListItemTitle: { fontSize: 20 },
-        defaultListItemText: { fontSize: 20, color: theme.colors.grey2 }
+        defaultListItemText: { fontSize: 20, color: theme.colors.grey2 },
+        defaultListItemSubtitle: { fontSize: 14, color: theme.colors.grey2 }
     })
 
-    return <>
-        {items.map((i, index) =>
+    return <View style={containerStyle}>
+        {items.filter(i => !i.hidden).map((i, index) =>
             <View key={index}>
                 <ListItem topDivider={index !== 0 && !i.breakTop}
                     containerStyle={[
@@ -45,12 +49,13 @@ export const SettingList = (opts: ISettingList) => {
                     onPress={() => { i.onPress && i.onPress() }}>
                     <ListItem.Content style={i.titleContainerStyle}>
                         <ListItem.Title style={[styles.defaultListItemTitle, i.titleStyle]}>{i.title}</ListItem.Title>
+                        {i.subTitle && <ListItem.Subtitle style={[styles.defaultListItemSubtitle, i.subTitleStyle]}>{i.subTitle}</ListItem.Subtitle>}
                     </ListItem.Content>
                     {!i.right && !!i.text && <Text style={[styles.defaultListItemText, i.textStyle]}>{i.text}</Text>}
                     {!!i.right ? <i.right></i.right> : (!i.hideChevron && <ListItem.Chevron></ListItem.Chevron>)}
                 </ListItem>
             </View>
         )}
-    </>
+    </View>
 }
 

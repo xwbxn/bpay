@@ -8,14 +8,14 @@ import * as FileSystem from 'expo-file-system';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import _ from 'lodash'
 
-import { Direction, EventType, IContent, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
+import { Direction, EventType, IContent, JoinRule, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { Avatar, BottomSheet, Button, Dialog, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, BottomSheet, Button, Dialog, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
@@ -35,7 +35,7 @@ export function Room({ route, navigation }) {
   const [user, setUser] = useState(client.getUser(client.getUserId()))
   const [topic, setTopic] = useState('')
   const [showTopic, setShowTopic] = useState(false)
-  const isFriendRoom = client.isDirectRoom(id)
+  const isDirectRoom = client.isDirectRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
   const [actionSheetShow, setActionSheetShow] = useState(false)
   const screenSize = useWindowDimensions()
@@ -46,13 +46,17 @@ export function Room({ route, navigation }) {
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
   const [playerState, setPlayerState] = useState({ visible: false, source: '', inFullscreen: false })
   const [disabled, setDisabled] = useState(false)
+  const [inviteBadge, setInviteBadge] = useState(0)
 
   const { setLoading } = useGlobalState()
 
 
   useEffect(() => {
-    setRoom(client.getRoom(id))
-  }, [client.getRoom(id)])
+    client.getStateEvent(id, EventType.RoomMember, client.getUserId()).then(evt => {
+      setRoom(client.getRoom(id))
+      console.log('seting room', !!client.getRoom(id))
+    })
+  }, [])
 
   // 导航条样式
   useEffect(() => {
@@ -60,11 +64,13 @@ export function Room({ route, navigation }) {
     navigation.setOptions({
       title: room?.name,
       headerRight: () => {
-        return !disabled && <Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
+        return !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
           onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
+          {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
+            badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}</View>
       },
     })
-  }, [room, disabled])
+  }, [room.name, disabled, inviteBadge])
 
   interface IChatMessage extends IMessage {
     w?: number,
@@ -77,7 +83,7 @@ export function Room({ route, navigation }) {
   // event转换为msg格式
   const evtToMsg = (evt: MatrixEvent) => {
     const sender = room.getMember(evt.getSender())
-    console.log('sender.name', sender.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true))
+    const powerLevel = sender?.powerLevel || 0
     let msg: IChatMessage = {
       _id: evt.getId(),
       text: '',
@@ -85,7 +91,16 @@ export function Room({ route, navigation }) {
       user: {
         _id: evt.getSender(),
         name: sender?.name || evt.getSender(),
-        avatar: sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined,
+        avatar: powerLevel >= 50 ? (styles) => {
+          const uri = sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined
+          return <Avatar size={36} rounded containerStyle={{ backgroundColor: theme.colors.primary }}
+            source={uri ? { uri: uri } : null} title={!uri ? sender?.name[0]?.toUpperCase() : null}>
+            <Badge textStyle={{ fontSize: 8 }}
+              badgeStyle={{ backgroundColor: powerLevel === 100 ? 'gold' : 'silver' }}
+              containerStyle={{ position: 'absolute', top: -6, left: 24 }}
+              value="V"></Badge>
+          </Avatar >
+        } : sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined,
       },
       sent: evt.status === null,
       pending: evt.status !== null,
@@ -96,7 +111,7 @@ export function Room({ route, navigation }) {
         msg.text = `[加密消息]`
         break
       case EventType.RoomCreate:
-        if (!isFriendRoom) {
+        if (!isDirectRoom) {
           msg.text = `${msg.user.name} 创建了群聊`
           msg.system = true
         } else {
@@ -104,13 +119,17 @@ export function Room({ route, navigation }) {
         }
         break
       case EventType.RoomMember:
-        msg.system = true
-        if (evt.getContent().membership === 'join') {
-          msg.text = isFriendRoom ? `${evt.getContent().displayname} 开始了聊天` : `${evt.getContent().displayname} 加入了群聊`
-        } else if (evt.getContent().membership === 'leave') {
-          msg.text = isFriendRoom ? `${evt.getContent().displayname} 已将您从好友中删除` : `${evt.getContent().displayname} 离开了群聊`
-        } else if (isFriendRoom && evt.getContent().membership === 'invite') {
-          msg.text = `向 ${evt.getContent().displayname} 发起了好友申请`
+        if (!isDirectRoom) {
+          msg.system = true
+          if (evt.getContent().membership === 'join') {
+            msg.text = `${evt.getContent().displayname} 加入了群聊`
+          } else if (evt.getContent().membership === 'leave') {
+            msg.text = `${evt.getContent().displayname} 离开了群聊`
+          } else {
+            msg._id = null
+          }
+        } else {
+          msg._id = null
         }
         break
       case EventType.RoomMessage:
@@ -146,8 +165,6 @@ export function Room({ route, navigation }) {
         msg.text = `[不支持的消息(${evt.getType()})]`
         break
     }
-    console.log('message', evt.getId(), evt.event.type, evt.event.membership, evt.getContent())
-
     return msg
   }
 
@@ -172,8 +189,9 @@ export function Room({ route, navigation }) {
     }
 
     if (room.getMyMembership() == 'invite') {
-      const invitor = room.getMember(room.getDMInviter())
-      const tip = invitor ? `是否同意 ${invitor?.name} 的好友申请` : `是否同意加入[${room.name}]`
+      const memberEvt = room.getMember(client.getUserId()).events.member
+      console.log('room.', room.getMember(memberEvt.getSender()))
+      const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room.name}]`
       Alert.alert("提示", tip, [
         {
           text: '拒绝', onPress(value?) {
@@ -188,27 +206,12 @@ export function Room({ route, navigation }) {
           },
         }, {
           text: '同意', onPress(value?) {
-            if (invitor) {
-              setLoading(true)
-              client.acceptDirect(invitor.userId, room.roomId).then(() => {
-                setRefreshKey(crypto.randomUUID())
-              }).catch(err => {
-                if (err.httpStatus === 404) {
-                  Alert.alert('该请求已失效')
-                  client.leave(room.roomId)
-                  navigation.goBack()
-                }
-              }).finally(() => {
-                setLoading(false)
-              })
-            } else {
-              setLoading(true)
-              client.joinRoom(room.roomId).then(() => {
-                setRefreshKey(crypto.randomUUID())
-              }).finally(() => {
-                setLoading(false)
-              })
-            }
+            setLoading(true)
+            client.joinRoom(room.roomId).then(() => {
+              setRefreshKey(crypto.randomUUID())
+            }).finally(() => {
+              setLoading(false)
+            })
           },
         }
       ])
@@ -227,6 +230,8 @@ export function Room({ route, navigation }) {
     if (!room) {
       return
     }
+
+    setInviteBadge(room.getMembers().filter(m => m.membership === JoinRule.Knock).length)
     // const _messages = [...messages]
     const _messages = []
     const events = room.getLiveTimeline().getEvents()
@@ -251,7 +256,7 @@ export function Room({ route, navigation }) {
     message.pending = true
     setMessages(prev => GiftedChat.append(prev, [message]))
     client.sendTextMessage(room.roomId, message.text)
-  }, [client])
+  }, [client, room])
 
   // 相册
   const sendGalley = useCallback(() => {
@@ -334,7 +339,7 @@ export function Room({ route, navigation }) {
         })
       }
     })()
-  }, [client])
+  }, [client, room])
 
   // 拍摄
   const sendCamera = useCallback(() => {
@@ -380,12 +385,12 @@ export function Room({ route, navigation }) {
         })
       }
     })()
-  }, [client])
+  }, [client, room])
 
   // 查看历史消息
   const LoadEarlier = useCallback(() => {
     client.scrollback(room)
-  }, [client])
+  }, [client, room])
 
   // 渲染发送按钮
   const renderSend = useCallback((props: SendProps<IMessage>) => {

@@ -8,6 +8,8 @@ import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 import { randomUUID } from 'expo-crypto';
+import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import Toast from 'react-native-root-toast';
 
 const membershipMap = {
     'leave': '无效',
@@ -34,7 +36,8 @@ export const Contacts = ({ navigation, route }) => {
     const [friends, setFriends] = useState<IListItem[]>([])
     const [groups, setGroups] = useState<IListItem[]>([])
     const [publicGroups, setPublicGroups] = useState<IListItem[]>([])
-    const [joinedRooms, setJoinedRooms] = useState([])
+    const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
+
 
     const acceptInvite = async (userId, roomId) => {
         await client.acceptDirect(userId, roomId)
@@ -52,9 +55,8 @@ export const Contacts = ({ navigation, route }) => {
     }
 
     useEffect(() => {
-        client.getJoinedRooms().then(res => {
-            console.log('res.', res.joined_rooms)
-            setJoinedRooms(res.joined_rooms)
+        client.publicRooms().then(res => {
+            console.log('res', res.chunk)
         })
     }, [])
 
@@ -64,9 +66,11 @@ export const Contacts = ({ navigation, route }) => {
         setSearchMembers([])
 
         client.getRooms().forEach(r => {
-            console.log('r.', r.getCreator())
             console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
-                JSON.stringify(r.getMembers().map(i => [i.powerLevel, i.name, i.membership, i.events.member.getContent()])))
+                r.getJoinRule())
+            client.getRoomDirectoryVisibility(r.roomId).then(res => {
+                console.log('r.name', r.name, res.visibility)
+            })
         })
         // 新的朋友
         const _newFriends: IListItem[] = []
@@ -180,7 +184,7 @@ export const Contacts = ({ navigation, route }) => {
 
     useEffect(() => {
         refreshContacts()
-    }, [refreshKey, joinedRooms])
+    }, [refreshKey])
 
     useEffect(() => {
         client.on(ClientEvent.DeleteRoom, refreshContacts)
@@ -230,8 +234,40 @@ export const Contacts = ({ navigation, route }) => {
     const onPressPublicGroup = async (g: IListItem) => {
         setLoading(true)
         try {
-            await client.joinRoom(g.id as string)
-            navigation.replace('Room', { id: g.id })
+            const joinRule = await client.getStateEvent(g.id as string, EventType.RoomJoinRules, "")
+            if (joinRule.join_rule === 'public') {
+                await client.joinRoom(g.id as string)
+                navigation.replace('Room', { id: g.id })
+            }
+            if (joinRule.join_rule === 'knock') {
+                const joindRooms = await client.getJoinedRooms()
+                if (joindRooms.joined_rooms.includes(g.id as string)) {
+                    await client.joinRoom(g.id as string)
+                    navigation.replace('Room', { id: g.id })
+                } else {
+                    setEditProps({
+                        isVisible: true,
+                        title: '入群申请',
+                        props: {
+                            reason: {
+                                title: '说明',
+                                value: `我是${client.getUser(client.getUserId()).displayName}`
+                            }
+                        },
+                        async onSave(props) {
+                            await client.knockRoom(g.id as string, { reason: props.reason.value })
+                            Toast.show('已发送申请', {
+                                duration: Toast.durations.LONG,
+                                position: Toast.positions.CENTER
+                            });
+                            setEditProps({ isVisible: false })
+                        },
+                        onCancel() {
+                            setEditProps({ isVisible: false })
+                        },
+                    })
+                }
+            }
         } catch (e) {
             Alert.alert('错误', e.toString())
         } finally {
@@ -244,6 +280,7 @@ export const Contacts = ({ navigation, route }) => {
     }
 
     return <View style={styles.container}>
+        <PropEditor editProps={editProps}></PropEditor>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff' }}>
             <SearchBar
                 containerStyle={{ flex: 1, borderWidth: 0, borderColor: theme.colors.background, backgroundColor: theme.colors.background, paddingHorizontal: 12 }}

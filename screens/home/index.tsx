@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Badge, Icon } from '@rneui/themed';
+import { Badge, Icon, Image, useTheme } from '@rneui/themed';
 
 import { getCategories } from '../../service/wordpress';
 import { useMatrixClient } from '../../store/useMatrixClient';
@@ -14,11 +14,18 @@ import { appEmitter } from '../../utils/event';
 
 const Tab = createBottomTabNavigator();
 
+const infoIcon = require("../../assets/images/information.png");
+const recoIcon = require('../../assets/images/recommend.png')
+const inviIcon = require('../../assets/images/investing.png')
+const follIcon = require('../../assets/images/follow.png')
+const chatIcon = require('../../assets/images/chatting.png')
+
 export default function HomeScreen({ navigation }) {
 
     const { client } = useMatrixClient()
     const [unReadTotal, setUnReadTotal] = useState(0)
     const { setCategories } = useGlobalState()
+    const { theme } = useTheme()
 
     useEffect(() => {
         getCategories({
@@ -30,13 +37,16 @@ export default function HomeScreen({ navigation }) {
 
     useEffect(() => {
         const refreshUnreadTotal = () => {
-            setUnReadTotal(client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0))
+            setUnReadTotal(client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount() + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
         }
+        refreshUnreadTotal()
         client.on(RoomEvent.Timeline, refreshUnreadTotal)
         client.on(RoomEvent.Receipt, refreshUnreadTotal)
+        client.on(RoomEvent.MyMembership, refreshUnreadTotal)
         return () => {
             client.off(RoomEvent.Timeline, refreshUnreadTotal)
             client.off(RoomEvent.Receipt, refreshUnreadTotal)
+            client.off(RoomEvent.MyMembership, refreshUnreadTotal)
         }
     }, [])
 
@@ -55,18 +65,39 @@ export default function HomeScreen({ navigation }) {
 
     return <>
         <Tab.Navigator screenOptions={{ headerShown: false }}>
-            <Tab.Screen options={{ tabBarIcon: ({ color }) => <Icon name='infocirlce' type='antdesign' color={color}></Icon>, title: '币看' }} name="Information" component={PostList} initialParams={{ id: 78 }} />
-            <Tab.Screen options={{ tabBarIcon: ({ color }) => <Icon name='recommend' type='material' color={color}></Icon>, title: '币推' }} name="Recommend" component={PostList} initialParams={{ id: 79 }} />
             <Tab.Screen options={{
-                tabBarIcon: ({ color }) => {
-                    return <View>
-                        {unReadTotal > 0 && <Badge containerStyle={{ position: 'absolute', zIndex: 999, right: -10, top: -10 }} value={unReadTotal} status="error"></Badge>}
-                        <Icon name='wechat' type='font-awesome' color={color}>
-                        </Icon></View>
-                }, title: '聊天'
+                tabBarIcon: ({ color }) => <Image style={styles.iconStyle} source={infoIcon}></Image>,
+                title: '币看',
+                tabBarLabelStyle: { color: theme.colors.primary }
+            }} name="Information" component={PostList} initialParams={{ id: 78 }} />
+            <Tab.Screen options={{
+                tabBarIcon: ({ color }) => <Image style={styles.iconStyle} source={recoIcon}></Image>,
+                title: '币推',
+                tabBarLabelStyle: { color: theme.colors.primary }
+            }} name="Recommend" component={PostList} initialParams={{ id: 79 }} />
+            <Tab.Screen options={{
+                tabBarIcon: ({ color }) => <Image style={styles.iconStyle} source={chatIcon}></Image>,
+                title: '聊天',
+                tabBarLabelStyle: { color: theme.colors.primary },
+                tabBarBadge: unReadTotal > 0 ? unReadTotal : null
             }} name="Chatting" component={ChatIndex} />
-            <Tab.Screen options={{ tabBarIcon: ({ color }) => <Icon name='bitcoin-circle' type='foundation' color={color}></Icon>, title: '币投' }} name="Investing" component={PostList} initialParams={{ id: 80 }} />
-            <Tab.Screen options={{ tabBarIcon: ({ color }) => <Icon name='groups' type='material' color={color}></Icon>, title: '币跟' }} name="Follow" component={PostList} initialParams={{ id: 81 }} />
+            <Tab.Screen options={{
+                tabBarIcon: ({ color }) => <Image style={styles.iconStyle} source={infoIcon}></Image>,
+                title: '币投',
+                tabBarLabelStyle: { color: theme.colors.primary }
+            }} name="Investing" component={PostList} initialParams={{ id: 80 }} />
+            <Tab.Screen options={{
+                tabBarIcon: ({ color }) => <Image style={styles.iconStyle} source={follIcon}></Image>,
+                title: '币跟',
+                tabBarLabelStyle: { color: theme.colors.primary }
+            }} name="Follow" component={PostList} initialParams={{ id: 81 }} />
         </Tab.Navigator>
     </>
 }
+
+const styles = StyleSheet.create({
+    iconStyle: {
+        width: 28,
+        height: 28,
+    }
+})

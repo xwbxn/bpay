@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
+    Badge,
+    Button,
+    CheckBox,
     Icon, Switch, useTheme
 } from '@rneui/themed';
 
@@ -10,8 +13,10 @@ import { useMatrixClient } from '../../../store/useMatrixClient';
 import { IListItem } from '../components/ListView';
 import { IMemberItem, MemberList } from './components/MemberList';
 import { IPropEditorProps, PropEditor } from '../components/PropEditor';
-import { Direction, EventType, JoinRule, RoomStateEvent, Visibility } from 'matrix-js-sdk';
+import { Direction, EventType, JoinRule, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
 import { ISettingItem, SettingList } from '../components/SettingList';
+import ListItemPicker from '../components/ListItemPicker';
+import { IRoomSetting } from '../groups';
 
 export const RoomSetting = ({ navigation, route }) => {
 
@@ -20,11 +25,20 @@ export const RoomSetting = ({ navigation, route }) => {
     const { client } = useMatrixClient()
     const [room, setRoom] = useState(client.getRoom(id))
     const [topic, setTopic] = useState('')
+    const [me, setMe] = useState<RoomMember>()
 
     const [roomVisibility, setRoomVisibility] = useState(false)
-    const isFriendRoom = client.isDirectRoom(id)
+    const [roomSetting, setRoomSetting] = useState<IRoomSetting>({
+        name: '',
+        topic: '',
+        visibilty: false,
+        joinRule: JoinRule.Invite
+    })
+    const isDirectRoom = client.isDirectRoom(id)
     const { theme } = useTheme()
     const [roomMembers, setRoomMembers] = useState<IMemberItem[]>([])
+    const [knockingMembers, setKnockingMembers] = useState<RoomMember[]>([])
+    const [knockingPicker, setKnockingPicker] = useState(false)
     const [roomOnTop, setRoomOnTop] = useState(client.isRoomOnTop(id))
 
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
@@ -45,14 +59,14 @@ export const RoomSetting = ({ navigation, route }) => {
         if (!room) {
             return
         }
+        setMe(room.getMember(client.getUserId()))
 
-        const topicEvents = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomTopic)
-        if (topicEvents.length > 0) {
-            setTopic(topicEvents[0].getContent().topic || '')
-        }
+        client.getRoomDirectoryVisibility(room.roomId).then(res => {
+            setRoomVisibility(res.visibility === Visibility.Public)
+            console.log('roomsetting', res.visibility, room.name, room.getJoinRule())
+        })
 
-
-        function refreshMembers() {
+        async function refreshMembers() {
             setRoomMembers(room.getJoinedMembers()
                 .sort((a, b) => b.powerLevel - a.powerLevel)
                 .map(i => {
@@ -62,6 +76,15 @@ export const RoomSetting = ({ navigation, route }) => {
                         avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true)
                     };
                 }));
+            setKnockingMembers(room.getMembersWithMembership('knock'))
+
+            const topicEvents = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomTopic)
+            setRoomSetting({
+                ...roomSetting,
+                name: room.name,
+                topic: topicEvents[0]?.getContent()?.topic || '',
+                joinRule: room.getJoinRule()
+            })
         }
         refreshMembers();
 
@@ -84,6 +107,7 @@ export const RoomSetting = ({ navigation, route }) => {
                     setLoading(true)
                     try {
                         await client.leave(room.roomId)
+                        await client.forget(room.roomId)
                         navigation.replace('Sessions')
                     } catch (e) {
                         Alert.alert('错误', e.toString())
@@ -129,6 +153,9 @@ export const RoomSetting = ({ navigation, route }) => {
             setRoomVisibility(value)
             await client.sendStateEvent(room.roomId, EventType.RoomJoinRules, { join_rule: value ? JoinRule.Public : JoinRule.Invite })
             await client.setRoomDirectoryVisibility(room.roomId, value ? Visibility.Public : Visibility.Private)
+            await client.sendStateEvent(room.roomId, EventType.RoomHistoryVisibility, {
+                history_visibility: value ? 'world_readable' : 'joined'
+            })
         }
         catch (e) {
             Alert.alert('错误', e.toString())
@@ -137,6 +164,13 @@ export const RoomSetting = ({ navigation, route }) => {
         finally {
             setLoading(false)
         }
+    }
+
+    // 设置邀请规则
+    const setJoinRole = async (rule: JoinRule) => {
+        client.sendStateEvent(room.roomId, EventType.RoomJoinRules, {
+            join_rule: rule
+        })
     }
 
     // 设置群聊名称
@@ -246,11 +280,55 @@ export const RoomSetting = ({ navigation, route }) => {
         {
             title: '群公告',
             text: topic,
-            onPress: setRoomTopic
+            onPress: setRoomTopic,
+            hidden: me?.powerLevel === 0
         },
         {
             title: '公共群组',
             right: () => <Switch value={roomVisibility} onValueChange={onRoomPublic} style={{ height: 20 }}></Switch>,
+            hidden: me?.powerLevel !== 100
+        },
+        {
+            title: '邀请方式',
+            right: () => <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {roomVisibility ? <><CheckBox
+                    checked={roomSetting.joinRule === JoinRule.Public}
+                    onPress={() => {
+                        setRoomSetting({ ...roomSetting, joinRule: JoinRule.Public })
+                        setJoinRole(JoinRule.Public)
+                    }}
+                    title='公开'
+                    size={25}
+                    containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}
+                    textStyle={{ marginLeft: 0, marginRight: 5 }}
+                    checkedIcon="dot-circle-o"
+                    uncheckedIcon="circle-o"
+                />
+                    <CheckBox
+                        checked={roomSetting.joinRule === JoinRule.Knock}
+                        onPress={() => {
+                            setRoomSetting({ ...roomSetting, joinRule: JoinRule.Knock })
+                            setJoinRole(JoinRule.Knock)
+                        }}
+                        title='申请'
+                        containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}
+                        textStyle={{ marginLeft: 0, marginRight: 5 }}
+                        size={25}
+                        checkedIcon="dot-circle-o"
+                        uncheckedIcon="circle-o"
+                    /></>
+                    :
+                    <CheckBox
+                        checked={roomSetting.joinRule === JoinRule.Invite}
+                        title='邀请'
+                        size={25}
+                        containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}
+                        textStyle={{ marginLeft: 0, marginRight: 5 }}
+                        checkedIcon="dot-circle-o"
+                        uncheckedIcon="circle-o"
+                    />}
+            </View>,
+            hidden: me?.powerLevel !== 100
         },
         {
             title: '群管理',
@@ -260,7 +338,14 @@ export const RoomSetting = ({ navigation, route }) => {
                     return
                 }
                 navigation.push('RoomAdmin', { id: room.roomId })
-            }
+            },
+            hidden: me?.powerLevel !== 100
+        },
+        {
+            title: '群申请审批',
+            right: () => <Badge badgeStyle={knockingMembers.length > 0 && { backgroundColor: theme.colors.error }} value={knockingMembers.length}></Badge>,
+            hidden: me?.powerLevel === 0 || roomSetting.joinRule !== JoinRule.Knock,
+            onPress: () => setKnockingPicker(true),
         },
         {
             title: '查找聊天记录',
@@ -288,7 +373,15 @@ export const RoomSetting = ({ navigation, route }) => {
         }
     ]
 
-    const groupSetting = room && <View style={styles.container}>
+    const accpetKnocking = (userId) => {
+        client.invite(room.roomId, userId)
+    }
+
+    const rejectKnocking = (userId) => {
+        client.kick(room.roomId, userId)
+    }
+
+    const roomSettingJsx = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} items={roomMembers}
                 onAppend={onInviteMember}
@@ -296,9 +389,24 @@ export const RoomSetting = ({ navigation, route }) => {
                 onItemPress={onMemberPress}></MemberList>
         </View>
         <SettingList items={groupSettingItems}></SettingList>
+        <ListItemPicker title='群申请审批' items={knockingMembers.map(i => ({
+            id: i.userId,
+            title: i.name,
+            subtitle: i.events.member.getContent().reason,
+            avatar: i.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true),
+            right: <>
+                <Button titleStyle={{ color: theme.colors.error }} type='clear' title={'拒绝'}
+                    onPress={() => rejectKnocking(i.userId)}></Button>
+                <Button type='clear' title={'同意'}
+                    onPress={() => accpetKnocking(i.userId)}></Button>
+            </>
+
+        }))} enableSelect={false}
+            isVisible={knockingPicker}
+            onCancel={() => setKnockingPicker(false)}></ListItemPicker>
     </View >
 
-    const friendSetting = room && <View style={styles.container}>
+    const friendSettingJsx = room && <View style={styles.container}>
         <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
             <MemberList containerStyle={{ paddingVertical: 20 }} onItemPress={onMemberPress}
                 onAppend={onCreateRoom}
@@ -310,7 +418,7 @@ export const RoomSetting = ({ navigation, route }) => {
     return <>
         <PropEditor editProps={editProps}></PropEditor>
         <ScrollView>
-            {isFriendRoom ? friendSetting : groupSetting}
+            {isDirectRoom ? friendSettingJsx : roomSettingJsx}
         </ScrollView>
     </>
 }
