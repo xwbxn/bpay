@@ -1,5 +1,4 @@
 import * as Notifications from 'expo-notifications';
-import { RNS3 } from 'react-native-aws3';
 
 import {
     ClientEvent, Direction, EventType, ICreateClientOpts, MatrixClient, MatrixEvent, MatrixScheduler, MediaPrefix,
@@ -11,24 +10,10 @@ import URI from 'urijs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
-import { manipulateAsync } from 'expo-image-manipulator';
 import { AppState } from 'react-native';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
 console.log('chaturl: ', BASE_URL)
-const rns3Options = {
-    keyPrefix: "uploads/",
-    bucket: "bucket-chat",
-    region: "ap-northeast-1",
-    accessKey: process.env.EXPO_PUBLIC_S3_ACCESS_ID,
-    secretKey: process.env.EXPO_PUBLIC_S3_ACCESS_SECRET_KEY,
-    successActionStatus: 201
-}
-interface IDirectRoom {
-    invitor: string
-    invitee: string
-    reason: string
-}
 
 let cryptoStoreFactory = (): CryptoStore => new MemoryCryptoStore();
 
@@ -51,6 +36,18 @@ export function createClient(opts: ICreateClientOpts): BChatClient {
 class BChatClient extends MatrixClient {
 
     isDirectRoom(roomId) {
+        const mDirectEvent = this.getAccountData(EventType.Direct)
+        const content = mDirectEvent?.getContent() || {}
+
+        for (const key in content) {
+            if (Object.prototype.hasOwnProperty.call(content, key)) {
+                const rooms = content[key];
+                if (rooms.includes(roomId)) {
+                    return true
+                }
+            }
+        }
+
         const room = this.getRoom(roomId)
         if (!room) {
             return false
@@ -64,6 +61,14 @@ class BChatClient extends MatrixClient {
     }
 
     findDirectRoom(userId: string): Room {
+        const mDirectEvent = this.getAccountData(EventType.Direct)
+        const content = mDirectEvent?.getContent() || {}
+
+        const directRooms = content[userId] || []
+        if (directRooms.length > 0) {
+            return this.getRoom(directRooms[0])
+        }
+
         const room = this.getRooms()
             .filter(r => this.isDirectRoom(r.roomId))
             .find(r => r.getMembers().some(m => m.userId === userId))
@@ -73,7 +78,7 @@ class BChatClient extends MatrixClient {
     async inviteDriect(userId: string, reason?: string) {
         try {
             let room = this.findDirectRoom(userId)
-            if (room) {
+            if (room && room.getMyMembership() !== 'leave') {
                 throw new Error("已有好友关系");
             }
 
@@ -124,8 +129,8 @@ class BChatClient extends MatrixClient {
 
         const friendRooms = content[userId] || []
         friendRooms.forEach(async roomId => {
-            await this.leave(roomId)
-            await this.forget(roomId)
+            try { await this.leave(roomId) } catch { }
+            try { await this.forget(roomId) } catch { }
         })
         delete content[userId]
         await this.setAccountData(EventType.Direct, content)
@@ -292,7 +297,7 @@ export const useMatrixClient = () => {
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
         _client.on(ClientEvent.Event, (evt) => {
-            console.debug('emitted event:', JSON.stringify(evt))
+            // console.debug('emitted event:', evt.getType(), evt.getSender(), evt.getRoomId(), evt.getId())
         })
 
         // token过期

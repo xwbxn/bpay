@@ -10,9 +10,13 @@ import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-m
 import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Image } from '@rneui/themed';
 
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
-import { useAssets } from 'expo-asset';
 
 const Session = ({ navigation }) => {
+
+    const [inviteBadge, setInviteBadge] = useState(0)
+    const { theme } = useTheme()
+    const { client } = useMatrixClient()
+    const [rooms, setRooms] = useState([])
 
     useEffect(() => {
         // set nav bar
@@ -60,12 +64,7 @@ const Session = ({ navigation }) => {
                     name="user" type="font-awesome" ></Icon>
             }
         })
-    }, [])
-
-    const { theme } = useTheme()
-    const { client } = useMatrixClient()
-    const [rooms, setRooms] = useState([])
-    const [inviteBadge, setInviteBadge] = useState(0)
+    }, [inviteBadge])
 
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
@@ -95,7 +94,7 @@ const Session = ({ navigation }) => {
         client.on(RoomEvent.Receipt, refreshRooms)
         client.on(ClientEvent.Room, refreshRooms)
         client.on(ClientEvent.DeleteRoom, refreshRooms)
-        client.on(RoomMemberEvent.Membership, refreshRooms)
+        client.on(RoomEvent.MyMembership, refreshRooms)
         client.on(RoomEvent.Tags, refreshRooms)
         client.on(RoomEvent.Name, refreshRooms)
 
@@ -104,7 +103,7 @@ const Session = ({ navigation }) => {
             client.off(RoomEvent.Receipt, refreshRooms)
             client.off(ClientEvent.Room, refreshRooms)
             client.off(ClientEvent.DeleteRoom, refreshRooms)
-            client.off(RoomMemberEvent.Membership, refreshRooms)
+            client.off(RoomEvent.MyMembership, refreshRooms)
             client.off(RoomEvent.Tags, refreshRooms)
             client.off(RoomEvent.Name, refreshRooms)
         }

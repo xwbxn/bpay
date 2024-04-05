@@ -45,6 +45,14 @@
         {
           "initialOrientation": "DEFAULT"
         }
+      ],
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/font/fontello.ttf"
+          ]
+        }
       ]
     ]
   }

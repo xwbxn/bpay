@@ -40,38 +40,48 @@ export const Contacts = ({ navigation, route }) => {
 
 
     const acceptInvite = async (userId, roomId) => {
-        await client.acceptDirect(userId, roomId)
-        setRefreshKey(randomUUID())
+        setLoading(true)
+        try {
+            await client.acceptDirect(userId, roomId)
+        } catch (e) {
+            Alert.alert('错误', e.toString())
+            console.error(e)
+        } finally {
+            setLoading(false)
+        }
+        // setRefreshKey(randomUUID())
     }
 
     const rejectInvite = async (userId, roomId) => {
-        await client.rejectDirect(userId, roomId)
-        setRefreshKey(randomUUID())
+        setLoading(true)
+        try {
+            await client.rejectDirect(userId, roomId)
+        } catch (e) {
+            Alert.alert('错误', e.toString())
+            console.error(e)
+        } finally {
+            setLoading(false)
+        }
+        // setRefreshKey(randomUUID())
     }
 
     const cancelInvite = async (userId, roomId) => {
-        await client.cancelDirect(userId, roomId)
-        setRefreshKey(randomUUID())
+        setLoading(true)
+        try {
+            await client.cancelDirect(userId, roomId)
+        } catch (e) {
+            Alert.alert('错误', e.toString())
+            console.error(e)
+        } finally {
+            setLoading(false)
+        }
+        // setRefreshKey(randomUUID())
     }
-
-    useEffect(() => {
-        client.publicRooms().then(res => {
-            console.log('res', res.chunk)
-        })
-    }, [])
-
 
     const refreshContacts = () => {
         setSearchVal('')
         setSearchMembers([])
 
-        client.getRooms().forEach(r => {
-            console.log('r.', r.roomId, r.name, client.isDirectRoom(r.roomId),
-                r.getJoinRule())
-            client.getRoomDirectoryVisibility(r.roomId).then(res => {
-                console.log('r.name', r.name, res.visibility)
-            })
-        })
         // 新的朋友
         const _newFriends: IListItem[] = []
         const news = client.getRooms()
@@ -189,11 +199,13 @@ export const Contacts = ({ navigation, route }) => {
     useEffect(() => {
         client.on(ClientEvent.DeleteRoom, refreshContacts)
         client.on(ClientEvent.Room, refreshContacts)
-        client.on(RoomEvent.Tags, refreshContacts)
+        client.on(RoomMemberEvent.Membership, refreshContacts)
+        client.on(RoomEvent.MyMembership, refreshContacts)
         return () => {
             client.off(ClientEvent.DeleteRoom, refreshContacts)
             client.off(ClientEvent.Room, refreshContacts)
-            client.off(RoomEvent.Tags, refreshContacts)
+            client.off(RoomMemberEvent.Membership, refreshContacts)
+            client.off(RoomEvent.MyMembership, refreshContacts)
         }
     })
 

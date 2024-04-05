@@ -54,7 +54,6 @@ export function Room({ route, navigation }) {
   useEffect(() => {
     client.getStateEvent(id, EventType.RoomMember, client.getUserId()).then(evt => {
       setRoom(client.getRoom(id))
-      console.log('seting room', !!client.getRoom(id))
     })
   }, [])
 
@@ -70,7 +69,7 @@ export function Room({ route, navigation }) {
             badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}</View>
       },
     })
-  }, [room.name, disabled, inviteBadge])
+  }, [room?.name, disabled, inviteBadge])
 
   interface IChatMessage extends IMessage {
     w?: number,
@@ -190,7 +189,6 @@ export function Room({ route, navigation }) {
 
     if (room.getMyMembership() == 'invite') {
       const memberEvt = room.getMember(client.getUserId()).events.member
-      console.log('room.', room.getMember(memberEvt.getSender()))
       const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room.name}]`
       Alert.alert("提示", tip, [
         {

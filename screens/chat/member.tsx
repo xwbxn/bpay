@@ -32,8 +32,9 @@ export const MemberProfile = ({ navigation, route }) => {
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
 
     useEffect(() => {
-        if (client.findDirectRoom(userId)) {
-            const friend = client.findDirectRoom(userId).getMember(userId)
+        const directRoom = client.findDirectRoom(userId)
+        if (directRoom && directRoom.getMyMembership() !== 'leave') {
+            const friend = directRoom.getMember(userId)
             setProfile({
                 userId: friend.userId,
                 avatar_url: friend.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true),

@@ -63,7 +63,6 @@ export const RoomSetting = ({ navigation, route }) => {
 
         client.getRoomDirectoryVisibility(room.roomId).then(res => {
             setRoomVisibility(res.visibility === Visibility.Public)
-            console.log('roomsetting', res.visibility, room.name, room.getJoinRule())
         })
 
         async function refreshMembers() {

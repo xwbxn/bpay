@@ -8,10 +8,12 @@ import { getAuth, getMatrixAuth } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMatrixClient } from '../../store/useMatrixClient';
+import { useWindowDimensions } from 'react-native';
 
 export default function Login({ navigation, route }) {
 
     const { theme } = useTheme()
+    const { width } = useWindowDimensions()
 
     useEffect(() => {
         navigation.setOptions({
@@ -56,7 +58,6 @@ export default function Login({ navigation, route }) {
             AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(chatRes))
             if (client.clientRunning) {
                 client.stopClient()
-                client.clearStores()
             }
             client.startClient()
             navigation.replace('Home')
@@ -75,10 +76,11 @@ export default function Login({ navigation, route }) {
     return <>
         <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
             <KeyboardAvoidingView behavior='padding' style={{ justifyContent: 'flex-end' }}>
-                <View style={{ alignItems: 'center', paddingTop: 40 }}>
-                    <Image resizeMethod='scale' style={{ width: 200, height: 200 }} resizeMode='stretch' source={require('../../assets/icon.png')}></Image>
+                <View style={{ alignItems: 'center', paddingTop: 0 }}>
+                    <Image resizeMethod='scale' style={{ width: width / 1, height: width / 1 }} resizeMode='stretch'
+                        source={require('../../assets/login.jpg')}></Image>
                 </View>
-                <View style={{ alignItems: 'center', paddingHorizontal: 40, marginTop: 60 }} >
+                <View style={{ alignItems: 'center', paddingHorizontal: 29, marginTop: 0 }} >
                     <Input placeholder='用户名'
                         inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }} onChangeText={setUsername} value={username}></Input>
                     <Input placeholder='密码'
@@ -88,7 +90,7 @@ export default function Login({ navigation, route }) {
                             onPressOut={() => setShowPassword(false)}></Icon>}
                         secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
                 </View>
-                <View style={{ paddingHorizontal: 50 }}>
+                <View style={{ paddingHorizontal: 36 }}>
                     <Button radius={10} onPress={() => onLoginPress()}>登录</Button>
                 </View>
             </KeyboardAvoidingView>
