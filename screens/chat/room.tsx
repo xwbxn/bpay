@@ -90,7 +90,7 @@ export function Room({ route, navigation }) {
       user: {
         _id: evt.getSender(),
         name: sender?.name || evt.getSender(),
-        avatar: powerLevel >= 50 ? (styles) => {
+        avatar: powerLevel >= 50 && !isDirectRoom ? (styles) => {
           const uri = sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined
           return <Avatar size={36} rounded containerStyle={{ backgroundColor: theme.colors.primary }}
             source={uri ? { uri: uri } : null} title={!uri ? sender?.name[0]?.toUpperCase() : null}>
