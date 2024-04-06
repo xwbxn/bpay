@@ -11,15 +11,9 @@ import { IPropEditorProps, PropEditor } from './components/PropEditor';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ISettingItem, SettingList } from './components/SettingList';
 import { CardView } from './components/CardView';
+import BpayHeader from '../../components/BpayHeader';
 
 export const MemberProfile = ({ navigation, route }) => {
-
-    useEffect(() => {
-        // set nav bar
-        navigation.setOptions({
-            title: ''
-        })
-    }, [])
 
     const { setLoading } = useGlobalState()
     const { theme } = useTheme()
@@ -266,6 +260,7 @@ export const MemberProfile = ({ navigation, route }) => {
     </View >)
 
     return <>
+        <BpayHeader showback title='用户信息'></BpayHeader>
         <PropEditor editProps={editProps}></PropEditor>
         {isMe && mySetting}
         {!isMe && profile?.isFriend && friendSetting}

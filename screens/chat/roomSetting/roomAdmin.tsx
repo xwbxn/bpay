@@ -5,6 +5,7 @@ import { Direction, EventType, RoomMember } from 'matrix-js-sdk'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import URI from 'urijs'
+import BpayHeader from '../../../components/BpayHeader'
 import { useGlobalState } from '../../../store/globalContext'
 import { useMatrixClient } from '../../../store/useMatrixClient'
 import { CardView } from '../components/CardView'
@@ -27,15 +28,6 @@ export const RoomAdmin = ({ navigation, route }) => {
     const [showPicker, setShowPicker] = useState(false)
     const [selectedValues, setSelectedValues] = useState([])
     const [refreshKey, setRefreshKey] = useState(randomUUID())
-
-
-    // 导航条样式
-    useEffect(() => {
-        // set nav bar
-        navigation.setOptions({
-            title: '群管理',
-        })
-    }, [])
 
     useEffect(() => {
         const room = client.getRoom(id)
@@ -128,6 +120,7 @@ export const RoomAdmin = ({ navigation, route }) => {
     ], [room])
 
     return <View style={styles.container}>
+        <BpayHeader title='群管理' showback></BpayHeader>
         <CardView title={profile.name} subTittle={profile.roomId}
             avatarUrl={profile.avatar_url}></CardView>
         <SettingList items={[{ title: '群管理员', hideChevron: true }]}></SettingList>

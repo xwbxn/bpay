@@ -3,13 +3,15 @@ import 'moment/locale/zh-cn';
 import _ from 'lodash'
 import { ClientEvent, Direction, EventType, JoinRule, MsgType, Room, RoomEvent, RoomMemberEvent } from 'matrix-js-sdk';
 import moment from 'moment';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 
 import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Image } from '@rneui/themed';
 
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import BpayHeader from '../../components/BpayHeader';
+import { globalStyle } from '../../utils/styles';
 
 const Session = ({ navigation }) => {
 
@@ -17,54 +19,6 @@ const Session = ({ navigation }) => {
     const { theme } = useTheme()
     const { client } = useMatrixClient()
     const [rooms, setRooms] = useState([])
-
-    useEffect(() => {
-        // set nav bar
-        const menuStyles = StyleSheet.create({
-            optionWrapper: {
-                backgroundColor: theme.colors.grey1,
-            },
-            titleStyle: {
-                fontSize: 18,
-                color: theme.colors.white,
-                marginLeft: 12
-            },
-            buttonItem: {
-                flexDirection: 'row',
-                padding: 12,
-            }
-        })
-        navigation.setOptions({
-            title: '聊天', headerRight: () => {
-                return <Menu>
-                    <MenuTrigger>
-                        <Icon color={theme.colors.background} name='plus-circle' type='feather' size={30} ></Icon>
-                        {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
-                            badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}
-                    </MenuTrigger>
-                    <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20 } }}>
-                        <MenuOption onSelect={onContactPress}>
-                            <View style={menuStyles.buttonItem}>
-                                <Icon name='person' type='octicon' containerStyle={{ width: 40 }} size={30} color={theme.colors.white}></Icon>
-                                <Text style={menuStyles.titleStyle}>联系人</Text>
-                            </View>
-                        </MenuOption>
-                        <Divider style={{ width: '100%' }}></Divider>
-                        <MenuOption onSelect={onGroupPress}>
-                            <View style={menuStyles.buttonItem}>
-                                <Icon name='comment-discussion' containerStyle={{ width: 40 }} size={30} type='octicon' color={theme.colors.white}></Icon>
-                                <Text style={menuStyles.titleStyle}>发起群聊</Text>
-                            </View>
-                        </MenuOption>
-                    </MenuOptions>
-                </Menu>
-            }, headerLeft: () => {
-                return <Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
-                    onPress={() => { navigation.push('Member', { userId: client.getUserId() }) }}
-                    name="user" type="font-awesome" ></Icon>
-            }
-        })
-    }, [inviteBadge])
 
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
@@ -235,7 +189,55 @@ const Session = ({ navigation }) => {
             </Menu>)
     }
 
+    const menuStyles = StyleSheet.create({
+        optionWrapper: {
+            backgroundColor: theme.colors.grey1,
+        },
+        titleStyle: {
+            color: theme.colors.white,
+            marginLeft: 12
+        },
+        buttonItem: {
+            flexDirection: 'row',
+            padding: 10,
+        }
+    })
+
+    const headerRight = useMemo(() => <Menu>
+        <MenuTrigger>
+            <Icon color={theme.colors.background} name='plus-circle' type='feather'></Icon>
+            {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
+                badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}
+        </MenuTrigger>
+        <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20, marginLeft: -16 } }}>
+            <MenuOption onSelect={onContactPress}>
+                <View style={menuStyles.buttonItem}>
+                    <Icon name='person' type='octicon' containerStyle={{ width: 40 }} color={theme.colors.white}></Icon>
+                    <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>联系人</Text>
+                </View>
+            </MenuOption>
+            <Divider style={{ width: '100%' }}></Divider>
+            <MenuOption onSelect={onGroupPress}>
+                <View style={menuStyles.buttonItem}>
+                    <Icon name='comment-discussion' containerStyle={{ width: 40 }} type='octicon' color={theme.colors.white}></Icon>
+                    <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>发起群聊</Text>
+                </View>
+            </MenuOption>
+            <Divider style={{ width: '100%' }}></Divider>
+            <MenuOption>
+                <View style={menuStyles.buttonItem}>
+                    <Icon name='scan' containerStyle={{ width: 40 }} type='ionicon' color={theme.colors.white}></Icon>
+                    <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>扫一扫</Text>
+                </View>
+            </MenuOption>
+        </MenuOptions>
+    </Menu>, [inviteBadge])
+
+
     return <View style={styles.container}>
+        <BpayHeader title='聊天' leftComponent={<Icon iconStyle={{ color: theme.colors.background }}
+            name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
+            rightComponent={headerRight}></BpayHeader>
         <View style={styles.content}>
             <FlatList data={rooms} renderItem={renderItem}>
             </FlatList>

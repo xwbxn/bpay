@@ -2,6 +2,7 @@ import { ListItem, useTheme, Text, Divider } from '@rneui/themed'
 import React, { ReactElement } from 'react'
 import { ReactNode } from 'react'
 import { StyleProp, View, ViewStyle, StyleSheet, TextStyle } from 'react-native'
+import { globalStyle } from '../../../utils/styles'
 
 export interface ISettingItem {
     title: string
@@ -32,9 +33,9 @@ export const SettingList = (opts: ISettingList) => {
         container: { flex: 1, backgroundColor: '#f5f5f5' },
         content: { backgroundColor: '#ffffff', paddingHorizontal: 10 },
         defaultListItem: { margin: 0, paddingVertical: 14 },
-        defaultListItemTitle: { fontSize: 20 },
-        defaultListItemText: { fontSize: 20, color: theme.colors.grey2 },
-        defaultListItemSubtitle: { fontSize: 14, color: theme.colors.grey2 }
+        defaultListItemTitle: globalStyle.headTitleFontStyle,
+        defaultListItemText: { ...globalStyle.headTitleFontStyle, color: theme.colors.grey2 },
+        defaultListItemSubtitle: { ...globalStyle.subTitleFontStyle, color: theme.colors.grey2 }
     })
 
     return <View style={containerStyle}>

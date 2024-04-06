@@ -1,6 +1,7 @@
 import { Avatar, ListItem, useTheme } from '@rneui/themed'
 import React from 'react'
 import { View, StyleSheet } from 'react-native'
+import { globalStyle } from '../../../utils/styles'
 
 interface IMemberCardProps {
     title: string
@@ -13,28 +14,23 @@ interface IMemberCardProps {
 export const CardView = (opts: IMemberCardProps) => {
 
     const { title, subTittle, avatarUrl, onAvatarPress, onPress } = opts
-
     const { theme } = useTheme()
-
-    const styles = StyleSheet.create({
-        container: { flex: 1, backgroundColor: '#f5f5f5' },
-        content: { backgroundColor: '#ffffff', marginBottom: 12, paddingHorizontal: 10 },
-        listItem: { margin: 0, paddingVertical: 15 },
-        listItemTitle: { fontSize: 20 },
-        listItemText: { fontSize: 20, color: theme.colors.grey2 }
-    })
 
     return <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
         <ListItem onPress={() => onPress && onPress()}>
             {avatarUrl
-                ? <Avatar size={80} rounded source={{ uri: avatarUrl }} onPress={() => { onAvatarPress && onAvatarPress() }}
+                ? <Avatar size={60} rounded source={{ uri: avatarUrl }} onPress={() => { onAvatarPress && onAvatarPress() }}
                     containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                : <Avatar size={80} rounded title={title && title[0].toUpperCase()} onPress={() => { onAvatarPress && onAvatarPress() }}
+                : <Avatar size={60} rounded title={title && title[0].toUpperCase()} onPress={() => { onAvatarPress && onAvatarPress() }}
                     containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
-            <ListItem.Content style={{ marginLeft: 10 }}>
-                <ListItem.Title style={{ fontSize: 30 }}>{title}</ListItem.Title>
-                <ListItem.Subtitle style={{ fontSize: 15 }}>{subTittle}</ListItem.Subtitle>
+            <ListItem.Content style={{ height: 50, justifyContent: 'space-between' }}>
+                <ListItem.Title style={globalStyle.headTitleFontStyle}>{title}</ListItem.Title>
+                <ListItem.Subtitle style={globalStyle.subTitleFontStyle}>{subTittle}</ListItem.Subtitle>
             </ListItem.Content>
         </ListItem>
     </View>
 }
+
+const styles = StyleSheet.create({
+    content: { backgroundColor: '#ffffff', marginBottom: 12, paddingHorizontal: 10 },
+})

@@ -56,7 +56,9 @@ export default function App() {
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
-      await SplashScreen.hideAsync();
+      setTimeout(() => {
+        SplashScreen.hideAsync();
+      }, 1000);
     }
   }, [appIsReady]);
 
@@ -69,7 +71,13 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <MenuProvider>
         <NavigationContainer onReady={onLayoutRootView}>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+          <Stack.Navigator screenOptions={{
+            headerShown: false,
+            headerTitleAlign: 'center',
+            headerStyle: { backgroundColor: theme.lightColors.primary },
+            headerTintColor: theme.lightColors.background,
+            headerTitleStyle: { fontWeight: 'bold' }
+          }}>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="PostDetail" component={PostDetail} />
             <Stack.Screen name="Login" component={Login} />

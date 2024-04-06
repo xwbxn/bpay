@@ -58,7 +58,8 @@
     "zustand": "^4.5.1",
     "expo-font": "~11.10.3",
     "expo-splash-screen": "~0.26.4",
-    "expo-updates": "~0.24.12"
+    "expo-updates": "~0.24.12",
+    "expo-sharing": "~11.10.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

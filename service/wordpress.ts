@@ -27,3 +27,7 @@ export function getAuth(token) {
 export function getMatrixAuth() {
     return request.get(`/wp-json/bpay/v1/matrixToken`)
 }
+
+export function getAuthor(id) {
+    return request.get(`/wp-json/wp/v2/users/${id}`)
+}

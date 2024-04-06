@@ -10,6 +10,7 @@ import { IListItem, ListView } from './components/ListView';
 import { randomUUID } from 'expo-crypto';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
 import Toast from 'react-native-root-toast';
+import BpayHeader from '../../components/BpayHeader';
 
 const membershipMap = {
     'leave': '无效',
@@ -18,13 +19,6 @@ const membershipMap = {
 }
 
 export const Contacts = ({ navigation, route }) => {
-
-    useEffect(() => {
-        // set nav bar
-        navigation.setOptions({
-            title: '联系人'
-        })
-    }, [])
 
     const { setLoading } = useGlobalState()
     const { theme } = useTheme()
@@ -49,7 +43,6 @@ export const Contacts = ({ navigation, route }) => {
         } finally {
             setLoading(false)
         }
-        // setRefreshKey(randomUUID())
     }
 
     const rejectInvite = async (userId, roomId) => {
@@ -62,7 +55,6 @@ export const Contacts = ({ navigation, route }) => {
         } finally {
             setLoading(false)
         }
-        // setRefreshKey(randomUUID())
     }
 
     const cancelInvite = async (userId, roomId) => {
@@ -75,7 +67,6 @@ export const Contacts = ({ navigation, route }) => {
         } finally {
             setLoading(false)
         }
-        // setRefreshKey(randomUUID())
     }
 
     const refreshContacts = () => {
@@ -292,6 +283,7 @@ export const Contacts = ({ navigation, route }) => {
     }
 
     return <View style={styles.container}>
+        <BpayHeader title='联系人' showback></BpayHeader>
         <PropEditor editProps={editProps}></PropEditor>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ffffff' }}>
             <SearchBar

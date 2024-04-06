@@ -10,6 +10,7 @@ import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 import { ISettingItem, SettingList } from './components/SettingList';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import BpayHeader from '../../components/BpayHeader';
 
 export interface IRoomSetting {
     name: string,
@@ -19,13 +20,6 @@ export interface IRoomSetting {
 }
 
 export const GroupChat = ({ navigation, route }) => {
-
-    useEffect(() => {
-        // set nav bar
-        navigation.setOptions({
-            title: '群成员'
-        })
-    }, [])
 
     const { setLoading } = useGlobalState()
     const { theme } = useTheme()
@@ -244,6 +238,7 @@ export const GroupChat = ({ navigation, route }) => {
     ]
 
     return <View style={styles.container}>
+        <BpayHeader title='群组成员' showback></BpayHeader>
         <PropEditor editProps={editProps}></PropEditor>
         {room &&
             <View style={{ backgroundColor: theme.colors.background }}>

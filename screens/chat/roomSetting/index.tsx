@@ -17,6 +17,7 @@ import { Direction, EventType, JoinRule, RoomMember, RoomStateEvent, Visibility 
 import { ISettingItem, SettingList } from '../components/SettingList';
 import ListItemPicker from '../components/ListItemPicker';
 import { IRoomSetting } from '../groups';
+import BpayHeader from '../../../components/BpayHeader';
 
 export const RoomSetting = ({ navigation, route }) => {
 
@@ -30,7 +31,6 @@ export const RoomSetting = ({ navigation, route }) => {
     const [roomVisibility, setRoomVisibility] = useState(false)
     const [roomSetting, setRoomSetting] = useState<IRoomSetting>({
         name: '',
-        topic: '',
         visibilty: false,
         joinRule: JoinRule.Invite
     })
@@ -46,14 +46,6 @@ export const RoomSetting = ({ navigation, route }) => {
     useEffect(() => {
         setRoom(client.getRoom(id))
     }, [client.getRoom(id)])
-
-
-    useEffect(() => {
-        // set nav bar
-        navigation.setOptions({
-            title: `聊天设置`
-        })
-    }, [])
 
     useEffect(() => {
         if (!room) {
@@ -78,6 +70,7 @@ export const RoomSetting = ({ navigation, route }) => {
             setKnockingMembers(room.getMembersWithMembership('knock'))
 
             const topicEvents = room.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomTopic)
+            setTopic(topicEvents[0]?.getContent()?.topic || '')
             setRoomSetting({
                 ...roomSetting,
                 name: room.name,
@@ -415,6 +408,7 @@ export const RoomSetting = ({ navigation, route }) => {
     </View>
 
     return <>
+        <BpayHeader title='聊天设置' showback></BpayHeader>
         <PropEditor editProps={editProps}></PropEditor>
         <ScrollView>
             {isDirectRoom ? friendSettingJsx : roomSettingJsx}

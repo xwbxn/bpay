@@ -25,6 +25,7 @@ import { CameraType } from 'expo-image-picker';
 import VideoPlayer from 'expo-video-player';
 import { ResizeMode } from 'expo-av';
 import { setStatusBarHidden } from 'expo-status-bar';
+import BpayHeader from '../../components/BpayHeader';
 
 export function Room({ route, navigation }) {
 
@@ -56,20 +57,6 @@ export function Room({ route, navigation }) {
       setRoom(client.getRoom(id))
     })
   }, [])
-
-  // 导航条样式
-  useEffect(() => {
-    // set nav bar
-    navigation.setOptions({
-      title: room?.name,
-      headerRight: () => {
-        return !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
-          onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
-          {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
-            badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}</View>
-      },
-    })
-  }, [room?.name, disabled, inviteBadge])
 
   interface IChatMessage extends IMessage {
     w?: number,
@@ -189,7 +176,7 @@ export function Room({ route, navigation }) {
 
     if (room.getMyMembership() == 'invite') {
       const memberEvt = room.getMember(client.getUserId()).events.member
-      const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room.name}]`
+      const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room?.name}]`
       Alert.alert("提示", tip, [
         {
           text: '拒绝', onPress(value?) {
@@ -253,7 +240,7 @@ export function Room({ route, navigation }) {
     const message: IMessage = messages[0]
     message.pending = true
     setMessages(prev => GiftedChat.append(prev, [message]))
-    client.sendTextMessage(room.roomId, message.text)
+    client.sendTextMessage(room?.roomId, message.text)
   }, [client, room])
 
   // 相册
@@ -303,7 +290,7 @@ export function Room({ route, navigation }) {
                 ...thumbnail
               },
             }
-            client.sendMessage(room.roomId, content, txnId)
+            client.sendMessage(room?.roomId, content, txnId)
           }
           // 视频
           if (a.type === 'video') {
@@ -332,7 +319,7 @@ export function Room({ route, navigation }) {
                 }
               },
             }
-            client.sendMessage(room.roomId, content, txnId)
+            client.sendMessage(room?.roomId, content, txnId)
           }
         })
       }
@@ -379,7 +366,7 @@ export function Room({ route, navigation }) {
               ...thumbnail
             },
           }
-          client.sendMessage(room.roomId, content, txnId)
+          client.sendMessage(room?.roomId, content, txnId)
         })
       }
     })()
@@ -387,7 +374,9 @@ export function Room({ route, navigation }) {
 
   // 查看历史消息
   const LoadEarlier = useCallback(() => {
-    client.scrollback(room)
+    if (room) {
+      client.scrollback(room)
+    }
   }, [client, room])
 
   // 渲染发送按钮
@@ -418,6 +407,7 @@ export function Room({ route, navigation }) {
     setCurrentMessage(message)
     const evt: MatrixEvent = message.event
     if (evt && evt.getType() === EventType.RoomMessage && evt.getContent().msgtype === MsgType.Video) {
+      const url = evt.getContent().url.startsWith("mxc:/") ? client.mxcUrlToHttp(evt.getContent().url) : evt.getContent().url
       const mediaId = new URL(evt.getContent().url).pathname.split('/').slice(-1)[0]
       const cacheFilename = FileSystem.cacheDirectory + mediaId
       FileSystem.getInfoAsync(cacheFilename).then(res => {
@@ -434,7 +424,7 @@ export function Room({ route, navigation }) {
             console.log(`下载中: ${JSON.stringify(downloadProgress)}`)
             setMessages([...messages])
           }
-          const dl = FileSystem.createDownloadResumable(evt.getContent().url, cacheFilename, {}, callback)
+          const dl = FileSystem.createDownloadResumable(url, cacheFilename, {}, callback)
           dl.downloadAsync().then(res => {
             message.text = ''
             setMessages([...messages])
@@ -451,7 +441,7 @@ export function Room({ route, navigation }) {
 
   // 撤回
   const onRedAction = () => {
-    client.redactEvent(room.roomId, currentMessage._id as string).then(() => {
+    client.redactEvent(room?.roomId, currentMessage._id as string).then(() => {
       setActionSheetShow(false)
     })
   }
@@ -492,9 +482,14 @@ export function Room({ route, navigation }) {
     });
   }
 
+  const headerRight = !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
+    onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
+    {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
+      badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}</View>
 
 
   return (<>
+    <BpayHeader showback title={room?.name} rightComponent={headerRight}></BpayHeader>
     <View style={styles.container}>
       <Dialog
         isVisible={showTopic}

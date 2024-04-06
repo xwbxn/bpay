@@ -1,32 +1,18 @@
 import { encode as base64_encode } from 'base-64';
-import React, { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { Alert, KeyboardAvoidingView, useWindowDimensions, View } from 'react-native';
 
-import { Button, Icon, Image, Input, Text, useTheme } from '@rneui/themed';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Button, Header, Icon, Image, Input, useTheme } from '@rneui/themed';
+
 import { getAuth, getMatrixAuth } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMatrixClient } from '../../store/useMatrixClient';
-import { useWindowDimensions } from 'react-native';
 
 export default function Login({ navigation, route }) {
 
     const { theme } = useTheme()
     const { width } = useWindowDimensions()
-
-    useEffect(() => {
-        navigation.setOptions({
-            headerShown: true,
-            title: '登录',
-            headerTitleAlign: 'center',
-            headerStyle: { backgroundColor: theme.colors.primary },
-            headerTintColor: theme.colors.background,
-            headerTitleStyle: { fontWeight: 'bold' }
-        })
-    }, [])
-
-
     const { client } = useMatrixClient()
     const { setLoading } = useGlobalState()
 
@@ -74,7 +60,8 @@ export default function Login({ navigation, route }) {
     }
 
     return <>
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+            <Header leftComponent={<Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.goBack()}></Icon>}></Header>
             <KeyboardAvoidingView behavior='padding' style={{ justifyContent: 'flex-end' }}>
                 <View style={{ alignItems: 'center', paddingTop: 0 }}>
                     <Image resizeMethod='scale' style={{ width: width / 1, height: width / 1 }} resizeMode='stretch'
@@ -94,6 +81,6 @@ export default function Login({ navigation, route }) {
                     <Button radius={10} onPress={() => onLoginPress()}>登录</Button>
                 </View>
             </KeyboardAvoidingView>
-        </SafeAreaView>
+        </View>
     </>
 }

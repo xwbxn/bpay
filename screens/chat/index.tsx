@@ -27,6 +27,7 @@ export const ChatIndex = ({ navigation, route }) => {
 
     return <>
         <Stack.Navigator screenOptions={{
+            headerShown: false,
             headerTitleAlign: 'center',
             headerStyle: { backgroundColor: theme.colors.primary },
             headerTintColor: theme.colors.background,

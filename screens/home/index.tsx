@@ -62,7 +62,10 @@ export default function HomeScreen({ navigation }) {
 
 
     return <>
-        <Tab.Navigator screenOptions={{ headerShown: false, tabBarActiveTintColor: theme.colors.primary }}>
+        <Tab.Navigator screenOptions={{
+            headerShown: false,
+            tabBarActiveTintColor: theme.colors.primary,
+        }}>
             <Tab.Screen options={{
                 tabBarIcon: ({ color }) => <Icon size={30} iconStyle={styles.iconStyle} name='infomation' type='fontello' color={color}></Icon>,
                 title: '币看',

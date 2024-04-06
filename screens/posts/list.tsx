@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
-import { Button, Icon, Image, Tab, TabView, useTheme } from '@rneui/themed';
+import { Icon, Image, Tab, TabView, useTheme } from '@rneui/themed';
 
 import { useGlobalState, useProfile } from '../../store/globalContext';
-import PostFlatList from './components/postFlatList';
+import PostFlatList from './components/PostFlatList';
+import PostHeader from './components/PostHeader';
 
 const getSubCateIds = (root, cates) => {
     const result = []
@@ -29,6 +29,26 @@ export default function PostList({ route, navigation }) {
     const [navItems, setNavItems] = useState([])
     const [tabIndex, setTabIndex] = useState(0)
     const profile = useProfile((state: any) => state.profile)
+
+
+    const styles = StyleSheet.create({
+        headTitle: {
+            color: theme.colors.background,
+            fontWeight: 'bold',
+            marginHorizontal: 8
+        }
+    })
+
+    // 导航条样式
+    useEffect(() => {
+        // set nav bar
+        navigation.getParent().setOptions({
+            headerShown: false,
+            headerLeft: () => <Icon iconStyle={{ fontSize: 30, color: theme.colors.background }}
+                onPress={() => { onLoginPress() }}
+                name="user" type="font-awesome" ></Icon>
+        })
+    }, [])
 
     useEffect(() => {
         const topNavItems = categories.filter(v => v.parent === id)
@@ -56,26 +76,12 @@ export default function PostList({ route, navigation }) {
     }
 
     return <>
-        <SafeAreaView style={{ flex: 1 }}>
-            {/* 頂部搜索 */}
-            <View style={{ flexDirection: "row", backgroundColor: theme.colors.primary, alignItems: "center", height: 50 }}>
-                <View>
-                    {profile.authenticated && <Image style={{ width: 44, aspectRatio: 1, borderRadius: 22, marginLeft: 4 }}
-                        source={{ uri: profile.avatar }}></Image>}
-                    {!profile.authenticated &&
-                        <Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
-                            name="user" type="font-awesome" onPress={() => { onLoginPress() }}></Icon>}
-                </View>
-                <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center' }}>
-                    <Button type='clear' titleStyle={{ color: theme.colors.background, fontWeight: 'bold' }} title={"首页"}></Button>
-                    <Button type='clear' titleStyle={{ color: theme.colors.background, fontWeight: 'bold' }} title={"视频"}></Button>
-                    <Button type='clear' titleStyle={{ color: theme.colors.background, fontWeight: 'bold' }} title={"一对一"}></Button>
-                </View>
-                <View>
-                    <Icon containerStyle={{ width: 50 }} iconStyle={{ fontSize: 30, color: theme.colors.background }}
-                        name="search" type="font-awesome"></Icon>
-                </View>
-            </View>
+        <View style={{ flex: 1 }}>
+            <PostHeader leftComponent={profile.authenticated
+                ? <Image style={{ width: 24, aspectRatio: 1, borderRadius: 12, marginLeft: 4 }}
+                    source={{ uri: profile.avatar }}></Image>
+                : <Icon iconStyle={{ color: theme.colors.background }}
+                    name="user" type="font-awesome" onPress={() => { onLoginPress() }}></Icon>}></PostHeader>
             {/* 滚动菜单 */}
             <Tab value={tabIndex} onChange={(e) => { setTabIndex(e) }}
                 scrollable dense
@@ -102,6 +108,6 @@ export default function PostList({ route, navigation }) {
                         </TabView.Item>)}
                 </TabView>
             </View>
-        </SafeAreaView>
+        </View>
     </>
 }

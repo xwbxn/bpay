@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Button, Dialog, Header, Input, Overlay, Text, useTheme } from '@rneui/themed';
+import BpayHeader from '../../../components/BpayHeader';
+import { globalStyle } from '../../../utils/styles';
 
 export interface IPropEditorProps {
     isVisible?: boolean,
@@ -36,15 +38,17 @@ export const PropEditor = (props: {
 
     return <Overlay fullScreen isVisible={editProps.isVisible}
         overlayStyle={{ padding: 0 }} >
-        <Header containerStyle={{ height: 55 }}
-            rightComponent={<Button buttonStyle={{ padding: 5 }} title={'确定'}
-                onPress={() => { editProps.onSave && editProps.onSave(data) }}></Button>}
-            leftComponent={<Button buttonStyle={{ padding: 5 }} onPress={() => { editProps.onCancel && editProps.onCancel() }} title={'取消'}></Button>}
-        ></Header>
-        <View style={{ alignItems: 'center', padding: 20 }}><Text h3>{editProps.title}</Text></View>
+        <BpayHeader rightComponent={<Button buttonStyle={{ padding: 5 }} title={'确定'}
+            onPress={() => { editProps.onSave && editProps.onSave(data) }}></Button>}
+            leftComponent={<Button buttonStyle={{ padding: 5 }}
+                onPress={() => { editProps.onCancel && editProps.onCancel() }} title={'取消'}></Button>}
+        ></BpayHeader>
+        <View style={{ alignItems: 'center', padding: 20 }}>
+            <Text style={[globalStyle.headTitleFontStyle, { fontWeight: 'bold' }]}>{editProps.title}</Text>
+        </View>
         {Object.keys(data).map(i => {
             return <View style={{ padding: 10 }} key={i}>
-                <Dialog.Title titleStyle={{ marginLeft: 15 }} title={data[i].title}></Dialog.Title>
+                <Text style={[{ marginLeft: 16, marginBottom: 6 }, globalStyle.titleFontStyle,]}>{data[i].title}</Text>
                 <Input style={{
                     backgroundColor: theme.colors.grey5,
                     fontSize: 18,
