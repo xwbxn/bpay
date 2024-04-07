@@ -15,7 +15,7 @@ import { createTheme, ThemeProvider } from '@rneui/themed';
 import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
-import { useGlobalState } from './store/globalContext';
+import { IProfile, useGlobalState, useProfile } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
 
 const theme = createTheme({
@@ -31,6 +31,7 @@ export default function App() {
   const [appIsReady, setAppIsReady] = useState(false)
   const { client } = useMatrixClient()
   const { loading } = useGlobalState()
+  const { setProfile } = useProfile()
 
   useEffect(() => {
     const prepare = async () => {
@@ -41,6 +42,12 @@ export default function App() {
           client.credentials.userId = auth.user_id
           client.setAccessToken(auth.access_token)
           client.startClient()
+        }
+      })
+      AsyncStorage.getItem("PROFILE").then(data => {
+        if (data) {
+          const profile: IProfile = JSON.parse(data)
+          setProfile(profile)
         }
       })
       await loadAsync({

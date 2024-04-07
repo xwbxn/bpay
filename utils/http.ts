@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const request = extend({
     prefix: process.env.EXPO_PUBLIC_API_URL,
-    timeout: 10000,
+    timeout: 30000,
     errorHandler(error) {
         console.error('http error:', JSON.stringify(error))
         if (error.data?.code === "invalid_username") {

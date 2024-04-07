@@ -40,6 +40,7 @@ export function Room({ route, navigation }) {
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
   const [actionSheetShow, setActionSheetShow] = useState(false)
   const screenSize = useWindowDimensions()
+  const { setShowBottomTabBar } = useGlobalState()
 
   const [messages, setMessages] = useState<IChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
@@ -56,6 +57,10 @@ export function Room({ route, navigation }) {
     client.getStateEvent(id, EventType.RoomMember, client.getUserId()).then(evt => {
       setRoom(client.getRoom(id))
     })
+    setShowBottomTabBar(false)
+    return () => {
+      setShowBottomTabBar(true)
+    }
   }, [])
 
   interface IChatMessage extends IMessage {
@@ -388,7 +393,7 @@ export function Room({ route, navigation }) {
           <View style={{ flexDirection: 'row', paddingHorizontal: 10 }}>
             {props.text === "" && <Icon name='plus-circle' disabled={disabled} disabledStyle={{ backgroundColor: theme.colors.background }}
               type='feather' size={30} onPress={() => { setBottomSheetShow((prev) => !prev) }}
-              color={disabled ? theme.colors.disabled : theme.colors.primary}></Icon>}
+              color={disabled ? theme.colors.disabled : theme.colors.black}></Icon>}
             {props.text !== "" && <MaterialIcons size={30} color={disabled ? theme.colors.disabled : theme.colors.primary} name={'send'} />}
           </View>
         </Send>
@@ -542,6 +547,10 @@ export function Room({ route, navigation }) {
           placeholder='说点什么吧...'
           infiniteScroll
           showUserAvatar
+          messagesContainerStyle={{ paddingBottom: 10 }}
+          // @ts-ignore
+          primaryStyle={{ paddingTop: 6, paddingBottom: 6, backgroundColor: '#e0e0e0' }}
+          textInputStyle={{ backgroundColor: '#ffffff', borderRadius: 10, paddingLeft: 10 }}
           loadEarlier
           user={{
             _id: user?.userId,
@@ -556,10 +565,10 @@ export function Room({ route, navigation }) {
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>
           <View style={{ flexDirection: 'row' }}>
-            <Button color={theme.colors.black} title={'相册'} type='clear' icon={<Icon size={40} name='image' type='font-awesome'></Icon>} iconPosition='top'
+            <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'相册'} type='clear' icon={<Icon name='image' type='font-awesome'></Icon>} iconPosition='top'
               onPress={() => { sendGalley() }}
             ></Button>
-            <Button color={theme.colors.black} title={'拍摄'} type='clear' icon={<Icon size={40} name='video' type='font-awesome-5'></Icon>} iconPosition='top'
+            <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'拍摄'} type='clear' icon={<Icon name='video' type='font-awesome-5'></Icon>} iconPosition='top'
               onPress={() => { sendCamera() }}>
             </Button>
           </View>
@@ -622,5 +631,5 @@ export function Room({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { backgroundColor: '#ffffff', flex: 1 },
+  content: { backgroundColor: '#f9f9f9', flex: 1 },
 })

@@ -23,7 +23,7 @@ export default function HomeScreen({ navigation }) {
     registerCustomIconType('fontello', fontelloIcon)
     const { client } = useMatrixClient()
     const [unReadTotal, setUnReadTotal] = useState(0)
-    const { setCategories } = useGlobalState()
+    const { setCategories, showbottomTabBar } = useGlobalState()
     const { theme } = useTheme()
 
     useEffect(() => {
@@ -63,6 +63,8 @@ export default function HomeScreen({ navigation }) {
 
     return <>
         <Tab.Navigator screenOptions={{
+            tabBarHideOnKeyboard: true,
+            tabBarStyle: { display: showbottomTabBar ? undefined : 'none' },
             headerShown: false,
             tabBarActiveTintColor: theme.colors.primary,
         }}>

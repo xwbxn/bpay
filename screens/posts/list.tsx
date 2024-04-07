@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
-import { Icon, Image, Tab, TabView, useTheme } from '@rneui/themed';
+import { Avatar, Icon, Tab, TabView, useTheme } from '@rneui/themed';
 
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import PostFlatList from './components/PostFlatList';
 import PostHeader from './components/PostHeader';
+import { useMatrixClient } from '../../store/useMatrixClient';
 
 const getSubCateIds = (root, cates) => {
     const result = []
@@ -28,27 +29,7 @@ export default function PostList({ route, navigation }) {
     const { categories } = useGlobalState()
     const [navItems, setNavItems] = useState([])
     const [tabIndex, setTabIndex] = useState(0)
-    const profile = useProfile((state: any) => state.profile)
-
-
-    const styles = StyleSheet.create({
-        headTitle: {
-            color: theme.colors.background,
-            fontWeight: 'bold',
-            marginHorizontal: 8
-        }
-    })
-
-    // 导航条样式
-    useEffect(() => {
-        // set nav bar
-        navigation.getParent().setOptions({
-            headerShown: false,
-            headerLeft: () => <Icon iconStyle={{ fontSize: 30, color: theme.colors.background }}
-                onPress={() => { onLoginPress() }}
-                name="user" type="font-awesome" ></Icon>
-        })
-    }, [])
+    const { profile } = useProfile()
 
     useEffect(() => {
         const topNavItems = categories.filter(v => v.parent === id)
@@ -78,8 +59,7 @@ export default function PostList({ route, navigation }) {
     return <>
         <View style={{ flex: 1 }}>
             <PostHeader leftComponent={profile.authenticated
-                ? <Image style={{ width: 24, aspectRatio: 1, borderRadius: 12, marginLeft: 4 }}
-                    source={{ uri: profile.avatar }}></Image>
+                ? <Avatar rounded source={{ uri: profile.avatar }} size={24}></Avatar>
                 : <Icon iconStyle={{ color: theme.colors.background }}
                     name="user" type="font-awesome" onPress={() => { onLoginPress() }}></Icon>}></PostHeader>
             {/* 滚动菜单 */}

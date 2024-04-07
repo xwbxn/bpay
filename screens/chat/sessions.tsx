@@ -12,6 +12,7 @@ import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Image } from '@
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import BpayHeader from '../../components/BpayHeader';
 import { globalStyle } from '../../utils/styles';
+import { useProfile } from '../../store/globalContext';
 
 const Session = ({ navigation }) => {
 
@@ -19,6 +20,7 @@ const Session = ({ navigation }) => {
     const { theme } = useTheme()
     const { client } = useMatrixClient()
     const [rooms, setRooms] = useState([])
+    const { profile } = useProfile()
 
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
@@ -235,8 +237,8 @@ const Session = ({ navigation }) => {
 
 
     return <View style={styles.container}>
-        <BpayHeader title='聊天' leftComponent={<Icon iconStyle={{ color: theme.colors.background }}
-            name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
+        <BpayHeader title='聊天' leftComponent={<Avatar rounded source={{ uri: profile?.avatar }} size={24}
+            onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Avatar>}
             rightComponent={headerRight}></BpayHeader>
         <View style={styles.content}>
             <FlatList data={rooms} renderItem={renderItem}>

@@ -5,7 +5,7 @@ import URI from 'urijs';
 
 import { Avatar, useTheme } from '@rneui/themed';
 
-import { useGlobalState } from '../../store/globalContext';
+import { useGlobalState, useProfile } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +24,7 @@ export const MemberProfile = ({ navigation, route }) => {
     const [profile, setProfile] = useState<{ userId: string, avatar_url: string, displayname: string, targetRoomId?: string, isFriend: boolean }>()
     const [reason, setReason] = useState<string>()
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
+    const globelProfile = useProfile()
 
     useEffect(() => {
         const directRoom = client.findDirectRoom(userId)
@@ -149,12 +150,14 @@ export const MemberProfile = ({ navigation, route }) => {
     }
 
     // 登出
-    const logOut = () => {
-        AsyncStorage.removeItem('TOKEN')
-        AsyncStorage.removeItem('MATRIX_AUTH')
+    const logOut = async () => {
+        await AsyncStorage.removeItem('TOKEN')
+        await AsyncStorage.removeItem('MATRIX_AUTH')
+        await AsyncStorage.removeItem('PROFILE')
+        globelProfile.setProfile({})
         client.stopClient()
-        client.clearStores()
-        navigation.push('Login')
+        navigation.popToTop()
+        navigation.replace('Home')
     }
 
     const styles = StyleSheet.create({

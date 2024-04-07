@@ -296,8 +296,8 @@ export const useMatrixClient = () => {
         })
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
-        _client.on(ClientEvent.Event, (evt) => {
-            // console.debug('emitted event:', evt.getType(), evt.getSender(), evt.getRoomId(), evt.getId())
+        _client.on(RoomEvent.Timeline, (evt, room) => {
+            console.debug('room timeline:', room.name, evt.getType(), evt.getContent(), evt.getPrevContent())
         })
 
         // token过期

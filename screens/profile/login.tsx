@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button, Header, Icon, Image, Input, useTheme } from '@rneui/themed';
 
 import { getAuth, getMatrixAuth } from '../../service/wordpress';
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { IProfile, useGlobalState, useProfile } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 
 export default function Login({ navigation, route }) {
@@ -31,17 +31,20 @@ export default function Login({ navigation, route }) {
         try {
             setLoading(true)
             const bpayRes = await getAuth(token)
-            const profile = {
+
+            AsyncStorage.setItem("TOKEN", token)
+            const chatAuth = await getMatrixAuth()
+            const chatRes = await client.loginWithPassword(`@${chatAuth.username}:chat.b-pay.life`, chatAuth.random_password)
+            const chatProfile = await client.getProfileInfo(client.getUserId())
+            AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(chatRes))
+            const profile: IProfile = {
                 id: bpayRes.id,
                 name: bpayRes.name,
-                avatar: bpayRes.avatar_urls["24"],
+                avatar: chatProfile.avatar_url,
                 authenticated: true
             }
             setProfile(profile)
-            await AsyncStorage.setItem("TOKEN", token)
-            const chatAuth = await getMatrixAuth()
-            const chatRes = await client.loginWithPassword(`@${chatAuth.username}:chat.b-pay.life`, chatAuth.random_password)
-            AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(chatRes))
+            AsyncStorage.setItem("PROFILE", JSON.stringify(profile))
             if (client.clientRunning) {
                 client.stopClient()
             }
@@ -61,7 +64,7 @@ export default function Login({ navigation, route }) {
 
     return <>
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <Header leftComponent={<Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.goBack()}></Icon>}></Header>
+            <Header leftComponent={<Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home')}></Icon>}></Header>
             <KeyboardAvoidingView behavior='padding' style={{ justifyContent: 'flex-end' }}>
                 <View style={{ alignItems: 'center', paddingTop: 0 }}>
                     <Image resizeMethod='scale' style={{ width: width / 1, height: width / 1 }} resizeMode='stretch'
