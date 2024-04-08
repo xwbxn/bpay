@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
 import { AppState } from 'react-native';
+import { SqliteStore } from './sqliteStore';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
 console.log('chaturl: ', BASE_URL)
@@ -274,6 +275,9 @@ export const useMatrixClient = () => {
         _client = createClient({
             baseUrl: BASE_URL,
             useAuthorizationHeader: true,
+            store: new SqliteStore({
+                localStorage: global.localStorage,
+            }),
             roomNameGenerator(roomId, state) {
                 switch (state.type) {
                     case RoomNameType.Actual:
@@ -297,7 +301,9 @@ export const useMatrixClient = () => {
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
         _client.on(RoomEvent.Timeline, (evt, room) => {
-            console.debug('room timeline:', room.name, evt.getType(), evt.getContent(), evt.getPrevContent())
+            // if (room.roomId == '!qYpvIvSHaHSUBfHoCx:chat.b-pay.life') {
+            //     console.debug('room timeline:', room.name, evt.getType(), room.getLiveTimeline().getPaginationToken(Direction.Backward))
+            // }
         })
 
         // token过期
@@ -329,6 +335,7 @@ export const useMatrixClient = () => {
                 _client.on(RoomEvent.Timeline, sendTimelineNotify)
                 _client.on(ClientEvent.Room, sendRoomNotify)
             }
+
         })
 
         // 如有新的消息, 则显示房间

@@ -16,7 +16,8 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "requireFullScreen": true
+      "requireFullScreen": true,
+      "bundleIdentifier": "life.bpay"
     },
     "android": {
       "adaptiveIcon": {
