@@ -216,7 +216,7 @@ class BChatClient extends MatrixClient {
         const ratio = Math.max(_width, _height) / 150
         const ratioWidth = Math.floor(_width / ratio)
         const ratioHeight = Math.floor(_height / ratio)
-        const thumbnail_url = this.mxcUrlToHttp(opts.uri, ratioWidth * 2, ratioHeight * 2, 'scale')
+        const thumbnail_url = this.mxcUrlToHttp(opts.uri, ratioWidth * 4, ratioHeight * 4, 'scale')
         return {
             thumbnail_url: thumbnail_url,
             thumbnail_info: {
@@ -266,18 +266,20 @@ const sendTimelineNotify = async (event: MatrixEvent, room: Room) => {
 }
 
 let _client: BChatClient = null
+let _store: SqliteStore = null
 
 export const favTagName = 'm.favourite'
 export const hiddenTagName = 'm.hidden'
 export const useMatrixClient = () => {
 
     if (_client === null) {
+        _store = new SqliteStore({
+            localStorage: global.localStorage,
+        })
         _client = createClient({
             baseUrl: BASE_URL,
             useAuthorizationHeader: true,
-            store: new SqliteStore({
-                localStorage: global.localStorage,
-            }),
+            store: _store,
             roomNameGenerator(roomId, state) {
                 switch (state.type) {
                     case RoomNameType.Actual:
@@ -300,10 +302,8 @@ export const useMatrixClient = () => {
         })
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
-        _client.on(RoomEvent.Timeline, (evt, room) => {
-            // if (room.roomId == '!qYpvIvSHaHSUBfHoCx:chat.b-pay.life') {
-            //     console.debug('room timeline:', room.name, evt.getType(), room.getLiveTimeline().getPaginationToken(Direction.Backward))
-            // }
+        _client.on(RoomEvent.Timeline, (event) => {
+            _store.persistEvent(event)
         })
 
         // token过期

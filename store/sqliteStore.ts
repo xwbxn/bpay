@@ -1,127 +1,104 @@
 import { Direction, MatrixEvent, MemoryStore, Room, User } from "matrix-js-sdk";
-import * as SQLite from 'expo-sqlite/next';
-
-const initSql = `CREATE TABLE "events" (
-    "event_id" text(256) NOT NULL,
-    "type" text(256),
-    "room_id" text(256),
-    "content" text(4096),
-    "origin_server_ts" integer,
-    "sender" TEXT(256),
-    "state_key" TEXT(256),
-    "txn_id" text(256),
-    "membership" text(256),
-    "unsigned" text(4096),
-    "redacts" text(256),
-    PRIMARY KEY ("event_id")
-  );
-  
-  CREATE INDEX "idx_events_room_ts"
-  ON "events" (
-    "room_id" ASC,
-    "origin_server_ts" DESC
-  );`
-
-const insertSql = `INSERT INTO "events" (event_id, type, room_id, content, origin_server_ts, sender, state_key, txn_id, membership, unsigned, redacts) 
-    VALUES ($event_id, $type, $room_id, $content, $origin_server_ts, $sender, $state_key, $txn_id, $membership, $unsigned, $redacts);`
+import { drizzle, ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
+import { openDatabaseSync } from "expo-sqlite/next";
+import migrations from "../drizzle/migrations";
+import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
+import * as schema from '../db/schema'
+import { count, eq, max } from "drizzle-orm";
 
 export class SqliteStore extends MemoryStore {
 
-    private head: Map<string, number>
-    private readupTo: Map<string, string>
-    private preLoadCache: Map<string, MatrixEvent[]>
-    private db: SQLite.SQLiteDatabase
+    private head: { [id: string]: number } = {}
+    private db: ExpoSQLiteDatabase<typeof schema>
     private writeQueue: any[] = []
     private writing: boolean = false
 
     constructor(opts) {
         super(opts);
-        this.db = SQLite.openDatabaseSync('chatdb');
+
+        const expo = openDatabaseSync("bpay.db");
+        const db = drizzle(expo, { schema });
+        this.db = db;
         const initAsync = async () => {
             try {
-                await this.db.execAsync(initSql)
+                await migrate(db, migrations)
+                console.debug('migrate database success')
             } catch (e) {
-                console.debug('create database:', JSON.stringify(e))
+                console.debug('migrate database:', JSON.stringify(e))
             }
             try {
-                const res = await this.db.getFirstAsync("select count(*) from events")
-                console.debug('test database:', JSON.stringify(res))
+                const total = await this.db.select({ count: count() }).from(schema.events)
+                console.debug('test database:', total)
             } catch { }
-            this.startWriter()
+            // this.startWriter()
         }
         initAsync()
     }
 
-    async startWriter() {
-        const stmt = await this.db.prepareAsync(insertSql)
-        setInterval(async () => {
-            if (this.writing) {
-                return
-            }
-            this.writing = true
-            console.debug('consume writerQueue:', this.writeQueue)
-            try {
-                for (let index = 0; index < this.writeQueue.length; index++) {
-                    const element = this.writeQueue[index];
-                    const res = await stmt.executeAsync(element)
-                    console.debug('execute writer:', JSON.stringify(res), element)
-                }
-                this.writeQueue = []
-            } catch (err) {
-                console.error('execute writer:', JSON.stringify(err))
-            } finally {
-                this.writing = false
+    // async startWriter() {
+    //     const stmt = await this.db.prepareAsync(insertSql)
+    //     setInterval(async () => {
+    //         if (this.writing) {
+    //             return
+    //         }
+    //         this.writing = true
+    //         console.debug('consume writerQueue:', this.writeQueue.length)
+    //         let item
+    //         try {
+    //             while (this.writeQueue.length > 0) {
+    //                 item = this.writeQueue.shift()
+    //                 const res = await stmt.executeAsync(item)
+    //             }
+    //         } catch (err) {
+    //             console.error('execute writer:', JSON.stringify(err), item)
+    //         } finally {
+    //             this.writing = false
 
-            }
-        }, 2000)
-    }
-
-    async preLoadPage(roomId: string) {
-        // const sql = "select * from events where origin_server_ts < ? order by origin_server_ts limit 30"
-        // const data = await this.db.execAsync([{ sql, args: [this.head[roomId]] }], true)
-    }
+    //         }
+    //     }, 5000)
+    // }
 
     scrollback(room: Room, limit: number): MatrixEvent[] {
-        const readupTo = room.getReadReceiptForUserId(room.myUserId).eventId
-        if (!this.hasEvent(readupTo)) {
-            return []
-        } else {
-            const page = [...this.preLoadCache[room.roomId]]
-            this.preLoadPage(room.roomId)
-            return page
+        if (!this.head[room.roomId]) {
+            this.db.select({ value: max(schema.events.origin_server_ts) })
+                .from(schema.events)
+                .where(eq(schema.events.room_id, room.roomId))
+                .then(res => {
+                    console.log('maxts', res.value)
+                })
+        }
+        // // const stmt = this.db.prepareSync(scrollbackSql)
+        // return []
+        // this.db.query.events.findMany({where: and(eq(schema.events.room_id, room.roomId), })
+        return []
+    }
+
+    async persistEvent(event: MatrixEvent) {
+        try {
+            await this.db.insert(schema.events).values({
+                event_id: event.getId(),
+                type: event.getType(),
+                room_id: event.getRoomId(),
+                content: event.getContent(),
+                origin_server_ts: new Date(event.event.origin_server_ts || 0),
+                sender: event.getSender(),
+                state_key: event.getStateKey(),
+                txn_id: event.getTxnId(),
+                membership: event.event.membership || '',
+                unsigned: event.getUnsigned(),
+                redacts: event.event.redacts || ''
+            }).onConflictDoNothing()
+        } catch (e) {
+            console.error('persistEvent', JSON.stringify(e))
         }
     }
 
-    storeEvents(room: Room, events: MatrixEvent[], token: string, toStart: boolean): void {
-        //(event_id, type, room_id, content, origin_server_ts, sender, state_key, txn_id, membership, unsigned, redacts)
-        events.forEach(e => {
-            this.writeQueue.push({
-                $event_id: e.getId(),
-                $type: e.getType(),
-                $roomId: e.getRoomId(),
-                $content: JSON.stringify(e.getContent()),
-                $origin_server_ts: e.event.origin_server_ts,
-                $sender: e.getSender(),
-                $state_key: e.getStateKey(),
-                $txn_id: e.getTxnId(),
-                $membership: e.event.membership,
-                $unsigned: JSON.stringify(e.getUnsigned()),
-                $redacts: e.event.redacts
-            })
-        })
-        console.debug('store event:', events.length)
-    }
 
-    wantsSave(): boolean {
-        console.debug('wantsSave')
-        return true
-    }
-
-    save(force: boolean): Promise<void> {
-        return Promise.resolve()
-    }
-
-    hasEvent(eventId: string): boolean {
-        return false
-    }
+    // async hasEvent(eventId: string) {
+    //     const stmt = await this.db.prepareAsync(eventExistsSql)
+    //     const result = await stmt.executeAsync<{ total: number }>({ $event_id: eventId })
+    //     const row = await result.getFirstAsync()
+    //     console.log('test event', row.total > 0)
+    //     return row.total > 0
+    // }
 }
