@@ -209,9 +209,11 @@ export function Room({ route, navigation }) {
 
     room.on(RoomEvent.Timeline, refreshMessage)
     room.on(RoomEvent.LocalEchoUpdated, refreshMessage)
+    room.on(RoomEvent.TimelineRefresh, refreshMessage)
     return () => {
       room.off(RoomEvent.LocalEchoUpdated, refreshMessage)
       room.off(RoomEvent.Timeline, refreshMessage)
+      room.off(RoomEvent.TimelineRefresh, refreshMessage)
     }
   }, [room])
 

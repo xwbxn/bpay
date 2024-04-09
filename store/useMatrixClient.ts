@@ -334,6 +334,10 @@ export const useMatrixClient = () => {
                 // 通知
                 _client.on(RoomEvent.Timeline, sendTimelineNotify)
                 _client.on(ClientEvent.Room, sendRoomNotify)
+
+                _client.getRooms().forEach(r => {
+                    _store.preloadPage(r)
+                })
             }
 
         })
