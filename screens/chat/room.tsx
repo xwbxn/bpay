@@ -494,7 +494,6 @@ export function Room({ route, navigation }) {
     {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
       badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}</View>
 
-
   return (<>
     <BpayHeader showback title={room?.name} rightComponent={headerRight}></BpayHeader>
     <View style={styles.container}>

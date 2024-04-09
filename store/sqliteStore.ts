@@ -5,10 +5,12 @@ import migrations from "../drizzle/migrations";
 import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
 import * as schema from '../db/schema'
 import { and, count, desc, eq, lt, max } from "drizzle-orm";
+import { sleep } from "matrix-js-sdk/lib/utils";
 
+const SCROLLBACK_DELAY_MS = 3000;
 export class SqliteStore extends MemoryStore {
 
-    private head: { [id: string]: Date } = {}
+    public cursor: { [id: string]: Date } = {}
     private preLoad: {
         [id: string]: {
             items: {
@@ -27,6 +29,8 @@ export class SqliteStore extends MemoryStore {
         }
     } = {}
     private db: ExpoSQLiteDatabase<typeof schema>
+    protected ongoingScrollbacks: { [roomId: string]: { promise?: Promise<Room>; errorTs?: number } } = {};
+
 
     constructor(opts) {
         super(opts);
@@ -48,61 +52,83 @@ export class SqliteStore extends MemoryStore {
         initAsync()
     }
 
-    scrollback(room: Room, limit: number): MatrixEvent[] {
-        if (this.preLoad[room.roomId] && this.preLoad[room.roomId].isRunning) {
-            return []
-        }
-        const pages = this.preLoad[room.roomId].items
-        this.preLoad[room.roomId].items = []
-        console.debug('scorllback:', room.roomId, pages.length, this.head[room.roomId])
+    scrollbackFromDB(room: Room, limit: number): Promise<Room> {
+        let timeToWaitMs = 0;
 
-        const events = pages.map(e => new MatrixEvent({
-            event_id: e.event_id,
-            sender: e.sender,
-            room_id: e.room_id,
-            origin_server_ts: e.origin_server_ts.getUTCMilliseconds(),
-            state_key: e.state_key,
-            content: e.content,
-            type: e.type,
-            txn_id: e.txn_id,
-            membership: e.membership,
-            unsigned: e.unsigned,
-            redacts: e.redacts
-        }))
-        events.forEach(e => {
-            room.getLiveTimeline().addEvent(e, { toStartOfTimeline: true })
-        })
-        this.preloadPage(room)
-        room.emit(RoomEvent.TimelineRefresh, room, room.getUnfilteredTimelineSet())
-        return events
+        let info = this.ongoingScrollbacks[room.roomId] || {};
+        if (info.promise) {
+            return info.promise;
+        } else if (info.errorTs) {
+            const timeWaitedMs = Date.now() - info.errorTs;
+            timeToWaitMs = Math.max(SCROLLBACK_DELAY_MS - timeWaitedMs, 0);
+        }
+
+        if (this.cursor[room.roomId].getMilliseconds() === 0) {
+            return Promise.resolve(room); // already at the start.
+        }
+
+        const promise = new Promise<Room>((resolve, reject) => {
+            // wait for a time before doing this request
+            // (which may be 0 in order not to special case the code paths)
+            sleep(timeToWaitMs)
+                .then(() => {
+                    return this.db.query.events.findMany({
+                        where: and(eq(schema.events.room_id, room.roomId), lt(schema.events.origin_server_ts, this.cursor[room.roomId])),
+                        limit: limit,
+                        orderBy: desc(schema.events.origin_server_ts)
+                    })
+                })
+                .then((page) => {
+                    console.debug('scrollbackFromDB', room.roomId, page.length, this.cursor[room.roomId])
+                    // const active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts || 0)
+                    const cursor = page.length > 0 ? page[page.length - 1].origin_server_ts : new Date(0)
+                    // this.cursor[room.roomId] = new Date(Math.min(active.getMilliseconds(), cursor.getMilliseconds()))
+                    this.cursor[room.roomId] = cursor
+                    page.forEach(e => {
+                        room.getLiveTimeline().addEvent(new MatrixEvent({
+                            event_id: e.event_id,
+                            sender: e.sender,
+                            room_id: e.room_id,
+                            origin_server_ts: e.origin_server_ts.getUTCMilliseconds(),
+                            state_key: e.state_key,
+                            content: e.content,
+                            type: e.type,
+                            txn_id: e.txn_id,
+                            membership: e.membership,
+                            unsigned: e.unsigned,
+                            redacts: e.redacts
+                        }), { toStartOfTimeline: true })
+                    })
+                    delete this.ongoingScrollbacks[room.roomId];
+                    room.emit(RoomEvent.TimelineRefresh, room, room.getUnfilteredTimelineSet())
+                    resolve(room);
+                })
+                .catch((err) => {
+                    this.ongoingScrollbacks[room.roomId] = {
+                        errorTs: Date.now(),
+                    };
+                    reject(err);
+                });
+        });
+
+        info = { promise };
+
+        this.ongoingScrollbacks[room.roomId] = info;
+        return promise;
     }
 
     async preloadPage(room: Room) {
-        this.preLoad[room.roomId] = {
-            isRunning: true,
-            items: []
+        const res = await this.db.select({ value: max(schema.events.origin_server_ts) })
+            .from(schema.events)
+            .where(eq(schema.events.room_id, room.roomId))
+        let cursor = res[0]?.value || new Date(2099, 12, 31)
+        let active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts || 0)
+        while (active > cursor) {
+            const r = await this.scrollback(room, 30)
+            active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts)
         }
-
-        if (!this.head[room.roomId]) {
-            this.head[room.roomId] = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts) || new Date()
-        }
-
-        if (this.preLoad[room.roomId] && this.preLoad[room.roomId].isRunning) {
-            return
-        }
-        const page = await this.db.query.events.findMany({
-            where: and(eq(schema.events.room_id, room.roomId), lt(schema.events.origin_server_ts, this.head[room.roomId])),
-            limit: 30,
-            orderBy: desc(schema.events.origin_server_ts)
-        })
-
-        this.head[room.roomId] = page.length > 0 ? page[page.length - 1].origin_server_ts : new Date(0)
-
-        console.debug('preloadPage', room.roomId, page.length, this.head[room.roomId])
-        this.preLoad[room.roomId] = {
-            isRunning: false,
-            items: page
-        }
+        this.cursor[room.roomId] = cursor > active ? active : cursor
+        console.debug('preloadPage', room.roomId, active, cursor, this.cursor[room.roomId])
     }
 
     async persistEvent(event: MatrixEvent) {

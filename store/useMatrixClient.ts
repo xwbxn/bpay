@@ -36,6 +36,12 @@ export function createClient(opts: ICreateClientOpts): BChatClient {
 
 class BChatClient extends MatrixClient {
 
+    public async scrollback(room: Room, limit = 30): Promise<Room> {
+        console.debug('overide scrollback')
+        const store = this.store as SqliteStore
+        return store.scrollbackFromDB(room, limit)
+    }
+
     isDirectRoom(roomId) {
         const mDirectEvent = this.getAccountData(EventType.Direct)
         const content = mDirectEvent?.getContent() || {}
@@ -226,6 +232,7 @@ class BChatClient extends MatrixClient {
             }
         }
     }
+
 }
 
 let currentNotifId = null
@@ -302,7 +309,8 @@ export const useMatrixClient = () => {
         })
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
-        _client.on(RoomEvent.Timeline, (event) => {
+        _client.on(RoomEvent.Timeline, (event, room) => {
+            console.log('timeline', room.name, event.getId(), event.getType(), room.getLiveTimeline().getPaginationToken(Direction.Backward), room.getLiveTimeline().getPaginationToken(Direction.Forward))
             _store.persistEvent(event)
         })
 
