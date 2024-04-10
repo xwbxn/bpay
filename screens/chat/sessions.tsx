@@ -14,6 +14,9 @@ import BpayHeader from '../../components/BpayHeader';
 import { globalStyle } from '../../utils/styles';
 import { useProfile } from '../../store/globalContext';
 import { roomPreview } from './eventMessage';
+import Qrcode from './components/Qrcode';
+import { BarcodeScanningResult } from 'expo-camera/next';
+import Toast from 'react-native-root-toast';
 
 const Session = ({ navigation }) => {
 
@@ -22,10 +25,11 @@ const Session = ({ navigation }) => {
     const { client } = useMatrixClient()
     const [rooms, setRooms] = useState([])
     const { profile } = useProfile()
+    const [openQrCode, setOpenQrCode] = useState(false)
 
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
-            const sortedRooms = [...client.getRooms()]
+            const filteredRooms = [...client.getRooms()]
                 .filter(r => !r.tags[hiddenTagName])
                 // 单聊需要显示对方退出的, 群聊各种状态均需要显示
                 .filter(r => client.isDirectRoom(r.roomId)
@@ -39,10 +43,13 @@ const Session = ({ navigation }) => {
                         return -1
                     } else if (!client.isRoomOnTop(a.roomId) && client.isRoomOnTop(b.roomId)) {
                         return 1
-                    } return b.getLastActiveTimestamp() - a.getLastActiveTimestamp()
+                    } return (b.getLastLiveEvent()?.event.origin_server_ts
+                        || b.getMember(client.getUserId()).events.member.event.origin_server_ts) // 在被邀请还没加入房间时，取不到最后的event，因此需要取邀请时间
+                        - (a.getLastLiveEvent()?.event.origin_server_ts
+                            || a.getMember(client.getUserId()).events.member.event.origin_server_ts)
                 })
-            setRooms(sortedRooms)
-            setInviteBadge(client.getRooms().reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
+            setRooms(filteredRooms)
+            setInviteBadge(client.getRooms().filter(i => client.isDirectRoom(i.roomId)).reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
         }, 150)
 
         refreshRooms()
@@ -179,7 +186,7 @@ const Session = ({ navigation }) => {
                 </View>
             </MenuOption>
             <Divider style={{ width: '100%' }}></Divider>
-            <MenuOption>
+            <MenuOption onSelect={() => setOpenQrCode(true)}>
                 <View style={menuStyles.buttonItem}>
                     <Icon name='scan' containerStyle={{ width: 40 }} type='ionicon' color={theme.colors.white}></Icon>
                     <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>扫一扫</Text>
@@ -195,6 +202,12 @@ const Session = ({ navigation }) => {
             : <Icon iconStyle={{ color: theme.colors.background }}
                 name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
             rightComponent={headerRight}></BpayHeader>
+        <Qrcode isVisible={openQrCode} onClose={() => {
+            setOpenQrCode(false)
+        }} onBarcodeScanned={(res: BarcodeScanningResult) => {
+            setOpenQrCode(false)
+            Toast.show(res.data)
+        }}></Qrcode>
         <View style={styles.content}>
             <FlatList data={rooms} renderItem={renderItem}>
             </FlatList>

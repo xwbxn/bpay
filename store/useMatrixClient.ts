@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 
 import {
     ClientEvent, Direction, EventType, ICreateClientOpts, MatrixClient, MatrixEvent, MatrixScheduler, MediaPrefix,
-    MemoryCryptoStore, MemoryStore, Preset, Room, RoomEvent, RoomMember, RoomNameType, RoomStateEvent, SyncState, Visibility
+    MemoryCryptoStore, MemoryStore, NotificationCountType, Preset, Room, RoomEvent, RoomMember, RoomNameType, RoomStateEvent, SyncState, Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
 import URI from 'urijs';
@@ -340,6 +340,19 @@ export const useMatrixClient = () => {
 
                 _client.getRooms().forEach(r => {
                     _store.preloadPage(r)
+                    if (!_client.isDirectRoom(r.roomId) && r.getMyMembership() === 'invite') {
+                        r.setUnreadNotificationCount(NotificationCountType.Total, r.getUnreadNotificationCount() + 1)
+                    }
+                })
+
+                _client.on(RoomEvent.MyMembership, (room, membership, prevMembership) => {
+                    if (!_client.isDirectRoom(room.roomId)) {
+                        if (membership === 'invite') {
+                            room.setUnreadNotificationCount(NotificationCountType.Total, room.getUnreadNotificationCount() + 1)
+                        } else if (membership === 'join' && prevMembership === 'invite') {
+                            room.setUnreadNotificationCount(NotificationCountType.Total, room.getUnreadNotificationCount() - 1)
+                        }
+                    }
                 })
             }
 

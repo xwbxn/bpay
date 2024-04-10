@@ -495,7 +495,7 @@ export function Room({ route, navigation }) {
           messagesContainerStyle={{ paddingBottom: 10 }}
           // @ts-ignore
           primaryStyle={{ paddingTop: 6, paddingBottom: 6, backgroundColor: '#e0e0e0' }}
-          textInputStyle={{ backgroundColor: '#ffffff', borderRadius: 10, paddingLeft: 10 }}
+          textInputStyle={{ backgroundColor: '#ffffff', borderRadius: 10, paddingLeft: 10, lineHeight: 24 }}
           loadEarlier
           user={{
             _id: user?.userId,

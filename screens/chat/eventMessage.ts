@@ -1,4 +1,4 @@
-import { EventType, IContent, MatrixEvent, MsgType, Room } from "matrix-js-sdk";
+import { EventType, IContent, MatrixEvent, MsgType, NotificationCountType, Room } from "matrix-js-sdk";
 import { BChatClient } from "../../store/useMatrixClient";
 
 export const eventMessage = (event: MatrixEvent, room: Room, client: BChatClient): {
@@ -173,7 +173,17 @@ export const roomPreview = (room: Room, client: BChatClient) => {
             return { text: handler(element, room, client), ts: element.localTimestamp }
         }
     }
-    return { text: '[不支持的消息类型]', ts: room.getLastActiveTimestamp() }
+
+    // 被邀请还未加入，无法取到timeline，因此取membership
+    if (room.getMyMembership() === 'invite') {
+        const me = room.getMember(client.getUserId())
+        if (!me) {
+            return { text: `[邀请您加入群聊]`, ts: new Date().getMilliseconds() }
+        }
+        const sender = room.getMember(me.events.member.getSender())
+        return { text: `[${sender.name} 邀请您加入群聊]`, ts: me.events.member.localTimestamp }
+    }
+    return { text: `[不支持的消息类型]`, ts: room.getLastActiveTimestamp() }
 }
 
 const roomPreviewMap = {
@@ -217,6 +227,9 @@ const roomPreviewMap = {
             }
             if (membership === 'leave' && event.sender.userId === event.target.userId) {
                 return `[${event.sender.name} 离开了群聊]`
+            }
+            if (membership === 'invite' && event.target.userId === client.getUserId()) {
+                return `[${event.sender.name} 邀请您加入群聊]`
             }
         }
         console.log(event.getType(), event.getContent(), event.getPrevContent())

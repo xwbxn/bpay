@@ -36,7 +36,7 @@ export default function HomeScreen({ navigation }) {
 
     useEffect(() => {
         const refreshUnreadTotal = () => {
-            setUnReadTotal(client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount() + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
+            setUnReadTotal(client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0))
         }
         refreshUnreadTotal()
         client.on(RoomEvent.Timeline, refreshUnreadTotal)
