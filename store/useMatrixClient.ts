@@ -34,7 +34,7 @@ export function createClient(opts: ICreateClientOpts): BChatClient {
     return new BChatClient(amendClientOpts(opts));
 }
 
-class BChatClient extends MatrixClient {
+export class BChatClient extends MatrixClient {
 
     public async scrollback(room: Room, limit = 30): Promise<Room> {
         console.debug('overide scrollback')
@@ -280,13 +280,9 @@ export const hiddenTagName = 'm.hidden'
 export const useMatrixClient = () => {
 
     if (_client === null) {
-        _store = new SqliteStore({
-            localStorage: global.localStorage,
-        })
         _client = createClient({
             baseUrl: BASE_URL,
             useAuthorizationHeader: true,
-            store: _store,
             roomNameGenerator(roomId, state) {
                 switch (state.type) {
                     case RoomNameType.Actual:
@@ -310,7 +306,6 @@ export const useMatrixClient = () => {
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
         _client.on(RoomEvent.Timeline, (event, room) => {
-            console.log('timeline', room.name, event.getId(), event.getType(), room.getLiveTimeline().getPaginationToken(Direction.Backward), room.getLiveTimeline().getPaginationToken(Direction.Forward))
             _store.persistEvent(event)
         })
 
@@ -363,9 +358,21 @@ export const useMatrixClient = () => {
         _client.on(ClientEvent.AccountData, (evt) => {
             console.log('account data: ', evt.getType(), evt.getContent())
         })
+
+    }
+
+    const setStore = (name) => {
+        if (name) {
+            _store = new SqliteStore({
+                name,
+                localStorage: global.localStorage,
+            })
+            _client.store = _store
+        }
     }
 
     return {
-        client: _client
+        client: _client,
+        setStore
     }
 }

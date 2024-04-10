@@ -11,30 +11,13 @@ const SCROLLBACK_DELAY_MS = 3000;
 export class SqliteStore extends MemoryStore {
 
     public cursor: { [id: string]: Date } = {}
-    private preLoad: {
-        [id: string]: {
-            items: {
-                event_id: string;
-                type: string;
-                room_id: string;
-                content: unknown;
-                origin_server_ts: Date;
-                sender: string;
-                state_key: string;
-                txn_id: string;
-                membership: string;
-                unsigned: unknown;
-                redacts: string;
-            }[], isRunning: boolean
-        }
-    } = {}
     private db: ExpoSQLiteDatabase<typeof schema>
     protected ongoingScrollbacks: { [roomId: string]: { promise?: Promise<Room>; errorTs?: number } } = {};
 
-
     constructor(opts) {
         super(opts);
-        const expo = openDatabaseSync("bpay.db");
+        const { name } = opts
+        const expo = openDatabaseSync(`${name}.db`);
         const db = drizzle(expo, { schema });
         this.db = db;
         const initAsync = async () => {
@@ -80,9 +63,7 @@ export class SqliteStore extends MemoryStore {
                 })
                 .then((page) => {
                     console.debug('scrollbackFromDB', room.roomId, page.length, this.cursor[room.roomId])
-                    // const active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts || 0)
                     const cursor = page.length > 0 ? page[page.length - 1].origin_server_ts : new Date(0)
-                    // this.cursor[room.roomId] = new Date(Math.min(active.getMilliseconds(), cursor.getMilliseconds()))
                     this.cursor[room.roomId] = cursor
                     page.forEach(e => {
                         room.getLiveTimeline().addEvent(new MatrixEvent({
@@ -128,7 +109,6 @@ export class SqliteStore extends MemoryStore {
             active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts)
         }
         this.cursor[room.roomId] = cursor > active ? active : cursor
-        console.debug('preloadPage', room.roomId, active, cursor, this.cursor[room.roomId])
     }
 
     async persistEvent(event: MatrixEvent) {
@@ -147,7 +127,7 @@ export class SqliteStore extends MemoryStore {
                 redacts: event.event.redacts || ''
             }).onConflictDoNothing()
         } catch (e) {
-            console.error('persistEvent', JSON.stringify(e))
+            console.warn('persistEvent', JSON.stringify(e))
         }
     }
 }

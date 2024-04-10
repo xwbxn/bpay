@@ -29,7 +29,7 @@ SplashScreen.preventAutoHideAsync();
 export default function App() {
 
   const [appIsReady, setAppIsReady] = useState(false)
-  const { client } = useMatrixClient()
+  const { client, setStore } = useMatrixClient()
   const { loading } = useGlobalState()
   const { setProfile } = useProfile()
 
@@ -41,6 +41,7 @@ export default function App() {
           console.log('auth', auth)
           client.credentials.userId = auth.user_id
           client.setAccessToken(auth.access_token)
+          setStore(auth.user_id)
           client.startClient()
         }
       })

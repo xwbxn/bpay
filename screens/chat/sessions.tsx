@@ -1,7 +1,7 @@
 import 'moment/locale/zh-cn';
 
 import _ from 'lodash'
-import { ClientEvent, Direction, EventType, JoinRule, MsgType, Room, RoomEvent, RoomMemberEvent } from 'matrix-js-sdk';
+import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
@@ -13,6 +13,7 @@ import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import BpayHeader from '../../components/BpayHeader';
 import { globalStyle } from '../../utils/styles';
 import { useProfile } from '../../store/globalContext';
+import { roomPreview } from './eventMessage';
 
 const Session = ({ navigation }) => {
 
@@ -91,63 +92,15 @@ const Session = ({ navigation }) => {
     const renderItem = ({ item }: { item: Room }) => {
         const isDirectRoom = client.isDirectRoom(item.roomId)
         const directMember = isDirectRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
-        const createEvt = item.getLiveTimeline().getState(Direction.Forward).getStateEvents(EventType.RoomCreate)
         let title = item.name
-        let subTitle = `[${item.getMember(createEvt[0]?.getSender())?.name} 发起了聊天]`
-        let updateAt = createEvt[0]?.localTimestamp
+        const preview = roomPreview(item, client)
+        let subTitle = preview.text
+        let updateAt = preview.ts
         let avatar_url = isDirectRoom
             ? directMember?.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
             : item?.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
 
-        if (item.getMyMembership() === 'invite') { // 只有群邀请在这里显示
-            const myMember = item.getMember(client.getUserId())
-            const invitor = myMember.events.member.getSender()
-            const invotorName = item.getMember(invitor)?.name
-            subTitle = `[${invotorName || item.guessDMUserId()} 邀请您加入群聊]`
-            updateAt = item.getMember(item.myUserId).events.member.localTimestamp
-        } else if (item.getMyMembership() === 'join') { //已加入聊天
-            // 预览消息
-            const lastEvt = item.getLastLiveEvent()
-            updateAt = item.getLastActiveTimestamp()
-            switch (lastEvt.getType()) {
-                case EventType.RoomMessage:
-                    let sender = ''
-                    if (!client.isDirectRoom(lastEvt.getRoomId())) {
-                        sender = lastEvt.getSender()
-                        const member = item.getMember(sender)
-                        if (member) {
-                            sender = member.name
-                        }
-                    }
-                    subTitle = (sender ? sender + ':' : '') + lastEvt.getContent().body || ''
-                    if (lastEvt.getContent().msgtype === MsgType.Image) {
-                        subTitle = '[图片消息]'
-                    }
-                    if (lastEvt.getContent().msgtype === MsgType.Video) {
-                        subTitle = '[视频]'
-                    }
-                    break;
-                case EventType.RoomMember:
-                    if (client.isDirectRoom(lastEvt.getRoomId())) {
-                        const lastMembership = lastEvt.getPrevContent()?.membership
-                        if (lastEvt.getContent().membership === 'leave' && lastMembership === 'join') {
-                            subTitle = `[对方已不再是好友]`
-                        } else {
-                            subTitle = '[可以开始聊天了]'
-                        }
-                    }
-                    break
-                default:
-                    break;
-            }
-
-            // 有群审批
-            if (item.getMember(item.myUserId).powerLevel >= 50
-                && item.getMembers().filter(m => m.membership === JoinRule.Knock).length > 0) {
-                subTitle = `[您有${item.getMembers().filter(m => m.membership === JoinRule.Knock).length}个入群申请待审批]`
-                updateAt = new Date().getTime()
-            }
-        } else if (item.getMyMembership() === 'leave') {
+        if (item.getMyMembership() === 'leave') {
             return <></>
         }
 
@@ -237,8 +190,10 @@ const Session = ({ navigation }) => {
 
 
     return <View style={styles.container}>
-        <BpayHeader title='聊天' leftComponent={<Avatar rounded source={{ uri: profile?.avatar }} size={24}
-            onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Avatar>}
+        <BpayHeader title='聊天' leftComponent={profile?.avatar ? <Avatar rounded source={{ uri: profile?.avatar }} size={24}
+            onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Avatar>
+            : <Icon iconStyle={{ color: theme.colors.background }}
+                name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
             rightComponent={headerRight}></BpayHeader>
         <View style={styles.content}>
             <FlatList data={rooms} renderItem={renderItem}>

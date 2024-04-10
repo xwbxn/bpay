@@ -37,6 +37,8 @@ export const Contacts = ({ navigation, route }) => {
         setLoading(true)
         try {
             await client.acceptDirect(userId, roomId)
+            newFriends.splice(newFriends.findIndex(i => i.id), 1)
+            setNewFriends([...newFriends])
         } catch (e) {
             Alert.alert('错误', e.toString())
             console.error(e)
@@ -49,6 +51,8 @@ export const Contacts = ({ navigation, route }) => {
         setLoading(true)
         try {
             await client.rejectDirect(userId, roomId)
+            newFriends.splice(newFriends.findIndex(i => i.id), 1)
+            setNewFriends([...newFriends])
         } catch (e) {
             Alert.alert('错误', e.toString())
             console.error(e)
@@ -61,6 +65,8 @@ export const Contacts = ({ navigation, route }) => {
         setLoading(true)
         try {
             await client.cancelDirect(userId, roomId)
+            newFriends.splice(newFriends.findIndex(i => i.id), 1)
+            setNewFriends([...newFriends])
         } catch (e) {
             Alert.alert('错误', e.toString())
             console.error(e)

@@ -13,7 +13,7 @@ export default function Login({ navigation, route }) {
 
     const { theme } = useTheme()
     const { width } = useWindowDimensions()
-    const { client } = useMatrixClient()
+    const { client, setStore } = useMatrixClient()
     const { setLoading } = useGlobalState()
 
     const [username, setUsername] = useState('')
@@ -48,6 +48,7 @@ export default function Login({ navigation, route }) {
             if (client.clientRunning) {
                 client.stopClient()
             }
+            setStore(chatRes.user_id)
             client.startClient()
             navigation.replace('Home')
         } catch (err) {

@@ -1,7 +1,6 @@
 import { useTheme } from '@rneui/themed'
-import { randomUUID } from 'expo-crypto'
 import { launchImageLibraryAsync, MediaTypeOptions } from 'expo-image-picker'
-import { Direction, EventType, RoomMember } from 'matrix-js-sdk'
+import { EventType } from 'matrix-js-sdk'
 import React, { useEffect, useMemo, useState } from 'react'
 import { Alert, StyleSheet, View } from 'react-native'
 import URI from 'urijs'
@@ -27,7 +26,6 @@ export const RoomAdmin = ({ navigation, route }) => {
     })
     const [showPicker, setShowPicker] = useState(false)
     const [selectedValues, setSelectedValues] = useState([])
-    const [refreshKey, setRefreshKey] = useState(randomUUID())
 
     useEffect(() => {
         const room = client.getRoom(id)
@@ -50,7 +48,7 @@ export const RoomAdmin = ({ navigation, route }) => {
             setOwner(room.getMembers().find(i => i.powerLevel === 100).userId)
         }
         setRoom(client.getRoom(id))
-    }, [id, refreshKey])
+    }, [id])
 
     // 设置群的头像
     const setRoomAvatar = async () => {
@@ -89,12 +87,24 @@ export const RoomAdmin = ({ navigation, route }) => {
         setShowPicker(false)
         setLoading(true)
         try {
-            const appended = selectedValues
-                .filter(i => (!admins.map(a => a.id).includes(i)) || i !== owner)
+            const appended = selectedValues.filter(i => (!admins.map(a => a.id).includes(i)) && i !== owner)
             const removed = admins.map(i => i.id).filter(i => !selectedValues.includes(i) && i !== owner)
-            await client.setPowerLevel(id, appended, 50)
-            await client.setPowerLevel(id, removed, null)
-            setRefreshKey(randomUUID())
+            console.log('appended, removed', appended, removed)
+            await appended.length > 0 && client.setPowerLevel(id, appended, 50)
+            await removed.length > 0 && client.setPowerLevel(id, removed, null)
+            removed.forEach(i => {
+                admins.splice(admins.findIndex(m => m.id === i), 1)
+            })
+            appended.forEach(i => {
+                const member = room.getMember(i)
+                admins.push({
+                    name: member.name,
+                    id: member.userId,
+                    avatar: member.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
+                })
+            })
+            setAdmins([...admins])
+            // setRefreshKey(randomUUID())
         } catch (e) {
             Alert.alert('错误', e.toString())
         } finally {

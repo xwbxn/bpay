@@ -8,10 +8,10 @@ import * as FileSystem from 'expo-file-system';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import _ from 'lodash'
 
-import { Direction, EventType, IContent, JoinRule, MatrixEvent, MsgType, RoomEvent } from 'matrix-js-sdk';
+import { Direction, EventStatus, EventType, IContent, JoinRule, MatrixEvent, MsgType, Room as RoomType, RoomEvent } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { GiftedChat, IMessage, Send, SendProps, User } from 'react-native-gifted-chat';
+import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
@@ -26,6 +26,7 @@ import VideoPlayer from 'expo-video-player';
 import { ResizeMode } from 'expo-av';
 import { setStatusBarHidden } from 'expo-status-bar';
 import BpayHeader from '../../components/BpayHeader';
+import { eventMessage } from './eventMessage';
 
 export function Room({ route, navigation }) {
 
@@ -72,16 +73,17 @@ export function Room({ route, navigation }) {
   }
 
   // event转换为msg格式
-  const evtToMsg = (evt: MatrixEvent) => {
-    const sender = room.getMember(evt.getSender())
+  const evtToMsg = (event: MatrixEvent) => {
+    const message = eventMessage(event, room, client)
+    const sender = event.sender
     const powerLevel = sender?.powerLevel || 0
     let msg: IChatMessage = {
-      _id: evt.getId(),
-      text: '',
-      createdAt: evt.localTimestamp,
+      _id: event.getId(),
+      text: 'm.message',
+      createdAt: event.localTimestamp,
       user: {
-        _id: evt.getSender(),
-        name: sender?.name || evt.getSender(),
+        _id: event.getSender(),
+        name: sender?.name || event.getSender(),
         avatar: powerLevel >= 50 && !isDirectRoom ? (styles) => {
           const uri = sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined
           return <Avatar size={36} rounded containerStyle={{ backgroundColor: theme.colors.primary }}
@@ -93,68 +95,10 @@ export function Room({ route, navigation }) {
           </Avatar >
         } : sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined,
       },
-      sent: evt.status === null,
-      pending: evt.status !== null,
-      event: evt
-    }
-    switch (evt.event.type) {
-      case EventType.RoomMessageEncrypted:
-        msg.text = `[加密消息]`
-        break
-      case EventType.RoomCreate:
-        if (!isDirectRoom) {
-          msg.text = `${msg.user.name} 创建了群聊`
-          msg.system = true
-        } else {
-          msg._id = null
-        }
-        break
-      case EventType.RoomMember:
-        if (!isDirectRoom) {
-          msg.system = true
-          if (evt.getContent().membership === 'join') {
-            msg.text = `${evt.getContent().displayname} 加入了群聊`
-          } else if (evt.getContent().membership === 'leave') {
-            msg.text = `${evt.getContent().displayname} 离开了群聊`
-          } else {
-            msg._id = null
-          }
-        } else {
-          msg._id = null
-        }
-        break
-      case EventType.RoomMessage:
-        if (evt.getContent().msgtype == MsgType.Text) {
-          msg.text = evt.getContent().body
-        }
-        if (evt.getContent().msgtype == MsgType.Image) {
-          const content = evt.getContent()
-          msg.image = content.info?.thumbnail_url || content.url
-          if (msg.image.startsWith("mxc://")) {
-            msg.image = client.mxcUrlToHttp(msg.image)
-          }
-          msg.w = content.info?.thumbnail_info?.w || content.w
-          msg.h = content.info?.thumbnail_info?.h || content.h
-        }
-        if (evt.getContent().msgtype === MsgType.Video) {
-          msg.video = evt.getContent().info?.thumbnail_url
-          if (msg.video.startsWith("mxc://")) {
-            msg.video = client.mxcUrlToHttp(msg.video)
-          }
-          msg.w = evt.getContent().info?.thumbnail_info?.w || 150
-          msg.h = evt.getContent().info?.thumbnail_info?.h || 100
-        }
-        if (evt.isRedacted()) {
-          msg.text = "[消息已被撤回]"
-          msg.createdAt = 0
-          msg.pending = false
-          msg.sent = false
-        }
-        break
-      default:
-        msg._id = null
-        msg.text = `[不支持的消息(${evt.getType()})]`
-        break
+      sent: event.status === null,
+      pending: event.status !== null,
+      event: event,
+      ...message
     }
     return msg
   }

@@ -58,7 +58,7 @@ export default function PostList({ route, navigation }) {
 
     return <>
         <View style={{ flex: 1 }}>
-            <PostHeader leftComponent={profile.authenticated
+            <PostHeader leftComponent={profile.authenticated && profile.avatar
                 ? <Avatar rounded source={{ uri: profile.avatar }} size={24}></Avatar>
                 : <Icon iconStyle={{ color: theme.colors.background }}
                     name="user" type="font-awesome" onPress={() => { onLoginPress() }}></Icon>}></PostHeader>

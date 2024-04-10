@@ -14,7 +14,7 @@ import BpayHeader from '../../components/BpayHeader';
 
 export interface IRoomSetting {
     name: string,
-    topic: string,
+    topic?: string,
     joinRule: JoinRule,
     visibilty: boolean
 }
@@ -270,7 +270,14 @@ export const GroupChat = ({ navigation, route }) => {
             </ScrollView>
         </View>
         <Button title={'确定'} onPress={(roomId === undefined || isDirectRoom) ? onCreateGroup : () => {
-            Alert.alert('提示', '请确认群成员操作', [
+            const appends = selectedValue.filter(i => !initMembers.includes(i)).map(i => members.find(m => m.id === i).title)
+            const removes = initMembers.filter(i => !selectedValue.includes(i)).map(i => members.find(m => m.id === i).title)
+            if (appends.length === 0 && removes.length === 0) {
+                Alert.alert('提示', '您没有进行变更操作')
+                return
+            }
+            const tip = appends.length > 0 ? `新增:${appends.join(',')}` : `移除:${removes.join(',')}`
+            Alert.alert('提示', tip, [
                 {
                     text: '取消'
                 },
