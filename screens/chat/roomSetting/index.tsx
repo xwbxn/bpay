@@ -13,7 +13,7 @@ import { useMatrixClient } from '../../../store/useMatrixClient';
 import { IListItem } from '../components/ListView';
 import { IMemberItem, MemberList } from './components/MemberList';
 import { IPropEditorProps, PropEditor } from '../components/PropEditor';
-import { Direction, EventType, JoinRule, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
+import { Direction, EventType, Filter, JoinRule, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
 import { ISettingItem, SettingList } from '../components/SettingList';
 import ListItemPicker from '../components/ListItemPicker';
 import { IRoomSetting } from '../groups';
@@ -51,6 +51,7 @@ export const RoomSetting = ({ navigation, route }) => {
         if (!room) {
             return
         }
+
         setMe(room.getMember(client.getUserId()))
 
         client.getRoomDirectoryVisibility(room.roomId).then(res => {
@@ -248,6 +249,10 @@ export const RoomSetting = ({ navigation, route }) => {
             title: '查找聊天记录'
         },
         {
+            title: '聊天文件',
+            onPress: () => { navigation.push('Documents', { id: room.roomId, title: '聊天文件' }) }
+        },
+        {
             title: '消息免打扰',
             right: () => <Switch style={{ height: 20 }}></Switch>,
             hideChevron: true,
@@ -345,6 +350,7 @@ export const RoomSetting = ({ navigation, route }) => {
         },
         {
             title: '群文件',
+            onPress: () => { navigation.push('Documents', { id: room.roomId }) }
         },
         {
             title: '消息免打扰',

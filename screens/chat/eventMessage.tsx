@@ -1,5 +1,6 @@
 import { EventType, IContent, MatrixEvent, MsgType, NotificationCountType, Room } from "matrix-js-sdk";
 import { BChatClient } from "../../store/useMatrixClient";
+import { Text } from "@rneui/themed";
 
 export const eventMessage = (event: MatrixEvent, room: Room, client: BChatClient): {
     [id: string]: any
@@ -154,7 +155,7 @@ const messageMap = {
     },
     [MsgType.File]: (content: IContent, room: Room, client: BChatClient) => {
         return {
-            text: '[文件]',
+            text: <Text>📄{content.body}</Text>
         }
     },
     [MsgType.Audio]: (content: IContent, room: Room, client: BChatClient) => {

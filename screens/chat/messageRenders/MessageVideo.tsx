@@ -1,4 +1,4 @@
-import { Icon } from '@rneui/themed';
+import { Avatar, Icon } from '@rneui/themed';
 import { Image } from 'expo-image';
 
 import PropTypes from 'prop-types';
@@ -13,15 +13,17 @@ export const MessageVideo = ({ containerStyle, imageProps = {}, imageStyle, curr
   }
 
   return (<View style={[styles.container, containerStyle]}>
-    <TouchableOpacity style={{ maxHeight: 150, maxWidth: 180 }}
+    <TouchableOpacity
       onPress={() => onPress({}, currentMessage)}
       onLongPress={() => onLongPress({}, currentMessage)}>
       <View>
-        <Icon containerStyle={{
+        <Avatar containerStyle={{
           position: 'absolute', zIndex: 1,
           width: currentMessage.w, height: currentMessage.h, maxHeight: 150, maxWidth: 150, justifyContent: 'center'
         }}
-          size={50} name={'play'} type='octicon' color='#43484d' ></Icon>
+          icon={currentMessage.percent ? null : { name: 'play', type: 'octicon', color: '#43484d', size: 50 }}
+          title={currentMessage.percent}
+          size={50}></Avatar>
         <Image {...imageProps} style={[styles.image, imageStyle, {
           opacity: 0.8,
           width: currentMessage.w, height: currentMessage.h, maxHeight: 150, maxWidth: 150
@@ -40,7 +42,9 @@ MessageVideo.propTypes = {
 };
 
 const styles = StyleSheet.create({
-  container: {},
+  container: {
+    alignItems: 'center'
+  },
   image: {
     borderRadius: 13,
     margin: 3,

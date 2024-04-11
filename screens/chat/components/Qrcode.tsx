@@ -5,7 +5,7 @@ import { Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function Qrcode(opts) {
   const { isVisible, onBarcodeScanned, onClose } = opts
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
 
   if (!permission) {
@@ -18,15 +18,11 @@ export default function Qrcode(opts) {
     return (
       <Overlay isVisible={isVisible} fullScreen>
         <View style={styles.container}>
-          <Text style={{ textAlign: 'center' }}>We need your permission to show the camera</Text>
-          <Button onPress={requestPermission} title="grant permission" />
+          <Text style={{ textAlign: 'center' }}>我们需要申请您的摄像头权限</Text>
+          <Button onPress={requestPermission} title="设置" />
         </View>
       </Overlay>
     );
-  }
-
-  function toggleCameraFacing() {
-    setFacing(current => (current === 'back' ? 'front' : 'back'));
   }
 
   return (
@@ -37,7 +33,7 @@ export default function Qrcode(opts) {
         }} onBarcodeScanned={onBarcodeScanned}>
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.button} onPress={onClose}>
-              <Text style={styles.text}>close</Text>
+              <Text style={styles.text}>关闭</Text>
             </TouchableOpacity>
           </View>
         </CameraView>

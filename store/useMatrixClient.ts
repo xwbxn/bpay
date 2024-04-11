@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 
 import {
     ClientEvent, Direction, EventType, ICreateClientOpts, MatrixClient, MatrixEvent, MatrixScheduler, MediaPrefix,
-    MemoryCryptoStore, MemoryStore, NotificationCountType, Preset, Room, RoomEvent, RoomMember, RoomNameType, RoomStateEvent, SyncState, Visibility
+    MemoryCryptoStore, MemoryStore, Method, NotificationCountType, Preset, Room, RoomEvent, RoomMember, RoomNameType, RoomStateEvent, SyncState, UploadProgress, Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
 import URI from 'urijs';
@@ -40,6 +40,30 @@ export class BChatClient extends MatrixClient {
         console.debug('overide scrollback')
         const store = this.store as SqliteStore
         return store.scrollbackFromDB(room, limit)
+    }
+
+    public getMediaMessages(
+        roomId: string,
+        fromToken: string | null,
+        limit = 30,
+        dir: Direction | string,
+        filter?: {},
+    ) {
+        const path = `/rooms/${roomId}/messages`
+        const params: Record<string, string> = {
+            limit: limit.toString(),
+            dir: dir,
+        };
+
+        if (fromToken) {
+            params.from = fromToken;
+        }
+
+        if (filter) {
+            params.filter = JSON.stringify(filter);
+        }
+        console.log('params', params)
+        return this.http.authedRequest(Method.Get, path, params);
     }
 
     isDirectRoom(roomId) {
@@ -198,12 +222,13 @@ export class BChatClient extends MatrixClient {
         return myPowerLevel >= targetPower
     }
 
-    async uploadFile(opts: { uri: string, mimeType?: string, name: string, callback?: Function }) {
+    async uploadFile(opts: { uri: string, mimeType?: string, name: string, callback?: (progress: UploadProgress) => void }) {
         const fileUri = new URI(opts.uri)
         const response = await fetch(opts.uri)
         const blob = await response.blob()
         const upload = await this.uploadContent(blob, {
-            name: fileUri.filename()
+            name: fileUri.filename(),
+            progressHandler: opts.callback
         })
         return { content_uri: upload.content_uri || undefined }
     }

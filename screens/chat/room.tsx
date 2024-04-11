@@ -6,10 +6,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as vt from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
 import * as ScreenOrientation from 'expo-screen-orientation';
+import * as DocumentPicker from 'expo-document-picker';
+import * as Linking from 'expo-linking';
 import _ from 'lodash'
 
-import { Direction, EventStatus, EventType, IContent, JoinRule, MatrixEvent, MsgType, Room as RoomType, RoomEvent } from 'matrix-js-sdk';
-import React, { useCallback, useEffect, useState } from 'react';
+import { Direction, EventType, IContent, JoinRule, MatrixEvent, MsgType, Room as RoomType, RoomEvent, UploadProgress } from 'matrix-js-sdk';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
 import Toast from 'react-native-root-toast';
@@ -34,7 +36,7 @@ export function Room({ route, navigation }) {
   const { id } = route.params
   const { client } = useMatrixClient()
   const [room, setRoom] = useState(client.getRoom(id))
-  const [user, setUser] = useState(client.getUser(client.getUserId()))
+  const [user] = useState(client.getUser(client.getUserId()))
   const [topic, setTopic] = useState('')
   const [showTopic, setShowTopic] = useState(false)
   const isDirectRoom = client.isDirectRoom(id)
@@ -49,11 +51,13 @@ export function Room({ route, navigation }) {
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
   const [playerState, setPlayerState] = useState({ visible: false, source: '', inFullscreen: false })
   const [disabled, setDisabled] = useState(false)
-  const [inviteBadge, setInviteBadge] = useState(0)
+  const [knockBadge, setKnockBadge] = useState(0)
+  const downloader = useRef()
 
   const { setLoading } = useGlobalState()
 
 
+  // 隐藏底部tapbar
   useEffect(() => {
     client.getStateEvent(id, EventType.RoomMember, client.getUserId()).then(evt => {
       setRoom(client.getRoom(id))
@@ -65,18 +69,20 @@ export function Room({ route, navigation }) {
   }, [])
 
   interface IChatMessage extends IMessage {
+    _id: string,
     w?: number,
     h?: number,
     origin_uri?: string
     filename?: string,
-    event?: MatrixEvent
+    event?: MatrixEvent,
+    [id: string]: any
   }
 
   // event转换为msg格式
   const evtToMsg = (event: MatrixEvent) => {
     const message = eventMessage(event, room, client)
     const sender = event.sender
-    const powerLevel = sender?.powerLevel || 0
+    const powerLevel = room.getMember(sender.userId)?.powerLevel || 0
     let msg: IChatMessage = {
       _id: event.getId(),
       text: 'm.message',
@@ -167,7 +173,9 @@ export function Room({ route, navigation }) {
       return
     }
 
-    setInviteBadge(room.getMembers().filter(m => m.membership === JoinRule.Knock).length)
+    if (room.getMember(client.getUserId()).powerLevel > 0) {
+      setKnockBadge(room.getMembers().filter(m => m.membership === JoinRule.Knock).length)
+    }
     // const _messages = [...messages]
     const _messages = []
     const events = room.getLiveTimeline().getEvents()
@@ -188,7 +196,7 @@ export function Room({ route, navigation }) {
   // 发送消息
   const sendText = useCallback((messages = []) => {
     setBottomSheetShow(false)
-    const message: IMessage = messages[0]
+    const message: IChatMessage = messages[0]
     message.pending = true
     setMessages(prev => GiftedChat.append(prev, [message]))
     client.sendTextMessage(room?.roomId, message.text)
@@ -207,7 +215,8 @@ export function Room({ route, navigation }) {
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
           // 本地预览消息
-          const txnId = previewMessage(a);
+          const localMessage = previewImageMessage(a)
+          const txnId = localMessage._id;
           // 上传文件
           const uname = crypto.randomUUID()
           const upload = await client.uploadFile({
@@ -250,8 +259,15 @@ export function Room({ route, navigation }) {
             const uploadedThumb = await client.uploadFile({
               uri: thumbnail.uri,
               name: uname,
-              mimeType: a.mimeType
+              mimeType: a.mimeType,
+              callback: (progress: UploadProgress) => {
+                const percent = progress.loaded * 100 / progress.total
+                localMessage.percent = `${percent.toFixed(0)}%`
+                setMessages([...messages])
+              }
             })
+            localMessage.percent = ''
+            setMessages([...messages])
             const content: IContent = {
               msgtype: MsgType.Video,
               body: a.fileName,
@@ -288,7 +304,8 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          const txnId = previewMessage(a)
+          const localMessage = previewImageMessage(a)
+          const txnId = localMessage._id
           const uname = crypto.randomUUID()
           const upload = await client.uploadFile({
             uri: a.uri,
@@ -321,6 +338,46 @@ export function Room({ route, navigation }) {
         })
       }
     })()
+  }, [client, room])
+
+  // 文档
+  const sendDocument = useCallback(async () => {
+    const picker = await DocumentPicker.getDocumentAsync()
+    if (!picker.canceled) {
+      picker.assets.forEach(async a => {
+        const localMessage: IChatMessage = {
+          _id: client.makeTxnId(),
+          text: `[📄${a.name}]`,
+          createdAt: new Date(),
+          user: {
+            _id: user.userId,
+            name: user.displayName,
+            avatar: user.avatarUrl,
+          },
+          pending: true
+        }
+        setMessages(prev => GiftedChat.append(prev, [localMessage]));
+
+        const txnId = localMessage._id
+        const uname = crypto.randomUUID()
+        const upload = await client.uploadFile({
+          uri: a.uri,
+          name: uname,
+          mimeType: a.mimeType
+        })
+
+        const content: IContent = {
+          msgtype: MsgType.File,
+          body: a.name,
+          url: upload.content_uri,
+          info: {
+            size: a.size,
+            mimetype: a.mimeType
+          },
+        }
+        client.sendMessage(room?.roomId, content, txnId)
+      })
+    }
   }, [client, room])
 
   // 查看历史消息
@@ -357,7 +414,10 @@ export function Room({ route, navigation }) {
   const onMessagePress = (context, message) => {
     setCurrentMessage(message)
     const evt: MatrixEvent = message.event
-    if (evt && evt.getType() === EventType.RoomMessage && evt.getContent().msgtype === MsgType.Video) {
+    if (!evt || evt.getType() !== EventType.RoomMessage) {
+      return
+    }
+    if (evt.getContent().msgtype === MsgType.Video) {
       const url = evt.getContent().url.startsWith("mxc:/") ? client.mxcUrlToHttp(evt.getContent().url) : evt.getContent().url
       const mediaId = new URL(evt.getContent().url).pathname.split('/').slice(-1)[0]
       const cacheFilename = FileSystem.cacheDirectory + mediaId
@@ -371,13 +431,13 @@ export function Room({ route, navigation }) {
         } else {
           const callback = downloadProgress => {
             const progress = downloadProgress.totalBytesWritten * 100 / downloadProgress.totalBytesExpectedToWrite
-            message.text = `下载中: ${progress.toFixed(0)}%`
+            message.percent = `${progress.toFixed(0)}%`
             console.log(`下载中: ${JSON.stringify(downloadProgress)}`)
             setMessages([...messages])
           }
           const dl = FileSystem.createDownloadResumable(url, cacheFilename, {}, callback)
           dl.downloadAsync().then(res => {
-            message.text = ''
+            message.percent = ''
             setMessages([...messages])
             setPlayerState({
               visible: true,
@@ -387,6 +447,9 @@ export function Room({ route, navigation }) {
           })
         }
       })
+    } else if (evt.getContent().msgtype === MsgType.File) {
+      const url = evt.getContent().url.startsWith("mxc:/") ? client.mxcUrlToHttp(evt.getContent().url) : evt.getContent().url
+      Linking.openURL(url)
     }
   }
 
@@ -435,8 +498,8 @@ export function Room({ route, navigation }) {
 
   const headerRight = !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
     onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
-    {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
-      badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}</View>
+    {knockBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
+      badgeStyle={{ backgroundColor: theme.colors.error }} value={knockBadge}></Badge>}</View>
 
   return (<>
     <BpayHeader showback title={room?.name} rightComponent={headerRight}></BpayHeader>
@@ -511,10 +574,13 @@ export function Room({ route, navigation }) {
           <Divider style={{ width: '100%' }}></Divider>
           <View style={{ flexDirection: 'row' }}>
             <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'相册'} type='clear' icon={<Icon name='image' type='font-awesome'></Icon>} iconPosition='top'
-              onPress={() => { sendGalley() }}
+              onPress={sendGalley}
             ></Button>
             <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'拍摄'} type='clear' icon={<Icon name='video' type='font-awesome-5'></Icon>} iconPosition='top'
-              onPress={() => { sendCamera() }}>
+              onPress={sendCamera}>
+            </Button>
+            <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'文档'} type='clear' icon={<Icon name='file' type='font-awesome-5'></Icon>} iconPosition='top'
+              onPress={sendDocument}>
             </Button>
           </View>
         </View>}
@@ -549,7 +615,7 @@ export function Room({ route, navigation }) {
 
   )
 
-  function previewMessage(a: ImagePicker.ImagePickerAsset) {
+  function previewImageMessage(a: ImagePicker.ImagePickerAsset) {
     const ratio = Math.max(a.width, a.height) / 150;
     const txnId = client.makeTxnId()
     const msg: IChatMessage = {
@@ -570,7 +636,7 @@ export function Room({ route, navigation }) {
     if (a.type === 'video')
       msg.video = a.uri;
     setMessages(prev => GiftedChat.append(prev, [msg]));
-    return txnId
+    return msg
   }
 }
 
