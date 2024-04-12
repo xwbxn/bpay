@@ -18,7 +18,9 @@ export default function PlayVideo({ navigation, route }) {
   }
 
   return (
-    <Overlay fullScreen isVisible={true} overlayStyle={{ padding: 0 }}>
+    <Overlay fullScreen isVisible={true} overlayStyle={{ padding: 0 }} onRequestClose={() => {
+      navigation.goBack()
+    }}>
       <VideoPlayer errorCallback={(err) => console.error(JSON.stringify(err))}
         videoProps={{ source: { uri: uri }, resizeMode: ResizeMode.CONTAIN, shouldPlay: true }}
         defaultControlsVisible={true}

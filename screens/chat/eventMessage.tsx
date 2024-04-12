@@ -145,12 +145,14 @@ const messageMap = {
         }
     },
     [MsgType.Video]: (content: IContent, room: Room, client: BChatClient) => {
-        const video = content.info?.thumbnail_url
+        const video = content.info?.thumbnail_url || content.url
         return {
             text: '',
             video: video.startsWith("mxc://") ? client.mxcUrlToHttp(video) : video,
             w: content.info?.thumbnail_info?.w || 150,
-            h: content.info?.thumbnail_info?.h || 100
+            h: content.info?.thumbnail_info?.h || 100,
+            localUri: content.local_uri,
+            localImg: content.local_img
         }
     },
     [MsgType.File]: (content: IContent, room: Room, client: BChatClient) => {
