@@ -10,39 +10,41 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 // TODO: support web
 import { StylePropType } from 'react-native-gifted-chat';
 import { useNavigation } from '@react-navigation/native';
+import { getHttpUriForMxc } from 'matrix-js-sdk';
+import { useMatrixClient } from '../../../store/useMatrixClient';
 
 
 export default function MessageVideoRender({ containerStyle, imageProps = {}, imageStyle, currentMessage, onLongPress }) {
 
   const downloader = useRef<FileSystem.DownloadResumable>(null)
-  const downloading = useRef<boolean>(true)
   const [progress, setProgress] = useState<number>(null)
   const navigation: any = useNavigation()
+  const { client } = useMatrixClient()
 
   const onPress = async () => {
     if (downloader.current !== null) {
       return
     }
 
-    const url = currentMessage.video.startsWith("mxc:/") ? currentMessage.event.client.mxcUrlToHttp(currentMessage.video) : currentMessage.video
-    const mediaId = new URL(currentMessage.video).pathname.split('/').slice(-1)[0]
-    const ext = currentMessage.event.getContent().info.mimetype.split('/')[1]
-    const cacheFilename = `${FileSystem.cacheDirectory}${mediaId}2.${ext}`
+    let url = currentMessage.event.getContent().url
+    if (url.startsWith("mxc:/")) {
+      url = client.mxcUrlToHttp(url)
+    }
+    const mediaId = new URL(url).pathname.split('/').slice(-1)[0]
+    const cacheFilename = `${FileSystem.cacheDirectory}${mediaId}.video`
     if ((await FileSystem.getInfoAsync(cacheFilename)).exists) {
-      console.debug('MessageVideoRender cacheExists:', url, cacheFilename)
       navigation.push('PlayVideo', { uri: cacheFilename })
     } else {
-      console.debug('downloading', url)
-      const dl = FileSystem.createDownloadResumable(url, cacheFilename, {}, (downloadProgress) => {
+      const dl = FileSystem.createDownloadResumable(url, cacheFilename, { cache: false }, (downloadProgress) => {
         const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite
         setProgress(progress)
-        console.log(`下载中: ${JSON.stringify(downloadProgress)}`)
       })
+
       downloader.current = dl
       const status = await dl.downloadAsync()
-      console.log('download finished', status.uri)
       downloader.current = null
       setProgress(null)
+      navigation.push('PlayVideo', { uri: cacheFilename })
     }
   }
 
@@ -57,7 +59,7 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
         }}>
           {progress
             ? <Progress.Circle size={50} progress={progress}></Progress.Circle>
-            : <Avatar icon={{ name: 'play', type: 'octicon', color: '#43484d', size: 50 }} size={50}></Avatar>}
+            : <Avatar icon={{ name: 'play', type: 'octicon', color: '#a0a0a0', size: 50 }} size={50}></Avatar>}
         </View>
         <Image {...imageProps} style={[styles.image, imageStyle, {
           opacity: 0.8,
