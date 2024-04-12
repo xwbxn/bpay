@@ -19,6 +19,7 @@ export default function RoomDocuments({ navigation, route }) {
     const { client } = useMatrixClient()
     const [room] = useState<Room>(client.getRoom(id))
     const [searchVal, setsearchVal] = useState('')
+    const downloadTasks = useRef<string[]>([])
     const [documents, setDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean }[]>([])
     const [filterdDocuments, setfilterdDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean }[]>([])
 
@@ -66,6 +67,10 @@ export default function RoomDocuments({ navigation, route }) {
     }, [room])
 
     const download = async (item) => {
+        if (downloadTasks.current.includes(item.url)) {
+            return
+        }
+
         await ensureDirExists()
         const localName = getLocalName(item)
         const dl = FileSystem.createDownloadResumable(client.mxcUrlToHttp(item.url), localName, {}, (downloadProgress) => {
@@ -73,11 +78,13 @@ export default function RoomDocuments({ navigation, route }) {
             item.percent = `${progress.toFixed(0)}%`
             setDocuments([...documents])
         })
+        downloadTasks.current.push(item.url)
         dl.downloadAsync().then(res => {
             item.percent = ''
             item.downloaded = true
             setDocuments([...documents])
             Toast.show(localName)
+            downloadTasks.current.splice(downloadTasks.current.findIndex(v => v === item.url), 1)
         })
     }
 

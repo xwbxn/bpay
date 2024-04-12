@@ -12,6 +12,7 @@ import { RoomSetting } from './roomSetting';
 import Session from './sessions';
 import { RoomAdmin } from './roomSetting/roomAdmin';
 import RoomDocuments from './roomSetting/attachments';
+import PlayVideo from './playVideo';
 
 const Stack = createNativeStackNavigator();
 export const ChatIndex = ({ navigation, route }) => {
@@ -42,6 +43,7 @@ export const ChatIndex = ({ navigation, route }) => {
             <Stack.Screen name='RoomAdmin' component={RoomAdmin} />
             <Stack.Screen name='Member' component={MemberProfile} />
             <Stack.Screen name='Documents' component={RoomDocuments} />
+            <Stack.Screen name='PlayVideo' component={PlayVideo} />
         </Stack.Navigator>
     </>
 }

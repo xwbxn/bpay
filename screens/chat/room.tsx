@@ -5,7 +5,6 @@ import * as crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import * as vt from 'expo-video-thumbnails';
 import * as FileSystem from 'expo-file-system';
-import * as ScreenOrientation from 'expo-screen-orientation';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Linking from 'expo-linking';
 import _ from 'lodash'
@@ -49,7 +48,7 @@ export function Room({ route, navigation }) {
   const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [readupTo, setReadUpTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
-  const [playerState, setPlayerState] = useState({ visible: false, source: '', inFullscreen: false })
+
   const [disabled, setDisabled] = useState(false)
   const [knockBadge, setKnockBadge] = useState(0)
   const downloader = useRef()
@@ -417,37 +416,7 @@ export function Room({ route, navigation }) {
     if (!evt || evt.getType() !== EventType.RoomMessage) {
       return
     }
-    if (evt.getContent().msgtype === MsgType.Video) {
-      const url = evt.getContent().url.startsWith("mxc:/") ? client.mxcUrlToHttp(evt.getContent().url) : evt.getContent().url
-      const mediaId = new URL(evt.getContent().url).pathname.split('/').slice(-1)[0]
-      const cacheFilename = FileSystem.cacheDirectory + mediaId
-      FileSystem.getInfoAsync(cacheFilename).then(res => {
-        if (res.exists) {
-          setPlayerState({
-            visible: true,
-            source: cacheFilename,
-            inFullscreen: false
-          })
-        } else {
-          const callback = downloadProgress => {
-            const progress = downloadProgress.totalBytesWritten * 100 / downloadProgress.totalBytesExpectedToWrite
-            message.percent = `${progress.toFixed(0)}%`
-            console.log(`下载中: ${JSON.stringify(downloadProgress)}`)
-            setMessages([...messages])
-          }
-          const dl = FileSystem.createDownloadResumable(url, cacheFilename, {}, callback)
-          dl.downloadAsync().then(res => {
-            message.percent = ''
-            setMessages([...messages])
-            setPlayerState({
-              visible: true,
-              source: cacheFilename,
-              inFullscreen: false
-            })
-          })
-        }
-      })
-    } else if (evt.getContent().msgtype === MsgType.File) {
+    if (evt.getContent().msgtype === MsgType.File) {
       const url = evt.getContent().url.startsWith("mxc:/") ? client.mxcUrlToHttp(evt.getContent().url) : evt.getContent().url
       Linking.openURL(url)
     }
@@ -585,32 +554,7 @@ export function Room({ route, navigation }) {
           </View>
         </View>}
       </View>
-
     </View >
-    <Overlay isVisible={playerState.visible} overlayStyle={{ padding: 0 }} animationType='fade'>
-      <VideoPlayer videoProps={{ source: { uri: playerState.source }, resizeMode: ResizeMode.CONTAIN, shouldPlay: true }}
-        defaultControlsVisible={true}
-        style={{ width: screenSize.width, height: playerState.inFullscreen ? screenSize.height - 40 : screenSize.height }}
-        header={<Icon onPress={() => {
-          setStatusBarHidden(false)
-          ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT)
-          setPlayerState({ visible: false, source: '', inFullscreen: false })
-        }} name='arrow-back' color={theme.colors.background} type='ionicon' size={40} style={{ margin: 10 }}></Icon>}
-        fullscreen={{
-          inFullscreen: playerState.inFullscreen,
-          async enterFullscreen() {
-            setStatusBarHidden(true, 'fade')
-            setPlayerState({ ...playerState, inFullscreen: true })
-            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE_LEFT)
-          },
-          async exitFullscreen() {
-            setStatusBarHidden(false)
-            setPlayerState({ ...playerState, inFullscreen: false })
-            await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.DEFAULT)
-          },
-        }}
-      ></VideoPlayer>
-    </Overlay>
   </>
 
   )
