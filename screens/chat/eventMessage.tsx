@@ -1,6 +1,7 @@
 import { EventType, IContent, MatrixEvent, MsgType, NotificationCountType, Room } from "matrix-js-sdk";
 import { BChatClient } from "../../store/useMatrixClient";
 import { Text } from "@rneui/themed";
+import { getContentUriAsync } from "expo-file-system";
 
 export const eventMessage = (event: MatrixEvent, room: Room, client: BChatClient): {
     [id: string]: any
@@ -141,7 +142,10 @@ const messageMap = {
             text: '',
             image: image.startsWith("mxc://") ? client.mxcUrlToHttp(image) : image,
             w: content.info?.thumbnail_info?.w || content.w,
-            h: content.info?.thumbnail_info?.h || content.h
+            h: content.info?.thumbnail_info?.h || content.h,
+            localUri: content.local_uri,
+            localImg: content.local_img,
+            uploadInfo: content.uploadInfo
         }
     },
     [MsgType.Video]: (content: IContent, room: Room, client: BChatClient) => {
@@ -152,12 +156,19 @@ const messageMap = {
             w: content.info?.thumbnail_info?.w || 150,
             h: content.info?.thumbnail_info?.h || 100,
             localUri: content.local_uri,
-            localImg: content.local_img
+            localImg: content.local_img,
+            uploadInfo: content.uploadInfo
         }
     },
     [MsgType.File]: (content: IContent, room: Room, client: BChatClient) => {
         return {
-            text: <Text>📄{content.body}</Text>
+            text: content.body,
+            filename: content.body,
+            file: content.url,
+            size: content.info.size,
+            localUri: content.local_uri,
+            localImg: content.local_img,
+            uploadInfo: content.uploadInfo
         }
     },
     [MsgType.Audio]: (content: IContent, room: Room, client: BChatClient) => {

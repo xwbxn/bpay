@@ -8,6 +8,7 @@ import { Button, Header, Icon, Image, Input, useTheme } from '@rneui/themed';
 import { getAuth, getMatrixAuth } from '../../service/wordpress';
 import { IProfile, useGlobalState, useProfile } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
+import { PendingEventOrdering } from 'matrix-js-sdk';
 
 export default function Login({ navigation, route }) {
 
@@ -49,7 +50,9 @@ export default function Login({ navigation, route }) {
                 client.stopClient()
             }
             setStore(chatRes.user_id)
-            client.startClient()
+            client.startClient({
+                pendingEventOrdering: PendingEventOrdering.Detached
+            })
             navigation.replace('Home')
         } catch (err) {
             console.log('err', err)

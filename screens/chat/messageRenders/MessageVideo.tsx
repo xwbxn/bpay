@@ -27,7 +27,14 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
     height = height / ratio
   }
 
-  console.log('currentMessage.progress', currentMessage.progress,progress || currentMessage.progress)
+  useEffect(() => {
+    return () => {
+      if (downloader.current) {
+        downloader.current.cancelAsync()
+      }
+    }
+  }, [])
+
 
   const onPress = async () => {
     if (downloader.current !== null) {
@@ -50,7 +57,7 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
     if ((await FileSystem.getInfoAsync(cacheFilename)).exists) {
       navigation.push('PlayVideo', { uri: cacheFilename })
     } else {
-      const dl = FileSystem.createDownloadResumable(url, cacheFilename, { cache: false }, (downloadProgress) => {
+      const dl = FileSystem.createDownloadResumable(url, cacheFilename, {}, (downloadProgress) => {
         const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite
         setProgress(progress)
       })

@@ -17,6 +17,7 @@ import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
+import { PendingEventOrdering } from 'matrix-js-sdk';
 
 const theme = createTheme({
   lightColors: {
@@ -42,7 +43,9 @@ export default function App() {
           client.credentials.userId = auth.user_id
           client.setAccessToken(auth.access_token)
           setStore(auth.user_id)
-          client.startClient()
+          client.startClient({
+            pendingEventOrdering: PendingEventOrdering.Detached
+          })
         }
       })
       AsyncStorage.getItem("PROFILE").then(data => {
