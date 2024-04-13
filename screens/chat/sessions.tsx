@@ -131,7 +131,7 @@ const Session = ({ navigation }) => {
                                         containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
                             </Avatar>}
                         <ListItem.Content>
-                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: 18 }}>{title}</ListItem.Title>
+                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight:'600' }}>{title}</ListItem.Title>
                             <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1} style={{ color: theme.colors.grey2 }}>{subTitle}</ListItem.Subtitle>
                         </ListItem.Content>
                         <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{moment(updateAt).fromNow()}</ListItem.Subtitle>
