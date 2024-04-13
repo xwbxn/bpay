@@ -45,14 +45,13 @@ const ImageRender = (opts) => {
             {!!progress && <Progress.Bar color='#fff' progress={progress}></Progress.Bar>}
         </View>)
 
-    const renderImage = () => {
-        return <Image source={{ uri }}
+    const renderImage = (props) => {
+        return <Image {...props}
             placeholder={{ uri: placeholder }}
             onProgress={(event) => {
                 setProgress(event.loaded / event.total)
             }}
-            onLoadEnd={() => setProgress(null)}
-            style={{ width: size.width, height: size.height, aspectRatio: 1 }}></Image>
+            onLoadEnd={() => setProgress(null)}></Image>
     }
 
     const saveToCamera = async () => {
@@ -71,7 +70,8 @@ const ImageRender = (opts) => {
     }
 
     if (fullscreen) {
-        return <Overlay animationType='slide' isVisible={true} fullScreen overlayStyle={{ padding: 0 }} onRequestClose={() => setFullscreen(false)}>
+        return <Overlay animationType='slide' isVisible={true} fullScreen
+            overlayStyle={{ padding: 0 }} onRequestClose={() => setFullscreen(false)}>
             <ImageViewer imageUrls={[{ url: uri }]}
                 onSave={saveToCamera}
                 renderImage={renderImage}
