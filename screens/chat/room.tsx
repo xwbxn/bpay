@@ -170,7 +170,7 @@ export function Room({ route, navigation }) {
       return
     }
 
-    if (room.getMember(client.getUserId()).powerLevel > 0) {
+    if (room.getMember(client.getUserId())?.powerLevel > 0) {
       setKnockBadge(room.getMembers().filter(m => m.membership === JoinRule.Knock).length)
     }
     // const _messages = [...messages]
@@ -233,43 +233,7 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          // 本地预览消息
-          const localMessage = previewImageMessage({
-            width: a.width,
-            height: a.height,
-            uri: a.uri,
-            type: 'image'
-          }, a.uri)
-          const txnId = localMessage._id
-          const uname = crypto.randomUUID()
-          const upload = await client.uploadFile({
-            uri: a.uri,
-            name: uname,
-            mimeType: a.mimeType
-          })
-          let thumbnail = {}
-          if (a.width > 150 || a.height > 150) {
-            thumbnail = await client.getThumbnails({
-              uri: upload.content_uri,
-              width: a.width,
-              height: a.height,
-              mimeType: a.mimeType,
-              name: uname
-            })
-          }
-          const content: IContent = {
-            msgtype: MsgType.Image,
-            body: a.fileName,
-            url: upload.content_uri,
-            info: {
-              h: a.height,
-              w: a.width,
-              mimetype: a.mimeType,
-              size: a.fileSize,
-              ...thumbnail
-            },
-          }
-          client.sendMessage(room?.roomId, content, txnId)
+          sendImage(a)
         })
       }
     })()

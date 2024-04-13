@@ -34,6 +34,13 @@ export default function App() {
   const { loading } = useGlobalState()
   const { setProfile } = useProfile()
 
+  async function allowsNotificationsAsync() {
+    const settings = await Notifications.getPermissionsAsync();
+    return (
+      settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+    );
+  }
+
   useEffect(() => {
     const prepare = async () => {
       AsyncStorage.getItem("MATRIX_AUTH").then(data => {
@@ -60,6 +67,11 @@ export default function App() {
 
       await SplashScreen.hideAsync();
       setAppIsReady(true)
+
+      // 检查通知权限
+      if (! await allowsNotificationsAsync()) {
+        await Notifications.requestPermissionsAsync()
+      }
     }
 
     prepare()
@@ -69,7 +81,7 @@ export default function App() {
     if (appIsReady) {
       setTimeout(() => {
         SplashScreen.hideAsync();
-      }, 1000);
+      }, 3000);
     }
   }, [appIsReady]);
 

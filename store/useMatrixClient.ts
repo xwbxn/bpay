@@ -262,10 +262,11 @@ export class BChatClient extends MatrixClient {
 
 let currentNotifId = null
 
-const sendRoomNotify = async (room) => {
+const sendRoomNotify = async (room, membership) => {
     // 通知栏消息
-    if (room.getMyMembership() === 'invite'
-        && AppState.currentState.match(/background|inactive/)) {
+    if (membership === 'invite'
+        // && AppState.currentState.match(/background|inactive/)
+    ) {
         if (currentNotifId !== null) {
             await Notifications.dismissNotificationAsync(currentNotifId)
         }
@@ -282,15 +283,17 @@ const sendRoomNotify = async (room) => {
 const sendTimelineNotify = async (event: MatrixEvent, room: Room) => {
     // 通知栏消息
     if (event.getSender() !== _client.getUserId()
-        && event.getType() === EventType.RoomMessage
-        && AppState.currentState.match(/background|inactive/)) {
+        // && AppState.currentState.match(/background|inactive/)
+        && event.getType() === EventType.RoomMessage) {
+
         if (currentNotifId !== null) {
             await Notifications.dismissNotificationAsync(currentNotifId)
         }
+        const total = _client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0)
         currentNotifId = await Notifications.scheduleNotificationAsync({
             content: {
                 title: room.name,
-                body: `有新的消息`
+                body: `您有${total}条未读信息`
             },
             trigger: null,
         });
@@ -361,7 +364,7 @@ export const useMatrixClient = () => {
             if (state === SyncState.Prepared) {
                 // 通知
                 _client.on(RoomEvent.Timeline, sendTimelineNotify)
-                _client.on(ClientEvent.Room, sendRoomNotify)
+                _client.on(RoomEvent.MyMembership, sendRoomNotify)
 
                 _client.getRooms().forEach(r => {
                     _store.preloadPage(r)

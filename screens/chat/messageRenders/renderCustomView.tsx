@@ -9,10 +9,7 @@ import { manipulateAsync } from 'expo-image-manipulator';
 import { useMatrixClient } from '../../../store/useMatrixClient';
 import { UploadProgress } from 'matrix-js-sdk';
 import { Image } from 'expo-image';
-import { Icon, Text } from '@rneui/themed';
-import { normalizeSize } from '../../../utils';
 import MessageFile, { RenderFile } from './MessageFile';
-import { color } from '@rneui/base';
 
 
 export interface IUploadInfo {
@@ -78,16 +75,19 @@ export default function Upload({ opts }) {
             (async () => {
                 setImage(opts.uri)
                 let thumbnail, uploadedThumb
-                if (opts.height > 1600 || opts.width > 900) {
+                if (opts.height > 1920 || opts.width > 1080) {
                     thumbnail = await manipulateAsync(opts.uri, [
                         {
-                            resize: { height: height * 4, width: width * 4 }
+                            resize: { height: height * 8, width: width * 8 }
                         }
                     ])
                     uploadedThumb = await client.uploadFile({
                         uri: thumbnail.uri,
                         name: `${uname}-thumbnail`,
                         mimeType: opts.mimeType,
+                        callback: (progress: UploadProgress) => {
+                            setProgress(progress.loaded * 0.3 / progress.total)
+                        }
                     })
                 }
                 const uploaded = await client.uploadFile({
@@ -95,7 +95,7 @@ export default function Upload({ opts }) {
                     mimeType: opts.mimeType,
                     name: uname,
                     callback: (progress: UploadProgress) => {
-                        setProgress(progress.loaded / progress.total)
+                        setProgress((progress.loaded * 0.7 / progress.total) + 0.3)
                     }
                 })
 

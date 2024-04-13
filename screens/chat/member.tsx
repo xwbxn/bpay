@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, TextInput, View } from 'react-native';
 import URI from 'urijs';
 
-import { Avatar, useTheme } from '@rneui/themed';
+import { Avatar, Icon, useTheme } from '@rneui/themed';
 
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
@@ -221,6 +221,11 @@ export const MemberProfile = ({ navigation, route }) => {
             title: '设置头像',
             onPress: setMyAvatar,
             right: () => <Avatar size={24} source={{ uri: profile?.avatar_url }}></Avatar>
+        },
+        {
+            title: '我的二维码',
+            right: () => <Icon size={20} name='qrcode' type='material-community' color={theme.colors.grey2}></Icon>,
+            onPress: () => navigation.push('Qrcode', {uri: userId})
         },
         {
             title: '我的收藏',

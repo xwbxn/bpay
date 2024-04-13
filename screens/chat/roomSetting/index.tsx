@@ -273,6 +273,8 @@ export const RoomSetting = ({ navigation, route }) => {
         {
             title: '群二维码',
             right: () => <Icon size={20} name='qrcode' type='material-community' color={theme.colors.grey2}></Icon>,
+            onPress: () => navigation.push('Qrcode', { uri: id }),
+            hidden: !roomVisibility
         },
         {
             title: '群公告',

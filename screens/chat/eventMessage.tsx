@@ -140,7 +140,9 @@ const messageMap = {
         const image = content.info?.thumbnail_url || content.url
         return {
             text: '',
+            filename: content.body,
             image: image.startsWith("mxc://") ? client.mxcUrlToHttp(image) : image,
+            origin_image: content.url.startsWith("mxc://") ? client.mxcUrlToHttp(content.url) : content.url,
             w: content.info?.thumbnail_info?.w || content.w,
             h: content.info?.thumbnail_info?.h || content.h,
             localUri: content.local_uri,
@@ -152,6 +154,7 @@ const messageMap = {
         const video = content.info?.thumbnail_url || content.url
         return {
             text: '',
+            filename: content.body,
             video: video.startsWith("mxc://") ? client.mxcUrlToHttp(video) : video,
             w: content.info?.thumbnail_info?.w || 150,
             h: content.info?.thumbnail_info?.h || 100,

@@ -10,7 +10,8 @@ import BpayHeader from '../../../components/BpayHeader'
 import { Button, Icon, Input, ListItem, useTheme } from '@rneui/themed'
 import Toast from 'react-native-root-toast';
 
-const FILETYPE = ['doc', 'docx', 'zip', 'gz', 'ppt', 'pptx', 'xls', 'xlsx', 'apk', 'rar']
+const FILETYPE = ['doc', 'docx', 'zip', 'gz', 'ppt', 'pptx', 'xls', 'xlsx', 'apk', 'rar', 'txt', 'pdf',]
+const EXCLUDE_TYPE = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
 
 export default function RoomDocuments({ navigation, route }) {
 
@@ -54,7 +55,7 @@ export default function RoomDocuments({ navigation, route }) {
 
     useEffect(() => {
         setfilterdDocuments(documents
-            .filter(i => FILETYPE.includes(i.name.toLowerCase().split('.')[1]))
+            .filter(i => !EXCLUDE_TYPE.includes(i.name.toLowerCase().split('.')[1]))
             .filter(i => searchVal !== '' ? i.name.toLowerCase().includes(searchVal.toLowerCase()) : true))
     }, [documents, searchVal])
 

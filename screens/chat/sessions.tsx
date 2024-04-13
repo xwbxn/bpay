@@ -6,6 +6,7 @@ import moment from 'moment';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
+import * as Linking from 'expo-linking';
 
 import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Image } from '@rneui/themed';
 
@@ -195,6 +196,24 @@ const Session = ({ navigation }) => {
         </MenuOptions>
     </Menu>, [inviteBadge])
 
+    const onBarcodeScanned = (res: BarcodeScanningResult) => {
+        setOpenQrCode(false)
+        if (res.data.startsWith('!')) {
+            navigation.push('RoomPreview', { id: res.data })
+            return
+        }
+        if (res.data.startsWith('@')) {
+            navigation.push('Member', { userId: res.data })
+            return
+        }
+        Linking.canOpenURL(res.data).then(can => {
+            if (can) {
+                Linking.openURL(res.data)
+            } else {
+                Toast.show(res.data)
+            }
+        })
+    }
 
     return <View style={styles.container}>
         <BpayHeader title='聊天' leftComponent={profile?.avatar ? <Avatar rounded source={{ uri: profile?.avatar }} size={24}
@@ -204,10 +223,7 @@ const Session = ({ navigation }) => {
             rightComponent={headerRight}></BpayHeader>
         <Qrcode isVisible={openQrCode} onClose={() => {
             setOpenQrCode(false)
-        }} onBarcodeScanned={(res: BarcodeScanningResult) => {
-            setOpenQrCode(false)
-            Toast.show(res.data)
-        }}></Qrcode>
+        }} onBarcodeScanned={onBarcodeScanned}></Qrcode>
         <View style={styles.content}>
             <FlatList data={rooms} renderItem={renderItem}>
             </FlatList>
