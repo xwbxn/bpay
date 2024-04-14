@@ -1,4 +1,4 @@
-import { Direction, MatrixEvent, MemoryStore, Room, RoomEvent, User } from "matrix-js-sdk";
+import { IContent, MatrixEvent, MemoryStore, Room, RoomEvent } from "matrix-js-sdk";
 import { drizzle, ExpoSQLiteDatabase } from "drizzle-orm/expo-sqlite";
 import { openDatabaseSync } from "expo-sqlite/next";
 import migrations from "../drizzle/migrations";
@@ -111,8 +111,19 @@ export class SqliteStore extends MemoryStore {
         this.cursor[room.roomId] = cursor > active ? active : cursor
     }
 
-    async persistEvent(event: MatrixEvent) {
+    async getEvent(eventId: string) {
+        return await this.db.query.events.findFirst({
+            where: eq(schema.events.event_id, eventId)
+        })
+    }
+
+    async persistEvent(event: MatrixEvent, local_content?: IContent) {
         try {
+            const exists = await this.getEvent(event.getId())
+            if (exists) {
+                Object.assign(event.event.content, { ...(exists.content) as object })
+                return
+            }
             await this.db.insert(schema.events).values({
                 event_id: event.getId(),
                 type: event.getType(),
@@ -124,10 +135,11 @@ export class SqliteStore extends MemoryStore {
                 txn_id: event.getTxnId(),
                 membership: event.event.membership || '',
                 unsigned: event.getUnsigned(),
-                redacts: event.event.redacts || ''
+                redacts: event.event.redacts || '',
+                local_content: local_content
             }).onConflictDoNothing()
         } catch (e) {
-            console.warn('persistEvent', JSON.stringify(e))
+            console.warn('persistEvent', JSON.stringify(e), event.getId())
         }
     }
 }

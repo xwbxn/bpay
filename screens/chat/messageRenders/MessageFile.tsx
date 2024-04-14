@@ -6,6 +6,7 @@ import { normalizeSize } from '../../../utils';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useMatrixClient } from '../../../store/useMatrixClient';
+import { useWindowDimensions } from 'react-native';
 
 
 export const fileTypeIcon = {
@@ -29,15 +30,24 @@ export default function MessageFile(opts) {
     const filename = currentMessage.filename;
     const ext = filename?.split('.')[1] || undefined;
     currentMessage.text = null;
-    const icon = fileTypeIcon[ext] || { name: 'unknowfile1', type: 'antdesign' };
+    const icon = fileTypeIcon[ext] || { name: 'unknowfile1', type: 'antdesign' }
+    const { width } = useWindowDimensions()
 
-    return (<View style={{ flexDirection: 'row', padding: 8, alignItems: 'center' }}>
-        <Icon style={{ marginRight: 6 }} name={icon.name} type={icon.type} color={position === 'left' ? '#000' : '#fff'} size={40}></Icon>
-        <View>
-            <Text style={{ fontSize: 16, color: position === 'left' ? '#000' : '#fff' }}>{filename}</Text>
-            <Text style={{ color: position === 'left' ? '#aaa' : '#fff' }}>{normalizeSize(currentMessage.size)}</Text>
+    return (<View style={{ padding: 8 }}>
+        <View style={{ flexDirection: 'row', width: width * 2 / 3 }}>
+            <View style={{ width: 40 }}>
+                <Icon style={{ marginRight: 6 }}
+                    name={icon.name} type={icon.type}
+                    color={position === 'left' ? '#000' : '#fff'} size={40}></Icon>
+            </View>
+            <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={{ fontSize: 16, color: position === 'left' ? '#000' : '#fff' }}>{filename}</Text>
+                <Text style={{ color: position === 'left' ? '#aaa' : '#fff' }}>{normalizeSize(currentMessage.size)}</Text>
+            </View>
+            {!!progress &&
+                <Progress.Circle color={position === 'left' ? undefined : '#ccc'} style={{ marginLeft: 5 }} size={30} progress={progress}>
+                </Progress.Circle>}
         </View>
-        {!!progress && <Progress.Circle color={position === 'left' ? undefined : '#ccc'} style={{ marginLeft: 5 }} size={30} progress={progress}></Progress.Circle>}
     </View>)
 }
 

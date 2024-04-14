@@ -1,18 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
-
-// "event_id" text(256) NOT NULL,
-// "type" text(256),
-// "room_id" text(256),
-// "content" text(4096),
-// "origin_server_ts" integer,
-// "sender" TEXT(256),
-// "state_key" TEXT(256),
-// "txn_id" text(256),
-// "membership" text(256),
-// "unsigned" text(4096),
-// "redacts" text(256),
-// PRIMARY KEY ("event_id")
-// );
+import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 
 export const events = sqliteTable('events', {
     event_id: text('event_id').primaryKey(),

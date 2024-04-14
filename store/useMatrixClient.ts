@@ -36,6 +36,8 @@ export function createClient(opts: ICreateClientOpts): BChatClient {
 
 export class BChatClient extends MatrixClient {
 
+    private _txnToEvent: Map<string, MatrixEvent> = new Map<string, MatrixEvent>()
+
     public async scrollback(room: Room, limit = 30): Promise<Room> {
         console.debug('overide scrollback')
         const store = this.store as SqliteStore
@@ -233,31 +235,27 @@ export class BChatClient extends MatrixClient {
         return { content_uri: upload.content_uri || undefined }
     }
 
-    async getThumbnails(opts: {
-        uri: string,
-        height: number,
-        width: number,
-        mimeType: string,
-        name: string,
-        callback?: Function
-    }) {
-
-        const _width = opts.width || 150
-        const _height = opts.height || 100
-        const ratio = Math.max(_width, _height) / 150
-        const ratioWidth = Math.floor(_width / ratio)
-        const ratioHeight = Math.floor(_height / ratio)
-        const thumbnail_url = this.mxcUrlToHttp(opts.uri, ratioWidth * 4, ratioHeight * 4, 'scale')
-        return {
-            thumbnail_url: thumbnail_url,
-            thumbnail_info: {
-                w: ratioWidth,
-                h: ratioHeight,
-                type: opts.mimeType
-            }
-        }
+    addLocalEvent(room: Room, event: MatrixEvent) {
+        room.getLiveTimeline().addEvent(event, { toStartOfTimeline: false })
+        this._txnToEvent.set(event.getTxnId(), event)
     }
 
+    removeLocalEvent(room: Room, event: MatrixEvent) {
+        return room.getLiveTimeline().removeEvent(event.getId())
+    }
+
+    async saveToStore(event: MatrixEvent, room: Room) {
+        const txnId = event.getTxnId()
+        const localEvent = this._txnToEvent.get(txnId)
+
+        if (txnId && localEvent) {
+            localEvent.replaceLocalEventId(event.getId())
+            Object.assign(event.event.content, { ...localEvent.event.content })
+            room.emit(RoomEvent.LocalEchoUpdated, event, room, localEvent.getId(), localEvent.status)
+            this._txnToEvent.delete(txnId)
+        }
+        return await _store.persistEvent(event)
+    }
 }
 
 let currentNotifId = null
@@ -267,12 +265,12 @@ const sendRoomNotify = async (room, membership) => {
     if (membership === 'invite'
         // && AppState.currentState.match(/background|inactive/)
     ) {
-        if (currentNotifId !== null) {
-            await Notifications.dismissNotificationAsync(currentNotifId)
-        }
+        // if (currentNotifId !== null) {
+        //     await Notifications.dismissNotificationAsync(currentNotifId)
+        // }
         currentNotifId = await Notifications.scheduleNotificationAsync({
             content: {
-                title: room.name,
+                title: 'BPay',
                 body: `有新的聊天邀请`
             },
             trigger: null,
@@ -286,13 +284,13 @@ const sendTimelineNotify = async (event: MatrixEvent, room: Room) => {
         // && AppState.currentState.match(/background|inactive/)
         && event.getType() === EventType.RoomMessage) {
 
-        if (currentNotifId !== null) {
-            await Notifications.dismissNotificationAsync(currentNotifId)
-        }
+        // if (currentNotifId !== null) {
+        //     await Notifications.dismissNotificationAsync(currentNotifId)
+        // }
         const total = _client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0)
         currentNotifId = await Notifications.scheduleNotificationAsync({
             content: {
-                title: room.name,
+                title: 'BPay',
                 body: `您有${total}条未读信息`
             },
             trigger: null,
@@ -334,7 +332,8 @@ export const useMatrixClient = () => {
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
         _client.on(RoomEvent.Timeline, (event, room) => {
-            _store.persistEvent(event)
+            console.log('RoomEvent.Timeline', event.getId(), event.getTxnId())
+            _client.saveToStore(event, room)
         })
 
         // token过期

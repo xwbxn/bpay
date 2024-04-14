@@ -1,13 +1,12 @@
 
 import { View, StyleSheet } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import * as vt from 'expo-video-thumbnails';
 import * as crypto from 'expo-crypto';
 import * as Progress from 'react-native-progress';
-import { manipulateAsync } from 'expo-image-manipulator';
+import _ from 'lodash'
 
 import { useMatrixClient } from '../../../store/useMatrixClient';
-import { UploadProgress } from 'matrix-js-sdk';
+import { EventStatus, EventType, IEvent, MatrixEvent, MatrixEventEvent, MsgType, UploadProgress } from 'matrix-js-sdk';
 import { Image } from 'expo-image';
 import MessageFile, { RenderFile } from './MessageFile';
 
@@ -24,106 +23,74 @@ export interface IUploadInfo {
         thumbnail: { local_uri: string, uri: string, width: number, height: number, mimetype: string }) => void
 }
 
-export default function Upload({ opts }) {
+export default function Upload({ event }: { event: MatrixEvent }) {
     const [progress, setProgress] = useState(0)
-    const [image, setImage] = useState<string>()
     const { client } = useMatrixClient()
-    const [height, setHeight] = useState(opts.height)
-    const [width, setWidth] = useState(opts.width)
+    const content = event.getContent()
 
-    if (width > 150 || height > 150) {
-        const ratio = Math.max(width, height) / 150
-        setWidth(width / ratio)
-        setHeight(height / ratio)
+    const cloneEvent = (newContent: any) => {
+        const eventObject: Partial<IEvent> = {
+            type: EventType.RoomMessage,
+            content: newContent
+        };
+        const newEvent = new MatrixEvent(Object.assign(eventObject, {
+            event_id: event.getId(),
+            user_id: client.credentials.userId,
+            sender: client.credentials.userId,
+            room_id: event.getRoomId(),
+            origin_server_ts: event.event.origin_server_ts,
+        }));
+        return newEvent
     }
 
     useEffect(() => {
-        const uname = crypto.randomUUID()
-        if (opts.type === 'video') {
-            // 生成缩略图
+        if (content.msgtype === MsgType.Video || content.msgtype === MsgType.Image) {
             (async () => {
-                const thumbnail = await vt.getThumbnailAsync(opts.uri, {
-                    quality: 0.5
-                })
-                setImage(thumbnail.uri)
-                const ratio = Math.max(thumbnail.height, thumbnail.width) / 150
-                setWidth(thumbnail.width / ratio)
-                setHeight(thumbnail.height / ratio)
-                const uploadedThumb = await client.uploadFile({
-                    uri: thumbnail.uri,
-                    name: uname,
-                    mimeType: opts.mimeType,
-                })
-                const uploaded = await client.uploadFile({
-                    uri: opts.uri,
-                    mimeType: opts.mimeType,
-                    name: uname,
-                    callback: (progress: UploadProgress) => {
-                        setProgress(progress.loaded / progress.total)
-                    }
-                })
-                opts.onUploaded && opts.onUploaded(uploaded.content_uri, {
-                    uri: uploadedThumb.content_uri,
-                    width: thumbnail.width,
-                    height: thumbnail.height,
-                    mimetype: opts.mimeType,
-                    local_uri: thumbnail.uri
-                })
-            })()
-        }
-        if (opts.type === 'image') {
-            (async () => {
-                setImage(opts.uri)
-                let thumbnail, uploadedThumb
-                if (opts.height > 1920 || opts.width > 1080) {
-                    thumbnail = await manipulateAsync(opts.uri, [
-                        {
-                            resize: { height: height * 8, width: width * 8 }
-                        }
-                    ])
-                    uploadedThumb = await client.uploadFile({
-                        uri: thumbnail.uri,
-                        name: `${uname}-thumbnail`,
-                        mimeType: opts.mimeType,
-                        callback: (progress: UploadProgress) => {
-                            setProgress(progress.loaded * 0.3 / progress.total)
-                        }
+                const newContent = _.cloneDeep(content)
+                if (content.info.thumbnail_url) {
+                    const uploadedThumb = await client.uploadFile({
+                        uri: content.info.thumbnail_url,
+                        name: crypto.randomUUID(),
+                        mimeType: content.info.thumbnail_info.mimetype,
                     })
+                    newContent.info.thumbnail_url = uploadedThumb.content_uri
                 }
                 const uploaded = await client.uploadFile({
-                    uri: opts.uri,
-                    mimeType: opts.mimeType,
-                    name: uname,
-                    callback: (progress: UploadProgress) => {
-                        setProgress((progress.loaded * 0.7 / progress.total) + 0.3)
-                    }
-                })
-
-                opts.onUploaded && opts.onUploaded(uploaded.content_uri, {
-                    uri: uploadedThumb?.content_uri || uploaded.content_uri,
-                    width: thumbnail?.width || opts.width,
-                    height: thumbnail?.height || opts.height,
-                    mimetype: opts.mimeType,
-                    local_uri: thumbnail?.uri || opts.uri
-                })
-            })()
-        }
-        if (opts.type === 'file') {
-            (async () => {
-                const uploaded = await client.uploadFile({
-                    uri: opts.uri,
-                    mimeType: opts.mimeType,
-                    name: uname,
+                    uri: content.url,
+                    mimeType: content.info.mimetype,
+                    name: content.body,
                     callback: (progress: UploadProgress) => {
                         setProgress(progress.loaded / progress.total)
                     }
                 })
-                opts.onUploaded && opts.onUploaded(uploaded.content_uri)
+                newContent.url = uploaded.content_uri
+                event.emit(MatrixEventEvent.Replaced, cloneEvent(newContent))
             })()
         }
+
+        // if (opts.type === 'file') {
+        //     (async () => {
+        //         const uploaded = await client.uploadFile({
+        //             uri: opts.uri,
+        //             mimeType: opts.mimeType,
+        //             name: uname,
+        //             callback: (progress: UploadProgress) => {
+        //                 setProgress(progress.loaded / progress.total)
+        //             }
+        //         })
+        //         opts.onUploaded && opts.onUploaded(uploaded.content_uri)
+        //     })()
+        // }
     }, [])
 
-    if (opts.type === 'video' || opts.type === 'image') {
+    if ([MsgType.Video, MsgType.Image].includes(content.msgtype as MsgType)) {
+        let width = content.info.thumbnail_info.w
+        let height = content.info.thumbnail_info.h
+        if (width > 150 || height > 150) {
+            const ratio = Math.max(width, height) / 150
+            width = width / ratio
+            height = height / ratio
+        }
         return (
             <View style={{ width: width + 6, height: height + 6 }}>
                 <View style={{
@@ -133,24 +100,27 @@ export default function Upload({ opts }) {
                     <Progress.Circle size={50} progress={progress}></Progress.Circle>
                 </View>
                 <Image style={{ ...styles.image, width, height, opacity: 0.8 }}
-                    source={{ uri: image }}></Image>
+                    source={{ uri: content.info.thumbnail_url }}></Image>
             </View>
         )
     }
-    if (opts.type === 'file') {
-        return <MessageFile currentMessage={{ filename: opts.name, size: opts.size }} position='right' progress={progress} />
-    }
+
+
+    // if (opts.type === 'file') {
+    //     return <MessageFile currentMessage={{ filename: opts.name, size: opts.size }} position='right' progress={progress} />
+    // }
 }
 
 export const renderCustomView = (props) => {
     const currentMessage = props.currentMessage
+    const event: MatrixEvent = currentMessage.event
 
-    if (currentMessage.uploadInfo) {
+    if (event.status === EventStatus.SENDING) {
         currentMessage.image = null
         currentMessage.text = null
         currentMessage.video = null
         currentMessage.audio = null
-        return <Upload opts={currentMessage.uploadInfo}></Upload>
+        return <Upload event={event}></Upload>
     }
 
     if (currentMessage.file) {

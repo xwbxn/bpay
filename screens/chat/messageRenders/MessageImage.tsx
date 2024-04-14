@@ -11,6 +11,7 @@ import ImageViewer from 'react-native-image-zoom-viewer';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
 import Toast from 'react-native-root-toast';
+import { useMatrixClient } from '../../../store/useMatrixClient';
 
 const styles = StyleSheet.create({
     container: {
@@ -27,27 +28,41 @@ const styles = StyleSheet.create({
 });
 
 const ImageRender = (opts) => {
-    const { currentMessage, width, height, originUri } = opts
+    const { currentMessage } = opts
+    const content = currentMessage.event.getContent()
     const [fullscreen, setFullscreen] = useState(false)
-    const [uri, setUri] = useState(opts.uri)
-    const [placeholder] = useState(opts.uri)
+    const [showOriginImage, setShowOriginImage] = useState(false)
+    const { client } = useMatrixClient()
     const [progress, setProgress] = useState<number>(null)
     const size = useWindowDimensions()
     const [permissionResponse, requestPermission] = MediaLibrary.usePermissions();
 
+    let url = (content.url.startsWith('mxc://')) ?
+        client.mxcUrlToHttp(content.url) :
+        content.url
+    let thumbnail_url = (content.info.thumbnail_url && content.info.thumbnail_url?.startsWith('mxc://')) ?
+        client.mxcUrlToHttp(content.info.thumbnail_url) :
+        content.info.thumbnail_url
+
+    let width = content.info.thumbnail_info?.w || content.info.w
+    let height = content.info.thumbnail_info?.h || content.info.h
+    if (width > 150 || height > 150) {
+        const ratio = Math.max(width, height) / 150
+        width = width / ratio
+        height = height / ratio
+    }
 
     const renderFooter = () => (
         <View style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 14, width: size.width }}>
-            {uri !== originUri && originUri && <Button type='outline'
+            {!!thumbnail_url && url !== thumbnail_url && !showOriginImage && <Button type='outline'
                 buttonStyle={{ borderColor: '#fff' }}
-                onPress={() => setUri(originUri)}
+                onPress={() => setShowOriginImage(true)}
                 titleStyle={{ color: '#fff' }} size='sm' title={'查看原图'}></Button>}
             {!!progress && <Progress.Bar color='#fff' progress={progress}></Progress.Bar>}
         </View>)
 
     const renderImage = (props) => {
         return <Image {...props}
-            placeholder={{ uri: placeholder }}
             onProgress={(event) => {
                 setProgress(event.loaded / event.total)
             }}
@@ -60,7 +75,7 @@ const ImageRender = (opts) => {
             await requestPermission();
         }
         const localUri = FileSystem.cacheDirectory + currentMessage.filename
-        const dl = FileSystem.createDownloadResumable(originUri, localUri, {}, (event) => {
+        const dl = FileSystem.createDownloadResumable(url, localUri, {}, (event) => {
             setProgress(event.totalBytesWritten / event.totalBytesExpectedToWrite)
         })
         await dl.downloadAsync()
@@ -72,7 +87,7 @@ const ImageRender = (opts) => {
     if (fullscreen) {
         return <Overlay animationType='slide' isVisible={true} fullScreen
             overlayStyle={{ padding: 0 }} onRequestClose={() => setFullscreen(false)}>
-            <ImageViewer imageUrls={[{ url: uri }]}
+            <ImageViewer imageUrls={[{ url: showOriginImage ? url : thumbnail_url }]}
                 onSave={saveToCamera}
                 renderImage={renderImage}
                 renderFooter={renderFooter}
@@ -82,8 +97,10 @@ const ImageRender = (opts) => {
     }
 
     return <TouchableOpacity onPress={() => setFullscreen(true)}>
-        <Image source={{ uri }} style={[styles.image, { height, width }]}>
-        </Image>
+        <View style={{ alignItems: 'center' }}>
+            <Image source={{ uri: thumbnail_url || url }} style={[styles.image, { height, width }]}>
+            </Image>
+        </View>
     </TouchableOpacity>
 }
 
@@ -92,15 +109,8 @@ export const MessageImage = ({ containerStyle, currentMessage }) => {
         return null;
     }
 
-    let { w, h } = currentMessage
-    const ratio = Math.max(currentMessage.h, currentMessage.w) / 150
-    if (ratio > 1) {
-        w = Math.floor(w / ratio)
-        h = Math.floor(h / ratio)
-    }
-
     return (<View style={[styles.container, containerStyle]}>
-        <ImageRender currentMessage={currentMessage} uri={currentMessage.image} originUri={currentMessage.origin_image} width={w} height={h}></ImageRender>
+        <ImageRender currentMessage={currentMessage}></ImageRender>
     </View>);
 }
 MessageImage.propTypes = {

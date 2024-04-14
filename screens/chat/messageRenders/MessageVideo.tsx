@@ -15,12 +15,17 @@ import { useMatrixClient } from '../../../store/useMatrixClient';
 
 export default function MessageVideoRender({ containerStyle, imageProps = {}, imageStyle, currentMessage, onLongPress }) {
 
+  const content = currentMessage.event.getContent()
   const downloader = useRef<FileSystem.DownloadResumable>(null)
-  const [progress, setProgress] = useState<number>(currentMessage.progress)
+  const [progress, setProgress] = useState<number>(0)
   const navigation: any = useNavigation()
   const { client } = useMatrixClient()
-  let width = currentMessage.w
-  let height = currentMessage.h
+
+  let width = content.info.thumbnail_info.w
+  let height = content.info.thumbnail_info.h
+  let thumbnail_url = content.info.thumbnail_url.startsWith('mxc://') ?
+    client.mxcUrlToHttp(content.info.thumbnail_url) :
+    content.info.thumbnail_url
   if (width > 150 || height > 150) {
     const ratio = Math.max(width, height) / 150
     width = width / ratio
@@ -35,23 +40,19 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
     }
   }, [])
 
-
   const onPress = async () => {
     if (downloader.current !== null) {
       return
     }
 
     // 本地原始文件
-    if (currentMessage.isLocal) {
-      navigation.push('PlayVideo', { uri: currentMessage.localUri })
+    if (content.url.startsWith("file://")) {
+      navigation.push('PlayVideo', { uri: content.url })
       return
     }
 
     // 保存为本地缓存
-    let url = currentMessage.event.getContent().url
-    if (url.startsWith("mxc:/")) {
-      url = client.mxcUrlToHttp(url)
-    }
+    let url = content.url.startsWith("mxc://") ? client.mxcUrlToHttp(content.url) : content.url
     const mediaId = new URL(url).pathname.split('/').slice(-1)[0]
     const cacheFilename = `${FileSystem.cacheDirectory}${mediaId}.video`
     if ((await FileSystem.getInfoAsync(cacheFilename)).exists) {
@@ -80,25 +81,22 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
           position: 'absolute', zIndex: 1, alignItems: 'center', justifyContent: 'center',
           width, height
         }}>
-          {progress || currentMessage.progress
-            ? <Progress.Circle size={50} progress={progress || currentMessage.progress}></Progress.Circle>
+          {progress > 0
+            ? <Progress.Circle size={50} progress={progress}></Progress.Circle>
             : <Avatar icon={{ name: 'play', type: 'octicon', color: '#a0a0a0', size: 50 }} size={50}></Avatar>}
         </View>
         <Image {...imageProps} style={[styles.image, imageStyle, { opacity: 0.8, width, height }]}
           placeholder='加载中'
-          source={{ uri: currentMessage.isLocal ? currentMessage.localImg : currentMessage.video }} />
+          source={{ uri: thumbnail_url }} />
       </View>
     </TouchableOpacity >
   </View >);
 }
 
 export const MessageVideo = (opts) => {
-
-
   if (opts.currentMessage == null) {
     return null;
   }
-
   return <MessageVideoRender {...opts}></MessageVideoRender>
 }
 

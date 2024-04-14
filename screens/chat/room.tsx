@@ -2,30 +2,40 @@ import 'dayjs/locale/zh';
 
 import * as Clipboard from 'expo-clipboard';
 import * as crypto from 'expo-crypto';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import * as Sharing from 'expo-sharing';
-import _ from 'lodash'
+import * as vt from 'expo-video-thumbnails';
+import { ImageResult, manipulateAsync } from 'expo-image-manipulator';
+import _ from 'lodash';
 
-import { Direction, EventStatus, EventType, IContent, IEvent, JoinRule, MatrixEvent, MatrixEventEvent, MsgType, Room as RoomType, RoomEvent, UploadProgress } from 'matrix-js-sdk';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Direction, EventStatus, EventType, IContent, IEvent, JoinRule, MatrixEvent, MatrixEventEvent,
+  MsgType, RoomEvent
+} from 'matrix-js-sdk';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
+import * as mime from 'react-native-mime-types';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
-import { Avatar, Badge, BottomSheet, Button, Dialog, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
+import {
+  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Icon, ListItem, Text, useTheme
+} from '@rneui/themed';
 
+import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import { eventMessage } from './eventMessage';
 import { MessageImage } from './messageRenders/MessageImage';
 import { MessageVideo } from './messageRenders/MessageVideo';
-import { CameraType } from 'expo-image-picker';
-import BpayHeader from '../../components/BpayHeader';
-import { eventMessage } from './eventMessage';
 import { IUploadInfo, renderCustomView } from './messageRenders/renderCustomView';
+import { CameraType } from 'expo-image-picker';
+import URI from 'urijs';
+import { Image } from 'react-native';
 
 export function Room({ route, navigation }) {
 
@@ -48,7 +58,6 @@ export function Room({ route, navigation }) {
 
   const [disabled, setDisabled] = useState(false)
   const [knockBadge, setKnockBadge] = useState(0)
-  const uploading = useRef<{ [id: string]: any }>({})
 
   const { setLoading } = useGlobalState()
 
@@ -66,10 +75,6 @@ export function Room({ route, navigation }) {
 
   interface IChatMessage extends IMessage {
     _id: string,
-    w?: number,
-    h?: number,
-    origin_uri?: string
-    filename?: string,
     event?: MatrixEvent,
     [id: string]: any
   }
@@ -100,7 +105,6 @@ export function Room({ route, navigation }) {
       sent: event.status === null,
       pending: event.status !== null,
       event: event,
-      isLocal: event.getSender() === client.getUserId(),
       ...message
     }
     return msg
@@ -175,7 +179,7 @@ export function Room({ route, navigation }) {
     }
     // const _messages = [...messages]
     const _messages = []
-    const events = room.getLiveTimeline().getEvents().concat(room.getPendingEvents())
+    const events = room.getLiveTimeline().getEvents()
     if (events.length > 0) {
       events.forEach(evt => {
         const msg = evtToMsg(evt)
@@ -183,7 +187,10 @@ export function Room({ route, navigation }) {
       })
       setMessages(_messages)
       const lastMsg = _messages[0]
-      if (lastMsg && lastMsg.event?.status === null && lastMsg.event?.getId() !== readupTo) {
+      if (lastMsg &&
+        lastMsg.event?.status === null &&
+        lastMsg.event?.getId().startsWith('$') &&
+        lastMsg.event?.getId() !== readupTo) {
         client.sendReadReceipt(lastMsg.event)
         setReadUpTo(lastMsg.event.getId())
       }
@@ -212,10 +219,10 @@ export function Room({ route, navigation }) {
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
           if (a.type === 'image') {
-            await sendImage(a)
+            await sendImage(a.uri)
           }
           if (a.type === 'video') {
-            await sendVideo(a);
+            await sendVideo(a.uri);
           }
         })
       }
@@ -233,7 +240,7 @@ export function Room({ route, navigation }) {
       })
       if (!picker.canceled) {
         picker.assets.forEach(async (a) => {
-          sendImage(a)
+          sendImage(a.uri)
         })
       }
     })()
@@ -244,7 +251,7 @@ export function Room({ route, navigation }) {
     const picker = await DocumentPicker.getDocumentAsync()
     if (!picker.canceled) {
       picker.assets.forEach(async a => {
-        await sendDocumment(a)
+        await sendFile(a)
       })
     }
   }, [client, room])
@@ -413,7 +420,6 @@ export function Room({ route, navigation }) {
           onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
           renderMessageImage={MessageImage}
           renderMessageVideo={MessageVideo}
-          onProgress={(e) => { console.log('e', e) }}
         />
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>
@@ -435,139 +441,7 @@ export function Room({ route, navigation }) {
 
   )
 
-  async function sendVideo(a: ImagePicker.ImagePickerAsset) {
-    const txnId = client.makeTxnId()
-    const localEventId = "~" + room.roomId + ":" + txnId
-    const uploadInfo: IUploadInfo = {
-      uri: a.uri,
-      type: 'video',
-      width: a.width,
-      height: a.height,
-      mimeType: a.mimeType,
-      size: a.fileSize,
-      name: a.fileName,
-      onUploaded(uri, thumbnail) {
-        room.getLiveTimeline().removeEvent(localEventId)
-        const content: IContent = {
-          msgtype: MsgType.Video,
-          body: a.fileName,
-          url: uri,
-          info: {
-            duration: a.duration,
-            h: a.height,
-            w: a.width,
-            mimetype: a.mimeType,
-            size: a.fileSize,
-            thumbnail_url: thumbnail.uri,
-            thumbnail_info: {
-              w: thumbnail.width,
-              h: thumbnail.height,
-              minetype: thumbnail.mimetype
-            }
-          },
-          local_uri: a.uri,
-          local_img: thumbnail.local_uri
-        };
-        client.sendMessage(room?.roomId, content, txnId)
-      },
-    }
-    const localContent: IContent = {
-      msgtype: MsgType.Video,
-      body: a.fileName,
-      url: a.uri,
-      info: {
-        duration: a.duration,
-        h: a.height,
-        w: a.width,
-        mimetype: a.mimeType,
-        size: a.fileSize,
-      },
-      uploadInfo
-    };
-    const eventObject: Partial<IEvent> = {
-      type: EventType.RoomMessage,
-      content: localContent
-    }
-    const localEvent = new MatrixEvent(Object.assign(eventObject, {
-      event_id: localEventId,
-      user_id: client.credentials.userId,
-      sender: client.credentials.userId,
-      room_id: room.roomId,
-      origin_server_ts: new Date().getTime(),
-    }))
-    localEvent.setTxnId(txnId)
-    localEvent.setStatus(EventStatus.SENDING)
-    room.getLiveTimeline().addEvent(localEvent, { toStartOfTimeline: false })
-    setRefreshKey(crypto.randomUUID())
-  }
-
-  async function sendImage(a: ImagePicker.ImagePickerAsset) {
-    const txnId = client.makeTxnId()
-    const localEventId = "~" + room.roomId + ":" + txnId
-    const uploadInfo: IUploadInfo = {
-      uri: a.uri,
-      type: 'image',
-      width: a.width,
-      height: a.height,
-      mimeType: a.mimeType,
-      size: a.fileSize,
-      name: a.fileName,
-      onUploaded(uri, thumbnail) {
-        room.getLiveTimeline().removeEvent(localEventId)
-        const content: IContent = {
-          msgtype: MsgType.Image,
-          body: a.fileName,
-          url: uri,
-          info: {
-            duration: a.duration,
-            h: a.height,
-            w: a.width,
-            mimetype: a.mimeType,
-            size: a.fileSize,
-            thumbnail_url: thumbnail.uri,
-            thumbnail_info: {
-              w: thumbnail.width,
-              h: thumbnail.height,
-              minetype: thumbnail.mimetype
-            }
-          },
-          local_uri: a.uri,
-          local_img: thumbnail.local_uri
-        };
-        client.sendMessage(room?.roomId, content, txnId)
-      },
-    }
-    const localContent: IContent = {
-      msgtype: MsgType.Image,
-      body: a.fileName,
-      url: a.uri,
-      info: {
-        duration: a.duration,
-        h: a.height,
-        w: a.width,
-        mimetype: a.mimeType,
-        size: a.fileSize,
-      },
-      uploadInfo
-    };
-    const eventObject: Partial<IEvent> = {
-      type: EventType.RoomMessage,
-      content: localContent
-    }
-    const localEvent = new MatrixEvent(Object.assign(eventObject, {
-      event_id: localEventId,
-      user_id: client.credentials.userId,
-      sender: client.credentials.userId,
-      room_id: room.roomId,
-      origin_server_ts: new Date().getTime(),
-    }))
-    localEvent.setTxnId(txnId)
-    localEvent.setStatus(EventStatus.SENDING)
-    room.getLiveTimeline().addEvent(localEvent, { toStartOfTimeline: false })
-    setRefreshKey(crypto.randomUUID())
-  }
-
-  async function sendDocumment(a: DocumentPicker.DocumentPickerAsset) {
+  async function sendFile1(a: DocumentPicker.DocumentPickerAsset) {
     const txnId = client.makeTxnId()
     const localEventId = "~" + room.roomId + ":" + txnId
     const uploadInfo: IUploadInfo = {
@@ -618,31 +492,155 @@ export function Room({ route, navigation }) {
     setRefreshKey(crypto.randomUUID())
   }
 
-  function previewImageMessage(a: { height: number, width: number, uri: string, type: string }, localUri?: string) {
-    const ratio = Math.max(a.width, a.height) / 150;
+  async function sendVideo(uri: string) {
+    const parsedUri = new URI(uri)
+    const fileinfo = await FileSystem.getInfoAsync(uri, { size: true })
+    const thumbnail = await vt.getThumbnailAsync(uri);
+    let resizedThumbnail: ImageResult = null
+    if (thumbnail.width > 600) {
+      resizedThumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }])
+    }
+
     const txnId = client.makeTxnId()
-    const msg: IChatMessage = {
-      _id: txnId,
-      user: {
-        _id: user.userId,
-        name: user.displayName,
-        avatar: user.avatarUrl
+    const localEventId = "~" + room.roomId + ":" + txnId
+    const localContent: IContent = {
+      msgtype: MsgType.Video,
+      body: parsedUri.filename(),
+      url: uri,
+      info: {
+        h: thumbnail.height,
+        w: thumbnail.width,
+        mimetype: mime.lookup(uri),
+        //@ts-ignore
+        size: fileinfo.size,
+        thumbnail_url: resizedThumbnail?.uri || thumbnail.uri,
+        thumbnail_info: {
+          w: resizedThumbnail?.width || thumbnail.width,
+          h: resizedThumbnail?.height || thumbnail.height,
+          minetype: mime.lookup(resizedThumbnail?.uri || thumbnail.uri),
+        }
       },
-      text: '',
-      createdAt: new Date(),
-      pending: true,
-      h: Math.floor(a.height / ratio),
-      w: Math.floor(a.width / ratio),
-      localUri
-    };
-    if (a.type === 'image') {
-      msg.image = a.uri
     }
-    if (a.type === 'video') {
-      msg.video = a.uri
+    const eventObject: Partial<IEvent> = {
+      type: EventType.RoomMessage,
+      content: localContent
     }
-    setMessages(prev => GiftedChat.append(prev, [msg]));
-    return msg
+    const localEvent = new MatrixEvent(Object.assign(eventObject, {
+      event_id: localEventId,
+      user_id: client.credentials.userId,
+      sender: client.credentials.userId,
+      room_id: room.roomId,
+      origin_server_ts: new Date().getTime(),
+    }))
+    localEvent.setStatus(EventStatus.SENDING)
+    localEvent.setTxnId(txnId)
+    localEvent.once(MatrixEventEvent.Replaced, async (event) => {
+      client.removeLocalEvent(room, localEvent)
+      await client.sendMessage(room?.roomId, event.getContent(), txnId)
+    })
+    client.addLocalEvent(room, localEvent)
+    setRefreshKey(crypto.randomUUID())
+  }
+  
+  async function sendImage(uri: string) {
+    Image.getSize(uri, async (width, height) => {
+      const parsedUri = new URI(uri)
+      const fileinfo = await FileSystem.getInfoAsync(uri, { size: true })
+      let thumbnail: ImageResult = null
+      if (width > 600) {
+        thumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }])
+      }
+
+      const txnId = client.makeTxnId()
+      const localEventId = "~" + room.roomId + ":" + txnId
+      const localContent: IContent = {
+        msgtype: MsgType.Image,
+        body: parsedUri.filename(),
+        url: uri,
+        info: {
+          h: height,
+          w: width,
+          mimetype: mime.lookup(uri),
+          //@ts-ignore
+          size: fileinfo.size,
+          thumbnail_url: thumbnail?.uri,
+          thumbnail_info: {
+            w: thumbnail?.width,
+            h: thumbnail?.height,
+            minetype: mime.lookup(thumbnail?.uri),
+          }
+        },
+      }
+      const eventObject: Partial<IEvent> = {
+        type: EventType.RoomMessage,
+        content: localContent
+      }
+      const localEvent = new MatrixEvent(Object.assign(eventObject, {
+        event_id: localEventId,
+        user_id: client.credentials.userId,
+        sender: client.credentials.userId,
+        room_id: room.roomId,
+        origin_server_ts: new Date().getTime(),
+      }))
+      localEvent.setStatus(EventStatus.SENDING)
+      localEvent.setTxnId(txnId)
+      localEvent.once(MatrixEventEvent.Replaced, async (event) => {
+        client.removeLocalEvent(room, localEvent)
+        await client.sendMessage(room?.roomId, event.getContent(), txnId)
+      })
+      client.addLocalEvent(room, localEvent)
+      setRefreshKey(crypto.randomUUID())
+    })
+  }
+
+  async function sendFile(uri: string) {
+    const parsedUri = new URI(uri)
+    const fileinfo = await FileSystem.getInfoAsync(uri, { size: true })
+    const thumbnail = await vt.getThumbnailAsync(uri);
+    let resizedThumbnail: ImageResult = null
+    if (thumbnail.width > 600) {
+      resizedThumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }])
+    }
+
+    const txnId = client.makeTxnId()
+    const localEventId = "~" + room.roomId + ":" + txnId
+    const localContent: IContent = {
+      msgtype: MsgType.Video,
+      body: parsedUri.filename(),
+      url: uri,
+      info: {
+        h: thumbnail.height,
+        w: thumbnail.width,
+        mimetype: mime.lookup(uri),
+        //@ts-ignore
+        size: fileinfo.size,
+        thumbnail_url: resizedThumbnail?.uri || thumbnail.uri,
+        thumbnail_info: {
+          w: resizedThumbnail?.width || thumbnail.width,
+          h: resizedThumbnail?.height || thumbnail.height,
+          minetype: mime.lookup(resizedThumbnail?.uri || thumbnail.uri),
+        }
+      },
+    }
+    const eventObject: Partial<IEvent> = {
+      type: EventType.RoomMessage,
+      content: localContent
+    }
+    const localEvent = new MatrixEvent(Object.assign(eventObject, {
+      event_id: localEventId,
+      user_id: client.credentials.userId,
+      sender: client.credentials.userId,
+      room_id: room.roomId,
+      origin_server_ts: new Date().getTime(),
+    }))
+    localEvent.setStatus(EventStatus.SENDING)
+    localEvent.setTxnId(txnId)
+    localEvent.once(MatrixEventEvent.Replaced, async (event) => {
+      client.removeLocalEvent(room, localEvent)
+      await client.sendMessage(room?.roomId, event.getContent(), txnId)
+    })
+    client.addLocalEvent(room, localEvent)
+    setRefreshKey(crypto.randomUUID())
   }
 }
 

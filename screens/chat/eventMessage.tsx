@@ -1,11 +1,10 @@
-import { EventType, IContent, MatrixEvent, MsgType, NotificationCountType, Room } from "matrix-js-sdk";
+import { EventType, IContent, MatrixEvent, MsgType, Room } from "matrix-js-sdk";
 import { BChatClient } from "../../store/useMatrixClient";
-import { Text } from "@rneui/themed";
-import { getContentUriAsync } from "expo-file-system";
 
 export const eventMessage = (event: MatrixEvent, room: Room, client: BChatClient): {
     [id: string]: any
 } => {
+    // console.log('event', event.getId(), event.getContent())
     if (event.isRedacted()) {
         return {
             text: "[消息已被撤回]",
@@ -129,6 +128,9 @@ const eventMap = {
     },
     [EventType.RoomGuestAccess]: (event: MatrixEvent, room: Room, client: BChatClient) => {
         return { _id: null }
+    },
+    [EventType.RoomTopic]: (event: MatrixEvent, room: Room, client: BChatClient) => {
+        return { text: `[${event.sender.name} 设置群公告为 ${event.getContent()?.topic}]`, system: true }
     }
 }
 
@@ -140,27 +142,14 @@ const messageMap = {
         const image = content.info?.thumbnail_url || content.url
         return {
             text: '',
-            filename: content.body,
             image: image.startsWith("mxc://") ? client.mxcUrlToHttp(image) : image,
-            origin_image: content.url.startsWith("mxc://") ? client.mxcUrlToHttp(content.url) : content.url,
-            w: content.info?.thumbnail_info?.w || content.w,
-            h: content.info?.thumbnail_info?.h || content.h,
-            localUri: content.local_uri,
-            localImg: content.local_img,
-            uploadInfo: content.uploadInfo
         }
     },
     [MsgType.Video]: (content: IContent, room: Room, client: BChatClient) => {
-        const video = content.info?.thumbnail_url || content.url
+        const video = content.url
         return {
             text: '',
-            filename: content.body,
             video: video.startsWith("mxc://") ? client.mxcUrlToHttp(video) : video,
-            w: content.info?.thumbnail_info?.w || 150,
-            h: content.info?.thumbnail_info?.h || 100,
-            localUri: content.local_uri,
-            localImg: content.local_img,
-            uploadInfo: content.uploadInfo
         }
     },
     [MsgType.File]: (content: IContent, room: Room, client: BChatClient) => {
@@ -248,6 +237,9 @@ const roomPreviewMap = {
             if (membership === 'invite' && event.target.userId === client.getUserId()) {
                 return `[${event.sender.name} 邀请您加入群聊]`
             }
+            if (membership === 'invite' && event.target.userId !== client.getUserId()) {
+                return `[${event.sender.name} 邀请 ${event.getContent().displayname} 加入群聊]`
+            }
         }
         console.log(event.getType(), event.getContent(), event.getPrevContent())
         return `[不支持的消息类型${event.getType()}]`
@@ -264,19 +256,22 @@ const roomPreviewMap = {
         return `[暂不支持加密消息]`
     },
     [EventType.RoomPowerLevels]: (event: MatrixEvent, room: Room, client: BChatClient) => {
-        return `[管理权限]`
+        return `[管理权限变更]`
     },
     [EventType.RoomRedaction]: (event: MatrixEvent, room: Room, client: BChatClient) => {
         return `[${event.sender.name} 撤回了一条消息]`
     },
     [EventType.RoomJoinRules]: (event: MatrixEvent, room: Room, client: BChatClient) => {
-        return `[邀请方式]`
+        return `[邀请方式变更]`
     },
     [EventType.RoomHistoryVisibility]: (event: MatrixEvent, room: Room, client: BChatClient) => {
-        return `[历史消息]`
+        return `[历史消息权限变更]`
     },
     [EventType.RoomGuestAccess]: (event: MatrixEvent, room: Room, client: BChatClient) => {
-        return `[游客权限]`
+        return `[游客权限变更]`
+    },
+    [EventType.RoomTopic]: (event: MatrixEvent, room: Room, client: BChatClient) => {
+        return `[群公告变更]`
     }
 }
 
