@@ -23,7 +23,7 @@ import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import {
-  Avatar, Badge, Button, Dialog, Divider, Icon, Text, useTheme
+  Avatar, Badge, Button, Dialog, Divider, Icon, Overlay, Text, useTheme
 } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
@@ -39,6 +39,8 @@ import { Image } from 'react-native';
 import { DocumentPickerAsset } from 'expo-document-picker';
 import Bubble from './messageRenders/Bubble';
 import MessageText from './messageRenders/MessageText';
+import MessageTools from './messageRenders/MessageTools';
+import { Modal } from 'react-native';
 
 
 export function Room({ route, navigation }) {
@@ -323,13 +325,19 @@ export function Room({ route, navigation }) {
     })
   }
 
+  // 转发
+  const onForward = (currentMesssage) => {
+    navigation.push('ForwardMessage', { eventId: currentMesssage._id, roomId: room.roomId })
+  }
+
   // 长按操作
   const onContextPress = async (code, currentMessage) => {
     switch (code) {
       case 'copy':
         onCopy(currentMessage)
         break;
-      case 'share':
+      case 'forward':
+        onForward(currentMessage)
         break
       case 'favorite':
         onFavorite(currentMessage)
@@ -350,6 +358,13 @@ export function Room({ route, navigation }) {
   return (<>
     <BpayHeader showback title={room?.name} rightComponent={headerRight}></BpayHeader>
     <View style={styles.container}>
+      <Overlay isVisible={true} overlayStyle={{ backgroundColor: 'transparent' }}
+        onPressIn={() => { console.log('pressin') }}
+        onBackdropPress={() => { console.log('backdrops') }}>
+        <View style={{ position: 'absolute', top: 0, zIndex: 999, backgroundColor: '#000', borderRadius: 10 }}>
+          <MessageTools currentMessage={{}} onContextPress={undefined} onClose={undefined} onLayout={undefined} ></MessageTools>
+        </View>
+      </Overlay>
       <Dialog
         isVisible={showTopic}
         onBackdropPress={() => setShowTopic(false)}>

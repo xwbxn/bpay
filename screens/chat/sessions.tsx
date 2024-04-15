@@ -30,26 +30,7 @@ const Session = ({ navigation }) => {
 
     useEffect(() => {
         const refreshRooms = _.debounce(() => {
-            const filteredRooms = [...client.getRooms()]
-                .filter(r => !r.tags[hiddenTagName])
-                // 单聊需要显示对方退出的, 群聊各种状态均需要显示
-                .filter(r => client.isDirectRoom(r.roomId)
-                    ? ((r.getMyMembership() === 'join' && r.getMember(r.guessDMUserId()).membership === 'join') // 正常单聊
-                        || (r.getMyMembership() === 'join'
-                            && r.getMember(r.guessDMUserId()).membership === 'leave'
-                            && r.getMember(r.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 对方退出单聊
-                    : !!r.getMember(client.getUserId()))
-                .sort((a, b) => {
-                    if (client.isRoomOnTop(a.roomId) && !client.isRoomOnTop(b.roomId)) {
-                        return -1
-                    } else if (!client.isRoomOnTop(a.roomId) && client.isRoomOnTop(b.roomId)) {
-                        return 1
-                    } return (b.getLastLiveEvent()?.event.origin_server_ts
-                        || b.getMember(client.getUserId()).events.member.event.origin_server_ts) // 在被邀请还没加入房间时，取不到最后的event，因此需要取邀请时间
-                        - (a.getLastLiveEvent()?.event.origin_server_ts
-                            || a.getMember(client.getUserId()).events.member.event.origin_server_ts)
-                })
-            setRooms(filteredRooms)
+            setRooms(client.getSessions().filter(r => !r.tags[hiddenTagName]))
             setInviteBadge(client.getRooms().filter(i => client.isDirectRoom(i.roomId)).reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
         }, 150)
 
@@ -131,7 +112,7 @@ const Session = ({ navigation }) => {
                                         containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
                             </Avatar>}
                         <ListItem.Content>
-                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight:'600' }}>{title}</ListItem.Title>
+                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight: '600' }}>{title}</ListItem.Title>
                             <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1} style={{ color: theme.colors.grey2 }}>{subTitle}</ListItem.Subtitle>
                         </ListItem.Content>
                         <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{moment(updateAt).fromNow()}</ListItem.Subtitle>

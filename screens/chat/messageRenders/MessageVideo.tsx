@@ -21,9 +21,9 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
   const navigation: any = useNavigation()
   const { client } = useMatrixClient()
 
-  let width = content.info.thumbnail_info.w
-  let height = content.info.thumbnail_info.h
-  let thumbnail_url = content.info.thumbnail_url.startsWith('mxc://') ?
+  let width = content.info.thumbnail_info?.w
+  let height = content.info.thumbnail_info?.h
+  let thumbnail_url = content.info.thumbnail_url?.startsWith('mxc://') ?
     client.mxcUrlToHttp(content.info.thumbnail_url) :
     content.info.thumbnail_url
   if (width > 150 || height > 150) {

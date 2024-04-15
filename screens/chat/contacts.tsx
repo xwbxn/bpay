@@ -12,7 +12,7 @@ import { IPropEditorProps, PropEditor } from './components/PropEditor';
 import Toast from 'react-native-root-toast';
 import BpayHeader from '../../components/BpayHeader';
 
-const membershipMap = {
+export const membershipMap = {
     'leave': '无效',
     'join': '',
     'invite': '邀请中'
@@ -144,8 +144,6 @@ export const Contacts = ({ navigation, route }) => {
                 || (room.getMember(room.guessDMUserId()).membership === 'leave'
                     && room.getMember(room.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 别人退了
             )
-
-        // .filter(room => ['join', 'leave'].includes(client.getDirect(room.roomId)?.status))
         setFriends(_friends.map(room => {
             const friend = room.getMember(room.guessDMUserId())
             return {

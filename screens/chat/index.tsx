@@ -15,6 +15,7 @@ import RoomDocuments from './roomSetting/attachments';
 import PlayVideo from './playVideo';
 import Qrcode from './qrcode';
 import RoomPreview from './roomPreview';
+import ForwardMessage from './forwardMessage';
 
 const Stack = createNativeStackNavigator();
 export const ChatIndex = ({ navigation, route }) => {
@@ -46,8 +47,9 @@ export const ChatIndex = ({ navigation, route }) => {
             <Stack.Screen name='Member' component={MemberProfile} />
             <Stack.Screen name='Documents' component={RoomDocuments} />
             <Stack.Screen name='PlayVideo' component={PlayVideo} />
-            <Stack.Screen name='Qrcode' component={Qrcode}></Stack.Screen>
+            <Stack.Screen name='Qrcode' component={Qrcode} />
             <Stack.Screen name='RoomPreview' component={RoomPreview} />
+            <Stack.Screen name='ForwardMessage' component={ForwardMessage} />
         </Stack.Navigator>
     </>
 }

@@ -9,7 +9,6 @@ import { useWindowDimensions } from 'react-native'
 export default function PlayVideo({ navigation, route }) {
 
   const { uri } = route.params
-  console.log('uri', uri)
   const { theme } = useTheme()
   const [fullscreen, setFullscreen] = useState(false)
   const { width, height } = useWindowDimensions()

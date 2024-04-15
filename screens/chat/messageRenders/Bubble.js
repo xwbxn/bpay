@@ -273,7 +273,6 @@ export default class Bubble extends React.Component {
                             onClose={() => this.setState({showToolTip: false})}
                             height={this.state.height}
                             width={this.state.width}
-                            // backgroundColor='transparent'
                             popover={<MessageTools {...this.props} onClose={() => this.setState({showToolTip:false})} onLayout={this.onTooltipLayout}></MessageTools>}>
                             {this.renderBubbleContent()}
                             <View style={[

@@ -1,0 +1,163 @@
+import { View, StyleSheet, ScrollView } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import BpayHeader from '../../components/BpayHeader'
+import { useMatrixClient } from '../../store/useMatrixClient'
+import { IListItem, ListView } from './components/ListView'
+import { roomPreview } from './eventMessage'
+import moment from 'moment'
+import { membershipMap } from './contacts'
+import { Avatar, Dialog, Icon, Input, ListItem, Text, useTheme } from '@rneui/themed'
+import { EventType, IContent, IEvent, MsgType } from 'matrix-js-sdk'
+import { globalStyle } from '../../utils/styles'
+import { Image } from 'expo-image'
+
+export default function ForwardMessage({ navigation, route }) {
+
+    const { eventId, roomId } = route.params
+    const { client } = useMatrixClient()
+    const { theme } = useTheme()
+    const [searchVal, setSearchVal] = useState("");
+    const [forwardMessage, setForwardMessage] = useState("")
+    const [members, setMembers] = useState<IListItem[]>([])
+    const [friends, setFriends] = useState<IListItem[]>([])
+    const [groups, setGroups] = useState<IListItem[]>([])
+    const [seletedItem, setSeletedItem] = useState<IListItem>()
+    const [event, setEvent] = useState<Partial<IEvent>>()
+
+    const [isVisible, setIsVisible] = useState(false)
+
+    useEffect(() => {
+        const _members: IListItem[] = []
+        const sessions = client.getSessions()
+        sessions.forEach(item => {
+            const isDirectRoom = client.isDirectRoom(item.roomId)
+            const directMember = isDirectRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
+            const preview = roomPreview(item, client)
+            let subTitle = preview.text
+            let updateAt = preview.ts
+            let avatar_url = isDirectRoom
+                ? directMember?.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
+                : item?.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
+            _members.push({
+                id: item.roomId,
+                title: item.name,
+                subtitle: subTitle,
+                right: moment(updateAt).fromNow(),
+                avatar: avatar_url
+            })
+        })
+        setMembers(_members)
+
+        // 好友
+        const _friends = client.getRooms()
+            .filter(room => room.getMyMembership() === 'join')
+            .filter(room => client.isDirectRoom(room.roomId))
+            .filter(room => room.getMyMembership() === 'join' && (room.getMember(room.guessDMUserId()).membership === 'join' // 正常聊天
+                || (room.getMember(room.guessDMUserId()).membership === 'leave'
+                    && room.getMember(room.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 别人退了
+            )
+        setFriends(_friends.map(room => {
+            const friend = room.getMember(room.guessDMUserId())
+            return {
+                id: room.roomId,
+                title: friend.name,
+                subtitle: friend.userId,
+                avatar: friend.getAvatarUrl(client.baseUrl, 40, 40, 'scale', true, true),
+                right: membershipMap[friend.membership] || '',
+            }
+        }))
+
+        // 群组
+        const _groups: IListItem[] = []
+        const joindGroups = client.getRooms()
+            .filter(room => room.getMyMembership() === 'join')
+            .filter(room => !client.isDirectRoom(room.roomId))
+        joindGroups.forEach(room => {
+            _groups.push({
+                id: room.roomId,
+                title: room.name,
+                subtitle: room.normalizedName,
+                avatar: room.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
+            })
+        })
+        setGroups(_groups)
+    }, [])
+
+    const onForward = async (item) => {
+        const evt = await client.fetchRoomEvent(roomId, eventId)
+        setEvent(evt)
+        setSeletedItem(item)
+        setIsVisible(true)
+    }
+
+    const doForward = async () => {
+        setIsVisible(false)
+        await client.sendEvent(seletedItem.id as string, EventType.RoomMessage, event.content)
+        if (forwardMessage.length > 0) {
+            await client.sendTextMessage(seletedItem.id as string, forwardMessage)
+        }
+        navigation.goBack()
+    }
+
+    return (
+        <View style={styles.container}>
+            <BpayHeader title='选择一个聊天' showback></BpayHeader>
+            <View>
+                <Input value={searchVal} onChangeText={setSearchVal} errorStyle={{ height: 0 }}
+                    inputStyle={{ paddingLeft: 10 }}
+                    rightIcon={<Icon name='search' color={theme.colors.grey5}></Icon>}
+                    containerStyle={{ paddingTop: 10, paddingBottom: 0, marginBottom: 0 }} placeholder='搜索'
+                    inputContainerStyle={{ height: 40, borderBottomWidth: 0, backgroundColor: theme.colors.background, borderRadius: 10 }}></Input>
+            </View>
+            <View style={styles.content}>
+                <ScrollView>
+                    <ListView search={searchVal} items={members} onPressItem={onForward} accordion accordionTitle='最近会话'></ListView>
+                    <ListView search={searchVal} items={friends} onPressItem={onForward} accordion accordionTitle='我的好友'></ListView>
+                    <ListView search={searchVal} items={groups} onPressItem={onForward} accordion accordionTitle='我加入的群组'></ListView>
+                </ScrollView>
+            </View>
+            <Dialog isVisible={isVisible} animationType='fade'>
+                <Text style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight: 'bold' }}>发送给:</Text>
+                <ListItem containerStyle={{ padding: 10 }}>
+                    {seletedItem?.avatar
+                        ? <Avatar size={30} rounded source={{ uri: seletedItem?.avatar }}
+                            containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
+                        : <Avatar size={30} rounded title={seletedItem?.title[0].toUpperCase()}
+                            containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
+                    <ListItem.Content>
+                        <ListItem.Title style={{ fontSize: 18 }}>{seletedItem?.title}</ListItem.Title>
+                    </ListItem.Content>
+                </ListItem>
+                <View style={{ marginVertical: 20, paddingHorizontal: 10, alignItems: event?.content.msgtype === MsgType.Text ? null : 'center' }}>
+                    {event?.content.msgtype === MsgType.Text && <Text numberOfLines={3}>{event?.content.body}</Text>}
+                    {(event?.content.msgtype === MsgType.Image || event?.content.msgtype === MsgType.Video) &&
+                        (<View>{event?.content.msgtype === MsgType.Video && <Avatar containerStyle={{
+                            position: 'absolute', zIndex: 9999,
+                            justifyContent: 'center', height: 150, width: 150
+                        }} icon={{ name: 'play', type: 'octicon', color: '#a0a0a0', size: 50 }} size={50}></Avatar>}
+                            <Image contentFit='contain'
+                                source={{ uri: client.mxcUrlToHttp(event?.content.info?.thumbnail_url || event?.content.url) }}
+                                style={{ width: 150, height: 150 }}></Image>
+
+                        </View>)}
+                    {event?.content.msgtype === MsgType.File && <Text numberOfLines={3}>文件:[{event?.content.body}]</Text>}
+                </View>
+                <View>
+                    <Input placeholder='转发留言' errorStyle={{ height: 0 }}
+                        value={forwardMessage} onChangeText={setForwardMessage}
+                        inputStyle={{ paddingLeft: 10, fontSize: globalStyle.subTitleFontStyle.fontSize }}
+                        inputContainerStyle={{ borderBottomWidth: 0, backgroundColor: theme.colors.grey5, height: 26 }}></Input>
+                </View>
+                <Dialog.Actions>
+                    <Dialog.Button title="转发" onPress={doForward} />
+                    <Dialog.Button title="取消" titleStyle={{ color: 'grey' }} onPress={() => setIsVisible(false)} />
+                </Dialog.Actions>
+            </Dialog>
+        </View>
+    )
+}
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#f5f5f5' },
+    content: { backgroundColor: '#ffffff', flex: 1 },
+})

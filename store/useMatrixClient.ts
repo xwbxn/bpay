@@ -38,6 +38,27 @@ export class BChatClient extends MatrixClient {
 
     private _txnToEvent: Map<string, MatrixEvent> = new Map<string, MatrixEvent>()
 
+    public getSessions() {
+        return this.getRooms()
+            // 单聊需要显示对方退出的, 群聊各种状态均需要显示
+            .filter(r => this.isDirectRoom(r.roomId)
+                ? ((r.getMyMembership() === 'join' && r.getMember(r.guessDMUserId()).membership === 'join') // 正常单聊
+                    || (r.getMyMembership() === 'join'
+                        && r.getMember(r.guessDMUserId()).membership === 'leave'
+                        && r.getMember(r.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 对方退出单聊
+                : !!r.getMember(this.getUserId()))
+            .sort((a, b) => {
+                if (this.isRoomOnTop(a.roomId) && !this.isRoomOnTop(b.roomId)) {
+                    return -1
+                } else if (!this.isRoomOnTop(a.roomId) && this.isRoomOnTop(b.roomId)) {
+                    return 1
+                } return (b.getLastLiveEvent()?.event.origin_server_ts
+                    || b.getMember(this.getUserId()).events.member.event.origin_server_ts) // 在被邀请还没加入房间时，取不到最后的event，因此需要取邀请时间
+                    - (a.getLastLiveEvent()?.event.origin_server_ts
+                        || a.getMember(this.getUserId()).events.member.event.origin_server_ts)
+            })
+    }
+
     public async scrollback(room: Room, limit = 30): Promise<Room> {
         console.debug('overide scrollback')
         const store = this.store as SqliteStore
@@ -258,8 +279,6 @@ export class BChatClient extends MatrixClient {
     }
 }
 
-let currentNotifId = null
-
 const sendRoomNotify = async (room, membership) => {
     // 通知栏消息
     if (membership === 'invite'
@@ -268,7 +287,7 @@ const sendRoomNotify = async (room, membership) => {
         // if (currentNotifId !== null) {
         //     await Notifications.dismissNotificationAsync(currentNotifId)
         // }
-        currentNotifId = await Notifications.scheduleNotificationAsync({
+         await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'BPay',
                 body: `有新的聊天邀请`
@@ -288,7 +307,7 @@ const sendTimelineNotify = async (event: MatrixEvent, room: Room) => {
         //     await Notifications.dismissNotificationAsync(currentNotifId)
         // }
         const total = _client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0)
-        currentNotifId = await Notifications.scheduleNotificationAsync({
+        await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'BPay',
                 body: `您有${total}条未读信息`

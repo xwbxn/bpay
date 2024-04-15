@@ -19,7 +19,7 @@ export default function RoomDocuments({ navigation, route }) {
     const { id, title } = route.params
     const { client } = useMatrixClient()
     const [room] = useState<Room>(client.getRoom(id))
-    const [searchVal, setsearchVal] = useState('')
+    const [searchVal, setSearchVal] = useState('')
     const downloadTasks = useRef<string[]>([])
     const [documents, setDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean }[]>([])
     const [filterdDocuments, setfilterdDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean }[]>([])
@@ -114,7 +114,7 @@ export default function RoomDocuments({ navigation, route }) {
         <View>
             <BpayHeader showback title={title || '群文件'}></BpayHeader>
             <View>
-                <Input value={searchVal} onChangeText={setsearchVal} errorStyle={{ height: 0 }}
+                <Input value={searchVal} onChangeText={setSearchVal} errorStyle={{ height: 0 }}
                     inputStyle={{ paddingLeft: 10 }}
                     rightIcon={<Icon name='search' color={theme.colors.grey5}></Icon>}
                     containerStyle={{ paddingTop: 10, paddingBottom: 0, marginBottom: 0 }} placeholder='搜索'
