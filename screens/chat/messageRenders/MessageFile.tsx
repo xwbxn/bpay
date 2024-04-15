@@ -7,6 +7,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { useMatrixClient } from '../../../store/useMatrixClient';
 import { useWindowDimensions } from 'react-native';
+import { MatrixEvent } from 'matrix-js-sdk';
 
 
 export const fileTypeIcon = {
@@ -25,11 +26,11 @@ export const fileTypeIcon = {
     'gz': { name: 'file-archive-o', type: 'font-awesome' }
 }
 
-export default function MessageFile(opts) {
-    const { currentMessage, position, progress } = opts
-    const filename = currentMessage.filename;
+export default function RenderFile(opts: { event: MatrixEvent, position: 'left' | 'right', progress: number }) {
+    const { event, position, progress } = opts
+    const content = event.getContent()
+    const filename = content.body;
     const ext = filename?.split('.')[1] || undefined;
-    currentMessage.text = null;
     const icon = fileTypeIcon[ext] || { name: 'unknowfile1', type: 'antdesign' }
     const { width } = useWindowDimensions()
 
@@ -42,20 +43,21 @@ export default function MessageFile(opts) {
             </View>
             <View style={{ flex: 1 }}>
                 <Text numberOfLines={1} style={{ fontSize: 16, color: position === 'left' ? '#000' : '#fff' }}>{filename}</Text>
-                <Text style={{ color: position === 'left' ? '#aaa' : '#fff' }}>{normalizeSize(currentMessage.size)}</Text>
+                <Text style={{ color: position === 'left' ? '#aaa' : '#fff' }}>{normalizeSize(content.info.size)}</Text>
             </View>
-            {!!progress &&
+            {progress > 0 &&
                 <Progress.Circle color={position === 'left' ? undefined : '#ccc'} style={{ marginLeft: 5 }} size={30} progress={progress}>
                 </Progress.Circle>}
         </View>
     </View>)
 }
 
-export const RenderFile = (props) => {
+export const MessageFile = (props) => {
 
     const currentMessage = props.currentMessage
+    const content = currentMessage.event.getContent()
     const downloader = useRef<FileSystem.DownloadResumable>(null)
-    const [progress, setProgress] = useState<number>(currentMessage.progress)
+    const [progress, setProgress] = useState<number>(0)
     const { client } = useMatrixClient()
 
     useEffect(() => {
@@ -72,16 +74,16 @@ export const RenderFile = (props) => {
         }
 
         // 本地原始文件
-        if (currentMessage.isLocal) {
-            Sharing.shareAsync(currentMessage.localUri, {
+        if (content.url.startsWith("file://")) {
+            Sharing.shareAsync(content.url, {
                 dialogTitle: '选择应用',
-                mimeType: currentMessage.event.getContent().info.mimetype
+                mimeType: content.info.mimetype
             })
             return
         }
 
         // 保存为本地缓存
-        let url = currentMessage.event.getContent().url
+        let url = content.url
         if (url.startsWith("mxc:/")) {
             url = client.mxcUrlToHttp(url)
         }
@@ -90,7 +92,7 @@ export const RenderFile = (props) => {
         if ((await FileSystem.getInfoAsync(cacheFilename)).exists) {
             Sharing.shareAsync(cacheFilename, {
                 dialogTitle: '选择应用',
-                mimeType: currentMessage.event.getContent().info.mimetype
+                mimeType: content.info.mimetype
             })
         } else {
             const dl = FileSystem.createDownloadResumable(url, cacheFilename, {}, (downloadProgress) => {
@@ -104,12 +106,12 @@ export const RenderFile = (props) => {
             setProgress(null)
             Sharing.shareAsync(cacheFilename, {
                 dialogTitle: '选择应用',
-                mimeType: currentMessage.event.getContent().info.mimetype
+                mimeType: content.info.mimetype
             })
         }
     }
 
-    return <TouchableOpacity onPress={onPress}>
-        <MessageFile currentMessage={currentMessage} position={props.position} progress={progress}></MessageFile>
+    return <TouchableOpacity onPress={onPress} onLongPress={props.onLongPress}>
+        <RenderFile event={currentMessage.event} position={props.position} progress={progress}></RenderFile>
     </TouchableOpacity>
 }

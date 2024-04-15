@@ -8,20 +8,7 @@ import _ from 'lodash'
 import { useMatrixClient } from '../../../store/useMatrixClient';
 import { EventStatus, EventType, IEvent, MatrixEvent, MatrixEventEvent, MsgType, UploadProgress } from 'matrix-js-sdk';
 import { Image } from 'expo-image';
-import MessageFile, { RenderFile } from './MessageFile';
-
-
-export interface IUploadInfo {
-    uri: string,
-    type: 'video' | 'audio' | 'image' | 'file',
-    name: string,
-    width?: number,
-    height?: number,
-    mimeType?: string,
-    size?: number,
-    onUploaded?: (uri: string,
-        thumbnail: { local_uri: string, uri: string, width: number, height: number, mimetype: string }) => void
-}
+import RenderFile, { MessageFile } from './MessageFile';
 
 export default function Upload({ event }: { event: MatrixEvent }) {
     const [progress, setProgress] = useState(0)
@@ -68,19 +55,21 @@ export default function Upload({ event }: { event: MatrixEvent }) {
             })()
         }
 
-        // if (opts.type === 'file') {
-        //     (async () => {
-        //         const uploaded = await client.uploadFile({
-        //             uri: opts.uri,
-        //             mimeType: opts.mimeType,
-        //             name: uname,
-        //             callback: (progress: UploadProgress) => {
-        //                 setProgress(progress.loaded / progress.total)
-        //             }
-        //         })
-        //         opts.onUploaded && opts.onUploaded(uploaded.content_uri)
-        //     })()
-        // }
+        if (content.msgtype === MsgType.File) {
+            (async () => {
+                const newContent = _.cloneDeep(content)
+                const uploaded = await client.uploadFile({
+                    uri: content.url,
+                    mimeType: content.info.mimetype,
+                    name: content.body,
+                    callback: (progress: UploadProgress) => {
+                        setProgress(progress.loaded / progress.total)
+                    }
+                })
+                newContent.url = uploaded.content_uri
+                event.emit(MatrixEventEvent.Replaced, cloneEvent(newContent))
+            })()
+        }
     }, [])
 
     if ([MsgType.Video, MsgType.Image].includes(content.msgtype as MsgType)) {
@@ -106,26 +95,32 @@ export default function Upload({ event }: { event: MatrixEvent }) {
     }
 
 
-    // if (opts.type === 'file') {
-    //     return <MessageFile currentMessage={{ filename: opts.name, size: opts.size }} position='right' progress={progress} />
-    // }
+    if (content.msgtype === MsgType.File) {
+        return <RenderFile event={event} position='right' progress={progress} />
+    }
 }
 
 export const renderCustomView = (props) => {
     const currentMessage = props.currentMessage
     const event: MatrixEvent = currentMessage.event
 
-    if (event.status === EventStatus.SENDING) {
-        currentMessage.image = null
-        currentMessage.text = null
-        currentMessage.video = null
-        currentMessage.audio = null
-        return <Upload event={event}></Upload>
+    if (!event) {
+        return null
     }
 
-    if (currentMessage.file) {
+    if (event.status === EventStatus.SENDING) {
+        if ([MsgType.Audio, MsgType.Video, MsgType.Image, MsgType.File].includes(event.getContent().msgtype as MsgType)) {
+            currentMessage.image = null
+            currentMessage.text = null
+            currentMessage.video = null
+            currentMessage.audio = null
+            return <Upload event={event}></Upload>
+        }
+    }
+
+    if (event.getContent().msgtype === MsgType.File) {
         currentMessage.text = null
-        return <RenderFile {...props}></RenderFile>
+        return <MessageFile {...props}></MessageFile>
     }
 
     return null

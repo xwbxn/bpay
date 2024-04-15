@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
 });
 
 const ImageRender = (opts) => {
-    const { currentMessage } = opts
+    const { currentMessage, onLongPress } = opts
     const content = currentMessage.event.getContent()
     const [fullscreen, setFullscreen] = useState(false)
     const [showOriginImage, setShowOriginImage] = useState(false)
@@ -96,7 +96,7 @@ const ImageRender = (opts) => {
         </Overlay>
     }
 
-    return <TouchableOpacity onPress={() => setFullscreen(true)}>
+    return <TouchableOpacity onPress={() => setFullscreen(true)} onLongPress={onLongPress}>
         <View style={{ alignItems: 'center' }}>
             <Image source={{ uri: thumbnail_url || url }} style={[styles.image, { height, width }]}>
             </Image>
@@ -104,13 +104,13 @@ const ImageRender = (opts) => {
     </TouchableOpacity>
 }
 
-export const MessageImage = ({ containerStyle, currentMessage }) => {
+export const MessageImage = ({ containerStyle, currentMessage, onLongPress }) => {
     if (currentMessage == null) {
         return null;
     }
 
     return (<View style={[styles.container, containerStyle]}>
-        <ImageRender currentMessage={currentMessage}></ImageRender>
+        <ImageRender currentMessage={currentMessage} onLongPress={onLongPress}></ImageRender>
     </View>);
 }
 MessageImage.propTypes = {

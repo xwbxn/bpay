@@ -1,6 +1,8 @@
-import { loadAsync, useFonts } from 'expo-font';
+import { loadAsync } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
+
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import Spinner from 'react-native-loading-spinner-overlay';
@@ -75,6 +77,9 @@ export default function App() {
     }
 
     prepare()
+    Updates.checkForUpdateAsync().then(update => {
+      console.log('check update:', update.isAvailable)
+    })
   }, [])
 
   const onLayoutRootView = useCallback(async () => {

@@ -23,7 +23,7 @@ import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import {
-  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Icon, ListItem, Text, useTheme
+  Avatar, Badge, Button, Dialog, Divider, Icon, Text, useTheme
 } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
@@ -32,10 +32,14 @@ import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { eventMessage } from './eventMessage';
 import { MessageImage } from './messageRenders/MessageImage';
 import { MessageVideo } from './messageRenders/MessageVideo';
-import { IUploadInfo, renderCustomView } from './messageRenders/renderCustomView';
+import { renderCustomView } from './messageRenders/renderCustomView';
 import { CameraType } from 'expo-image-picker';
 import URI from 'urijs';
 import { Image } from 'react-native';
+import { DocumentPickerAsset } from 'expo-document-picker';
+import Bubble from './messageRenders/Bubble';
+import MessageText from './messageRenders/MessageText';
+
 
 export function Room({ route, navigation }) {
 
@@ -48,11 +52,9 @@ export function Room({ route, navigation }) {
   const [showTopic, setShowTopic] = useState(false)
   const isDirectRoom = client.isDirectRoom(id)
   const [bottomSheetShow, setBottomSheetShow] = useState(false)
-  const [actionSheetShow, setActionSheetShow] = useState(false)
   const { setShowBottomTabBar } = useGlobalState()
 
   const [messages, setMessages] = useState<IChatMessage[]>([])
-  const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [readupTo, setReadUpTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
 
@@ -110,6 +112,7 @@ export function Room({ route, navigation }) {
     return msg
   }
 
+  // 初始化
   useEffect(() => {
     if (!room) {
       return
@@ -159,10 +162,8 @@ export function Room({ route, navigation }) {
     }
 
     room.on(RoomEvent.Timeline, refreshMessage)
-    room.on(RoomEvent.LocalEchoUpdated, refreshMessage)
     room.on(RoomEvent.TimelineRefresh, refreshMessage)
     return () => {
-      room.off(RoomEvent.LocalEchoUpdated, refreshMessage)
       room.off(RoomEvent.Timeline, refreshMessage)
       room.off(RoomEvent.TimelineRefresh, refreshMessage)
     }
@@ -197,7 +198,7 @@ export function Room({ route, navigation }) {
     }
   }, [refreshKey])
 
-  // 发送消息
+  // 文本消息
   const sendText = useCallback((messages = []) => {
     setBottomSheetShow(false)
     const message: IChatMessage = messages[0]
@@ -280,15 +281,8 @@ export function Room({ route, navigation }) {
     )
   }, [disabled])
 
-  // 长按操作
-  const onMessageLongPress = (context, message) => {
-    setCurrentMessage(message)
-    setActionSheetShow(true)
-  }
-
   // 触摸消息
   const onMessagePress = (context, message) => {
-    setCurrentMessage(message)
     const evt: MatrixEvent = message.event
     if (!evt || evt.getType() !== EventType.RoomMessage) {
       return
@@ -304,16 +298,13 @@ export function Room({ route, navigation }) {
   }
 
   // 撤回
-  const onRedAction = () => {
-    client.redactEvent(room?.roomId, currentMessage._id as string).then(() => {
-      setActionSheetShow(false)
-    })
+  const onRedAction = (currentMessage) => {
+    client.redactEvent(room?.roomId, currentMessage._id as string)
   }
 
   // 复制消息
-  const onCopy = async () => {
+  const onCopy = async (currentMessage) => {
     await Clipboard.setStringAsync(currentMessage.text);
-    setActionSheetShow(false)
     Toast.show('已复制到剪贴板', {
       duration: Toast.durations.LONG,
       position: Toast.positions.CENTER
@@ -321,11 +312,10 @@ export function Room({ route, navigation }) {
   }
 
   // 加入收藏
-  const setMessageFavor = () => {
+  const onFavorite = (currentMessage) => {
     const favor = client.getAccountData('m.favor')?.getContent()?.favor || []
-    favor.push(currentMessage)
+    favor.push(currentMessage._id)
     client.setAccountData('m.favor', { favor }).then(() => {
-      setActionSheetShow(false)
       Toast.show('已加入收藏', {
         duration: Toast.durations.LONG,
         position: Toast.positions.CENTER
@@ -333,17 +323,23 @@ export function Room({ route, navigation }) {
     })
   }
 
-  // 下载
-  const onDownload = async () => {
-    const downloadResumable = FileSystem.createDownloadResumable(
-      currentMessage.origin_uri,
-      FileSystem.documentDirectory + currentMessage.filename
-    );
-    await downloadResumable.downloadAsync()
-    Toast.show('下载完成', {
-      duration: Toast.durations.LONG,
-      position: Toast.positions.CENTER
-    });
+  // 长按操作
+  const onContextPress = async (code, currentMessage) => {
+    switch (code) {
+      case 'copy':
+        onCopy(currentMessage)
+        break;
+      case 'share':
+        break
+      case 'favorite':
+        onFavorite(currentMessage)
+        break
+      case 'redact':
+        onRedAction(currentMessage)
+        break
+      default:
+        break;
+    }
   }
 
   const headerRight = !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
@@ -360,42 +356,11 @@ export function Room({ route, navigation }) {
         <Dialog.Title title="群公告" />
         <Text>{topic}</Text>
       </Dialog>
-      <BottomSheet isVisible={actionSheetShow} onBackdropPress={() => setActionSheetShow(false)}>
-        <ListItem bottomDivider onPress={onCopy}>
-          <Icon name='copy' type='octicon'></Icon>
-          <ListItem.Title>复制</ListItem.Title>
-        </ListItem>
-        <ListItem bottomDivider onPress={setMessageFavor}>
-          <Icon name='favorite-border' type='meterialicon'></Icon>
-          <ListItem.Title>收藏</ListItem.Title>
-        </ListItem>
-        {currentMessage?.origin_uri &&
-          <ListItem onPress={onDownload} bottomDivider>
-            <Icon name='download' type='meterialicon'></Icon>
-            <ListItem.Title>下载</ListItem.Title>
-          </ListItem>}
-        {currentMessage?.user._id === client.getUserId() && currentMessage.text != '[消息已被撤回]' &&
-          <ListItem onPress={onRedAction} bottomDivider>
-            <Icon name='undo' type='meterialicon'></Icon>
-            <ListItem.Title>撤回</ListItem.Title>
-          </ListItem>}
-        {currentMessage?.user._id !== client.getUserId() && client.canDo(id, 'redact') &&
-          <ListItem onPress={onRedAction} bottomDivider>
-            <Icon name='delete' type='meterialicon'></Icon>
-            <ListItem.Title>删除</ListItem.Title>
-          </ListItem>}
-        <ListItem onPress={() => setActionSheetShow(false)}>
-          <Icon name='close' color={theme.colors.error} type='meterialicon'></Icon>
-          <ListItem.Title style={{ color: theme.colors.error }}>取消</ListItem.Title>
-        </ListItem>
-      </BottomSheet>
       {topic !== '' && <Text style={{ padding: 8 }} numberOfLines={1} lineBreakMode='clip' onPress={() => setShowTopic(true)}>群公告: {topic}</Text>}
       <View style={styles.content}>
         <GiftedChat
           locale='zh'
-          onLongPress={onMessageLongPress}
           onPress={onMessagePress}
-          renderCustomView={renderCustomView}
           messages={messages}
           onInputTextChanged={() => { setBottomSheetShow(false) }}
           scrollToBottom
@@ -416,10 +381,15 @@ export function Room({ route, navigation }) {
             name: user?.displayName,
             avatar: user?.avatarUrl
           }}
-          renderSend={renderSend}
           onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
           renderMessageImage={MessageImage}
           renderMessageVideo={MessageVideo}
+          renderMessageText={MessageText}
+          // @ts-ignore
+          renderBubble={(props) => <Bubble {...props}></Bubble>}
+          renderCustomView={renderCustomView}
+          renderSend={renderSend}
+          onContextPress={onContextPress}
         />
         {bottomSheetShow && <View >
           <Divider style={{ width: '100%' }}></Divider>
@@ -440,57 +410,6 @@ export function Room({ route, navigation }) {
   </>
 
   )
-
-  async function sendFile1(a: DocumentPicker.DocumentPickerAsset) {
-    const txnId = client.makeTxnId()
-    const localEventId = "~" + room.roomId + ":" + txnId
-    const uploadInfo: IUploadInfo = {
-      uri: a.uri,
-      type: 'file',
-      mimeType: a.mimeType,
-      size: a.size,
-      name: a.name,
-      onUploaded(uri, thumbnail) {
-        room.getLiveTimeline().removeEvent(localEventId)
-        const content: IContent = {
-          msgtype: MsgType.File,
-          body: a.name,
-          url: uri,
-          info: {
-            mimetype: a.mimeType,
-            size: a.size,
-          },
-          local_uri: a.uri,
-        };
-        client.sendMessage(room?.roomId, content, txnId)
-      },
-    }
-    const localContent: IContent = {
-      msgtype: MsgType.Image,
-      body: a.name,
-      url: a.uri,
-      info: {
-        mimetype: a.mimeType,
-        size: a.size,
-      },
-      uploadInfo
-    };
-    const eventObject: Partial<IEvent> = {
-      type: EventType.RoomMessage,
-      content: localContent
-    }
-    const localEvent = new MatrixEvent(Object.assign(eventObject, {
-      event_id: localEventId,
-      user_id: client.credentials.userId,
-      sender: client.credentials.userId,
-      room_id: room.roomId,
-      origin_server_ts: new Date().getTime(),
-    }))
-    localEvent.setTxnId(txnId)
-    localEvent.setStatus(EventStatus.SENDING)
-    room.getLiveTimeline().addEvent(localEvent, { toStartOfTimeline: false })
-    setRefreshKey(crypto.randomUUID())
-  }
 
   async function sendVideo(uri: string) {
     const parsedUri = new URI(uri)
@@ -541,7 +460,7 @@ export function Room({ route, navigation }) {
     client.addLocalEvent(room, localEvent)
     setRefreshKey(crypto.randomUUID())
   }
-  
+
   async function sendImage(uri: string) {
     Image.getSize(uri, async (width, height) => {
       const parsedUri = new URI(uri)
@@ -593,33 +512,17 @@ export function Room({ route, navigation }) {
     })
   }
 
-  async function sendFile(uri: string) {
-    const parsedUri = new URI(uri)
-    const fileinfo = await FileSystem.getInfoAsync(uri, { size: true })
-    const thumbnail = await vt.getThumbnailAsync(uri);
-    let resizedThumbnail: ImageResult = null
-    if (thumbnail.width > 600) {
-      resizedThumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }])
-    }
-
+  async function sendFile(file: DocumentPickerAsset) {
     const txnId = client.makeTxnId()
     const localEventId = "~" + room.roomId + ":" + txnId
     const localContent: IContent = {
-      msgtype: MsgType.Video,
-      body: parsedUri.filename(),
-      url: uri,
+      msgtype: MsgType.File,
+      body: file.name,
+      url: file.uri,
       info: {
-        h: thumbnail.height,
-        w: thumbnail.width,
-        mimetype: mime.lookup(uri),
+        mimetype: file.mimeType,
         //@ts-ignore
-        size: fileinfo.size,
-        thumbnail_url: resizedThumbnail?.uri || thumbnail.uri,
-        thumbnail_info: {
-          w: resizedThumbnail?.width || thumbnail.width,
-          h: resizedThumbnail?.height || thumbnail.height,
-          minetype: mime.lookup(resizedThumbnail?.uri || thumbnail.uri),
-        }
+        size: file.size,
       },
     }
     const eventObject: Partial<IEvent> = {

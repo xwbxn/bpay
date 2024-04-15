@@ -74,8 +74,7 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
 
   return (<View style={[styles.container, containerStyle]}>
     <TouchableOpacity
-      onPress={onPress}
-      onLongPress={() => onLongPress({}, currentMessage)}>
+      onPress={onPress} onLongPress={onLongPress}>
       <View>
         <View style={{
           position: 'absolute', zIndex: 1, alignItems: 'center', justifyContent: 'center',

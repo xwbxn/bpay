@@ -154,13 +154,7 @@ const messageMap = {
     },
     [MsgType.File]: (content: IContent, room: Room, client: BChatClient) => {
         return {
-            text: content.body,
-            filename: content.body,
-            file: content.url,
-            size: content.info.size,
-            localUri: content.local_uri,
-            localImg: content.local_img,
-            uploadInfo: content.uploadInfo
+            text: content.body
         }
     },
     [MsgType.Audio]: (content: IContent, room: Room, client: BChatClient) => {
