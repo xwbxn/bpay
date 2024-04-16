@@ -1,48 +1,28 @@
-import { View, Text } from 'react-native'
-import React, { useEffect } from 'react'
+import { View, } from 'react-native'
+import React from 'react'
 import { Button, ButtonGroup, Icon } from '@rneui/themed'
-import { IContent, MsgType } from 'matrix-js-sdk'
-import { globalStyle } from '../../../utils/styles'
 
-export default function MessageTools({ currentMessage, onContextPress, onClose, onLayout }) {
-    const content: IContent = currentMessage?.event?.getContent()
-    const options = [
-        { code: 'forward', name: '转发', icon: 'share', type: 'font-awesome-5' },
-        { code: 'favorite', name: '收藏', icon: 'favorite' },
-        { code: 'redact', name: '撤回', icon: 'delete' }]
-    if (content?.msgtype === MsgType.Text) {
-        options.unshift({ code: 'copy', name: '复制', icon: 'copy', type: 'font-awesome-5' })
-    }
+export interface IToolOption {
+    code: string,
+    name: string,
+    icon: string,
+    type?: string
+}
 
-    useEffect(() => {
-        // onLayout({
-        //     nativeEvent: {
-        //         layout: {
-        //             height: 60,
-        //             width: 60 * options.length
-        //         }
-        //     }
-        // })
-    }, [])
-
+export default function MessageTools({ options, onContextPress, onClose, width, position }
+    : { options: IToolOption[], onContextPress: any, onClose: any, width: number, position: string | 'left' | 'right' }) {
 
     const onPress = (code) => {
         onClose()
-        onContextPress && onContextPress(code, currentMessage)
+        onContextPress && onContextPress(code)
     }
 
     return (
-        <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }}>
-            {options.map(i => {
-                return <Button
-                    iconPosition='top'
-                    key={i.code}
-                    onPress={() => onPress(i.code)}
-                    titleStyle={{ color: '#fff', fontSize: globalStyle.subTitleFontStyle.fontSize }}
-                    icon={<Icon name={i.icon} color={'#fff'} type={i.type}></Icon>}
-                    title={i.name} type='clear'
-                    size='sm' containerStyle={{ marginHorizontal: 8 }}></Button>
-            })}
+        <View style={{ alignItems: position === 'left' ? 'flex-start' : 'flex-end', width, paddingHorizontal: 40 }}>
+            <ButtonGroup containerStyle={{ width: options.length * 60, height: 66, borderRadius: 10 }}
+                buttonContainerStyle={{ backgroundColor: '#444444', padding: 0 }}
+                buttons={options.map(i => <Button key={i.code} iconPosition='top' title={i.name} color='#444444' onPress={() => onPress(i.code)}
+                    icon={{ name: i.icon, type: i.type, color: '#fff' }} size='sm' titleStyle={{ color: '#fff' }}></Button>)}></ButtonGroup>
         </View>
     )
 }

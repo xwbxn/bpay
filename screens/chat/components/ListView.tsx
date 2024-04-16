@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { Avatar, ListItem, useTheme } from '@rneui/themed';
+import { globalStyle } from '../../../utils/styles';
 
 export interface IListItem {
     id: string | number
@@ -15,6 +16,7 @@ interface IProps {
     items: IListItem[]
     itemKey?: string
     search?: string
+    size?: number
 
     accordion?: boolean
     accordionTitle?: string
@@ -33,6 +35,7 @@ interface IProps {
 export const ListView = ({
     items,
     search = "",
+    size = 50,
     accordion,
     accordionExpand = true,
     accordionTitle,
@@ -96,12 +99,12 @@ export const ListView = ({
                         checkedColor={!allowRemove && initValues.includes(m.id) ? theme.colors.grey4 : theme.colors.primary}
                         onPress={() => onCheckItem(m)}></ListItem.CheckBox>}
                     {m.avatar
-                        ? <Avatar size={50} rounded source={{ uri: m.avatar }}
+                        ? <Avatar size={size} rounded source={{ uri: m.avatar }}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                        : <Avatar size={50} rounded title={m.title[0].toUpperCase()}
+                        : <Avatar size={size} rounded title={m.title[0].toUpperCase()}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                     <ListItem.Content>
-                        <ListItem.Title style={{ fontSize: 18 }}>{m.title}</ListItem.Title>
+                        <ListItem.Title style={{ fontSize: globalStyle.titleFontStyle.fontSize }}>{m.title}</ListItem.Title>
                         <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{m.subtitle}</ListItem.Subtitle>
                     </ListItem.Content>
                     {m.right ?

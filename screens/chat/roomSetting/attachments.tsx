@@ -59,7 +59,6 @@ export default function RoomDocuments({ navigation, route }) {
             .filter(i => searchVal !== '' ? i.name.toLowerCase().includes(searchVal.toLowerCase()) : true))
     }, [documents, searchVal])
 
-
     useEffect(() => {
         if (!room) {
             return

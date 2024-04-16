@@ -135,8 +135,7 @@ export class SqliteStore extends MemoryStore {
                 txn_id: event.getTxnId(),
                 membership: event.event.membership || '',
                 unsigned: event.getUnsigned(),
-                redacts: event.event.redacts || '',
-                local_content: local_content
+                redacts: event.event.redacts || ''
             }).onConflictDoNothing()
         } catch (e) {
             console.warn('persistEvent', JSON.stringify(e), event.getId())

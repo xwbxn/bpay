@@ -109,6 +109,7 @@ export const renderCustomView = (props) => {
     }
 
     if (event.status === EventStatus.SENDING) {
+        // 文件上传样式
         if ([MsgType.Audio, MsgType.Video, MsgType.Image, MsgType.File].includes(event.getContent().msgtype as MsgType)) {
             currentMessage.image = null
             currentMessage.text = null
@@ -118,6 +119,7 @@ export const renderCustomView = (props) => {
         }
     }
 
+    // 自定义消息样式
     if (event.getContent().msgtype === MsgType.File) {
         currentMessage.text = null
         return <MessageFile {...props}></MessageFile>

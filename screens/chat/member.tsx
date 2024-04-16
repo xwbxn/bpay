@@ -12,6 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ISettingItem, SettingList } from './components/SettingList';
 import { CardView } from './components/CardView';
 import BpayHeader from '../../components/BpayHeader';
+import { normalizeUserId } from '../../utils';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -31,7 +32,7 @@ export const MemberProfile = ({ navigation, route }) => {
         if (directRoom && directRoom.getMyMembership() !== 'leave') {
             const friend = directRoom.getMember(userId)
             setProfile({
-                userId: friend.userId,
+                userId: normalizeUserId(friend.userId),
                 avatar_url: friend.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true),
                 displayname: friend.name,
                 targetRoomId: friend.roomId,
@@ -40,7 +41,7 @@ export const MemberProfile = ({ navigation, route }) => {
         } else {
             client.getProfileInfo(userId).then(res => {
                 setProfile({
-                    userId: userId,
+                    userId: normalizeUserId(userId),
                     avatar_url: res.avatar_url,
                     displayname: res.displayname,
                     isFriend: false

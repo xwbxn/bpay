@@ -20,6 +20,7 @@ import Login from './screens/profile/login';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
 import { PendingEventOrdering } from 'matrix-js-sdk';
+import { Alert } from 'react-native';
 
 const theme = createTheme({
   lightColors: {
@@ -78,7 +79,12 @@ export default function App() {
 
     prepare()
     Updates.checkForUpdateAsync().then(update => {
-      console.log('check update:', update.isAvailable)
+      console.log('---------check update---------:', update.isAvailable)
+      if (update.isAvailable) {
+        Alert.alert('测试', '在线升级测试')
+      }
+    }).catch(e => {
+      console.log('---------check update---------', e.toString())
     })
   }, [])
 

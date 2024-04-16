@@ -11,6 +11,7 @@ import { randomUUID } from 'expo-crypto';
 import { IPropEditorProps, PropEditor } from './components/PropEditor';
 import Toast from 'react-native-root-toast';
 import BpayHeader from '../../components/BpayHeader';
+import { normalizeUserId } from '../../utils';
 
 export const membershipMap = {
     'leave': '无效',
@@ -23,7 +24,6 @@ export const Contacts = ({ navigation, route }) => {
     const { setLoading } = useGlobalState()
     const { theme } = useTheme()
     const { client } = useMatrixClient()
-    const [refreshKey, setRefreshKey] = useState(randomUUID())
     const [searchVal, setSearchVal] = useState("");
     const [searchMembers, setSearchMembers] = useState<IListItem[]>([])
     const [newFriends, setNewFriends] = useState<IListItem[]>([])
@@ -149,7 +149,7 @@ export const Contacts = ({ navigation, route }) => {
             return {
                 id: friend.userId,
                 title: friend.name,
-                subtitle: friend.userId,
+                subtitle: normalizeUserId(friend.userId),
                 avatar: friend.getAvatarUrl(client.baseUrl, 40, 40, 'scale', true, true),
                 right: membershipMap[friend.membership] || '',
                 data: { roomId: room.roomId },
@@ -189,7 +189,7 @@ export const Contacts = ({ navigation, route }) => {
 
     useEffect(() => {
         refreshContacts()
-    }, [refreshKey])
+    }, [])
 
     useEffect(() => {
         client.on(ClientEvent.DeleteRoom, refreshContacts)

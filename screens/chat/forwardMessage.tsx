@@ -1,15 +1,18 @@
-import { View, StyleSheet, ScrollView } from 'react-native'
-import React, { useEffect, useState } from 'react'
-import BpayHeader from '../../components/BpayHeader'
-import { useMatrixClient } from '../../store/useMatrixClient'
-import { IListItem, ListView } from './components/ListView'
-import { roomPreview } from './eventMessage'
-import moment from 'moment'
-import { membershipMap } from './contacts'
-import { Avatar, Dialog, Icon, Input, ListItem, Text, useTheme } from '@rneui/themed'
-import { EventType, IContent, IEvent, MsgType } from 'matrix-js-sdk'
-import { globalStyle } from '../../utils/styles'
-import { Image } from 'expo-image'
+import { Image } from 'expo-image';
+import { EventType, IEvent, MsgType } from 'matrix-js-sdk';
+import moment from 'moment';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import _ from 'lodash'
+
+import { Avatar, Dialog, Icon, Input, ListItem, Text, useTheme } from '@rneui/themed';
+
+import BpayHeader from '../../components/BpayHeader';
+import { useMatrixClient } from '../../store/useMatrixClient';
+import { globalStyle } from '../../utils/styles';
+import { IListItem, ListView } from './components/ListView';
+import { roomPreview } from './eventMessage';
+import { useGlobalState } from '../../store/globalContext';
 
 export default function ForwardMessage({ navigation, route }) {
 
@@ -25,6 +28,7 @@ export default function ForwardMessage({ navigation, route }) {
     const [event, setEvent] = useState<Partial<IEvent>>()
 
     const [isVisible, setIsVisible] = useState(false)
+    const { setLoading } = useGlobalState()
 
     useEffect(() => {
         const _members: IListItem[] = []
@@ -62,8 +66,7 @@ export default function ForwardMessage({ navigation, route }) {
                 id: room.roomId,
                 title: friend.name,
                 subtitle: friend.userId,
-                avatar: friend.getAvatarUrl(client.baseUrl, 40, 40, 'scale', true, true),
-                right: membershipMap[friend.membership] || '',
+                avatar: friend.getAvatarUrl(client.baseUrl, 40, 40, 'scale', true, true)
             }
         }))
 
@@ -81,22 +84,32 @@ export default function ForwardMessage({ navigation, route }) {
             })
         })
         setGroups(_groups)
+
+        // 消息
+        client.fetchRoomEvent(roomId, eventId).then(event => {
+            setEvent(event)
+        })
     }, [])
 
     const onForward = async (item) => {
-        const evt = await client.fetchRoomEvent(roomId, eventId)
-        setEvent(evt)
         setSeletedItem(item)
         setIsVisible(true)
     }
 
     const doForward = async () => {
         setIsVisible(false)
-        await client.sendEvent(seletedItem.id as string, EventType.RoomMessage, event.content)
-        if (forwardMessage.length > 0) {
-            await client.sendTextMessage(seletedItem.id as string, forwardMessage)
+        setLoading(true)
+        try {
+            await client.sendEvent(seletedItem.id as string, EventType.RoomMessage, event.content)
+            if (forwardMessage.length > 0) {
+                await client.sendTextMessage(seletedItem.id as string, forwardMessage)
+            }
+            navigation.goBack()
+        } catch (e) {
+            Alert.alert('错误', e.toString())
+        } finally {
+            setLoading(false)
         }
-        navigation.goBack()
     }
 
     return (
@@ -118,7 +131,7 @@ export default function ForwardMessage({ navigation, route }) {
             </View>
             <Dialog isVisible={isVisible} animationType='fade'>
                 <Text style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight: 'bold' }}>发送给:</Text>
-                <ListItem containerStyle={{ padding: 10 }}>
+                {seletedItem && <ListItem containerStyle={{ padding: 10 }}>
                     {seletedItem?.avatar
                         ? <Avatar size={30} rounded source={{ uri: seletedItem?.avatar }}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
@@ -127,8 +140,8 @@ export default function ForwardMessage({ navigation, route }) {
                     <ListItem.Content>
                         <ListItem.Title style={{ fontSize: 18 }}>{seletedItem?.title}</ListItem.Title>
                     </ListItem.Content>
-                </ListItem>
-                <View style={{ marginVertical: 20, paddingHorizontal: 10, alignItems: event?.content.msgtype === MsgType.Text ? null : 'center' }}>
+                </ListItem>}
+                {event && <View style={{ marginVertical: 20, paddingHorizontal: 10, alignItems: event?.content.msgtype === MsgType.Text ? null : 'center' }}>
                     {event?.content.msgtype === MsgType.Text && <Text numberOfLines={3}>{event?.content.body}</Text>}
                     {(event?.content.msgtype === MsgType.Image || event?.content.msgtype === MsgType.Video) &&
                         (<View>{event?.content.msgtype === MsgType.Video && <Avatar containerStyle={{
@@ -141,7 +154,7 @@ export default function ForwardMessage({ navigation, route }) {
 
                         </View>)}
                     {event?.content.msgtype === MsgType.File && <Text numberOfLines={3}>文件:[{event?.content.body}]</Text>}
-                </View>
+                </View>}
                 <View>
                     <Input placeholder='转发留言' errorStyle={{ height: 0 }}
                         value={forwardMessage} onChangeText={setForwardMessage}

@@ -2,7 +2,7 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import { Text, Clipboard, StyleSheet, TouchableWithoutFeedback, View, } from 'react-native';
 import { GiftedChatContext } from 'react-native-gifted-chat/lib/GiftedChatContext';
-import { QuickReplies } from 'react-native-gifted-chat';
+import { QuickReplies } from 'react-native-gifted-chat/lib/QuickReplies';
 import { MessageText } from 'react-native-gifted-chat/lib/MessageText';
 import { MessageImage } from './MessageImage';
 import { MessageVideo } from './MessageVideo';
@@ -10,8 +10,7 @@ import { MessageAudio } from 'react-native-gifted-chat/lib/MessageAudio';
 import { Time } from 'react-native-gifted-chat/lib/Time';
 import Color from 'react-native-gifted-chat/lib/Color';
 import { StylePropType, isSameUser, isSameDay } from 'react-native-gifted-chat';
-import { Tooltip } from '@rneui/themed';
-import MessageTools from './MessageTools';
+
 const styles = {
     left: StyleSheet.create({
         container: {
@@ -91,17 +90,11 @@ export default class Bubble extends React.Component {
                 this.props.onPress(this.context, this.props.currentMessage);
             }
         };
-        this.onLongPress = () => {
-            this.setState({showToolTip: true})
+        this.onLongPress = (event) => {
             if (this.props.onLongPress) {
-                this.props.onLongPress(this.context, this.props.currentMessage);
+                this.props.onLongPress(event, this.props.currentMessage);
             }
         };
-        this.onTooltipLayout = (event) => {
-            const {height, width} = event.nativeEvent.layout
-            this.setState({...this.state, height, width})
-        }
-        this.state = {showToolTip: false}
     }
     styledBubbleToNext() {
         const { currentMessage, nextMessage, position, containerToNextStyle, } = this.props;
@@ -269,21 +262,15 @@ export default class Bubble extends React.Component {
             ]}>
                 <TouchableWithoutFeedback onPress={this.onPress} onLongPress={this.onLongPress} accessibilityRole='text' {...this.props.touchableProps}>
                     <View>
-                        <Tooltip visible={this.state.showToolTip}
-                            onClose={() => this.setState({showToolTip: false})}
-                            height={this.state.height}
-                            width={this.state.width}
-                            popover={<MessageTools {...this.props} onClose={() => this.setState({showToolTip:false})} onLayout={this.onTooltipLayout}></MessageTools>}>
-                            {this.renderBubbleContent()}
-                            <View style={[
-                                styles[position].bottom,
-                                bottomContainerStyle && bottomContainerStyle[position],
-                            ]}>
-                                {this.renderUsername()}
-                                {this.renderTime()}
-                                {this.renderTicks()}
-                            </View>
-                        </Tooltip>
+                        {this.renderBubbleContent()}
+                        <View style={[
+                            styles[position].bottom,
+                            bottomContainerStyle && bottomContainerStyle[position],
+                        ]}>
+                            {this.renderUsername()}
+                            {this.renderTime()}
+                            {this.renderTicks()}
+                        </View>
                     </View>
                 </TouchableWithoutFeedback>
             </View>

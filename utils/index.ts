@@ -16,3 +16,10 @@ export function normalizeSize(fileSize) {
         return temp + 'GB';
     }
 }
+
+export function normalizeUserId(userId: string) {
+    if (userId.startsWith('@') && userId.includes(':chat.b-pay.life')) {
+        return userId.slice(0).replace(':chat.b-pay.life', '')
+    }
+    return userId
+}

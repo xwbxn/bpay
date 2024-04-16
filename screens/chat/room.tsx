@@ -15,15 +15,15 @@ import {
   Direction, EventStatus, EventType, IContent, IEvent, JoinRule, MatrixEvent, MatrixEventEvent,
   MsgType, RoomEvent
 } from 'matrix-js-sdk';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
 import * as mime from 'react-native-mime-types';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import {
-  Avatar, Badge, Button, Dialog, Divider, Icon, Overlay, Text, useTheme
+  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, ListItem, Overlay, Text, useTheme
 } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
@@ -40,7 +40,11 @@ import { DocumentPickerAsset } from 'expo-document-picker';
 import Bubble from './messageRenders/Bubble';
 import MessageText from './messageRenders/MessageText';
 import MessageTools from './messageRenders/MessageTools';
-import { Modal } from 'react-native';
+import Message from './messageRenders/Message';
+import { globalStyle } from '../../utils/styles';
+import { IListItem, ListView } from './components/ListView';
+import { normalizeUserId } from '../../utils';
+import MessageRef from './messageRenders/MessageRef';
 
 
 export function Room({ route, navigation }) {
@@ -53,15 +57,24 @@ export function Room({ route, navigation }) {
   const [topic, setTopic] = useState('')
   const [showTopic, setShowTopic] = useState(false)
   const isDirectRoom = client.isDirectRoom(id)
-  const [bottomSheetShow, setBottomSheetShow] = useState(false)
+  const [showSendPanel, setShowSendPanel] = useState(false)
+  const size = useWindowDimensions()
   const { setShowBottomTabBar } = useGlobalState()
 
   const [messages, setMessages] = useState<IChatMessage[]>([])
+  const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [readupTo, setReadUpTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
 
   const [disabled, setDisabled] = useState(false)
   const [knockBadge, setKnockBadge] = useState(0)
+  const [inputText, setInputText] = useState('')
+  const [mentionSheetState, setMentionSheetState] = useState({ visible: false, search: '', enableSelect: false, selectedValues: [] })
+
+  const windowSize = useWindowDimensions()
+  const [tooltipState, setTooltipState] = useState({ visible: false, left: 0, top: 0, options: [], position: 'left' })
+
+  const [reply, setReply] = useState<MatrixEvent>()
 
   const { setLoading } = useGlobalState()
 
@@ -109,6 +122,7 @@ export function Room({ route, navigation }) {
       sent: event.status === null,
       pending: event.status !== null,
       event: event,
+      highlight: event.getContent()['m.mentions']?.user_ids?.includes(client.getUserId()),
       ...message
     }
     return msg
@@ -200,15 +214,6 @@ export function Room({ route, navigation }) {
     }
   }, [refreshKey])
 
-  // 文本消息
-  const sendText = useCallback((messages = []) => {
-    setBottomSheetShow(false)
-    const message: IChatMessage = messages[0]
-    message.pending = true
-    setMessages(prev => GiftedChat.append(prev, [message]))
-    client.sendTextMessage(room?.roomId, message.text)
-  }, [client, room])
-
   // 相册
   const sendGalley = useCallback(() => {
     (async () => {
@@ -274,7 +279,7 @@ export function Room({ route, navigation }) {
           {...props} alwaysShowSend containerStyle={{ justifyContent: 'center' }}>
           <View style={{ flexDirection: 'row', paddingHorizontal: 10 }}>
             {props.text === "" && <Icon name='plus-circle' disabled={disabled} disabledStyle={{ backgroundColor: theme.colors.background }}
-              type='feather' size={30} onPress={() => { setBottomSheetShow((prev) => !prev) }}
+              type='feather' size={30} onPress={() => { setShowSendPanel((prev) => !prev) }}
               color={disabled ? theme.colors.disabled : theme.colors.black}></Icon>}
             {props.text !== "" && <MaterialIcons size={30} color={disabled ? theme.colors.disabled : theme.colors.primary} name={'send'} />}
           </View>
@@ -330,8 +335,42 @@ export function Room({ route, navigation }) {
     navigation.push('ForwardMessage', { eventId: currentMesssage._id, roomId: room.roomId })
   }
 
+  const onReply = (currentMessage) => {
+    setReply(currentMessage.event)
+  }
+
+  // 长按工具条
+  const onMessageLongPress = (event, message) => {
+    const offsetX = windowSize.width / 2
+    const offsetY = windowSize.height / 2
+    const overlayPadding = 10
+    const left = 0 - offsetX + overlayPadding
+    const top = event.nativeEvent.pageY - event.nativeEvent.locationY - offsetY - 80
+
+    const content: IContent = message.event.getContent()
+    const options = [
+      { code: 'forward', name: '转发', icon: 'share', type: 'font-awesome-5' },
+      { code: 'refer', name: '引用', icon: 'comment-quotes', type: 'foundation' },
+      { code: 'favorite', name: '收藏', icon: 'favorite' },
+      { code: 'redact', name: '撤回', icon: 'delete' }]
+    if (content?.msgtype === MsgType.Text) {
+      options.unshift({ code: 'copy', name: '复制', icon: 'copy', type: 'font-awesome-5' })
+    }
+    setCurrentMessage(message)
+    setTooltipState({
+      visible: true,
+      options,
+      left,
+      top,
+      position: message.event.getSender() === client.getUserId() ? 'right' : 'left'
+    })
+  }
+
   // 长按操作
-  const onContextPress = async (code, currentMessage) => {
+  const onContextPress = async (code) => {
+    if (!currentMessage) {
+      return
+    }
     switch (code) {
       case 'copy':
         onCopy(currentMessage)
@@ -345,9 +384,37 @@ export function Room({ route, navigation }) {
       case 'redact':
         onRedAction(currentMessage)
         break
+      case 'refer':
+        onReply(currentMessage)
+        break;
       default:
         break;
     }
+  }
+
+  // @提醒
+  const onInputTextChanged = (text) => {
+    setShowSendPanel(false)
+    setInputText(text)
+    if (text.endsWith('@')) {
+      setMentionSheetState({ search: '', selectedValues: [], enableSelect: false, visible: true })
+    }
+  }
+
+  const onMention = (member) => {
+    setInputText(text => text + member.title + ' ')
+    setMentionSheetState({ search: '', selectedValues: [], enableSelect: false, visible: false })
+  }
+
+  const onMutilMention = () => {
+    const mentionsText = mentionSheetState.selectedValues.map(i => room.getMember(i).name).join(' @')
+    setInputText(text => text + mentionsText + ' ')
+    setMentionSheetState({ search: '', selectedValues: [], enableSelect: false, visible: false })
+  }
+
+  // 长按头像 @ 提醒
+  const onLongPressAvatar = (user) => {
+    setInputText(text => text + '@' + user.name + ' ')
   }
 
   const headerRight = !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
@@ -355,16 +422,81 @@ export function Room({ route, navigation }) {
     {knockBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
       badgeStyle={{ backgroundColor: theme.colors.error }} value={knockBadge}></Badge>}</View>
 
+  const messageTools = useMemo(() => <Overlay isVisible={tooltipState.visible}
+    overlayStyle={{
+      backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
+      shadowOffset: { width: 0, height: 0 },
+      shadowRadius: 0,
+    }}
+    backdropStyle={{ backgroundColor: 'transparent' }}
+    onBackdropPress={() => setTooltipState({ ...tooltipState, visible: false })}>
+    <View style={{ position: 'absolute', zIndex: 1, top: tooltipState.top, left: tooltipState.left }}>
+      <MessageTools options={tooltipState.options} width={windowSize.width} position={tooltipState.position}
+        onContextPress={onContextPress}
+        onClose={() => setTooltipState({ ...tooltipState, visible: false })}></MessageTools>
+    </View>
+  </Overlay>, [tooltipState])
+
+  // 消息增强面板
+  const sendPanel = <View>
+    <Divider style={{ width: '100%' }}></Divider>
+    <View style={{ flexDirection: 'row' }}>
+      <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'相册'} type='clear' icon={<Icon name='image' type='font-awesome'></Icon>} iconPosition='top'
+        onPress={sendGalley}
+      ></Button>
+      <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'拍摄'} type='clear' icon={<Icon name='video' type='font-awesome-5'></Icon>} iconPosition='top'
+        onPress={sendCamera}>
+      </Button>
+      <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'文档'} type='clear' icon={<Icon name='file' type='font-awesome-5'></Icon>} iconPosition='top'
+        onPress={sendDocument}>
+      </Button>
+    </View>
+  </View>;
+
+  // 引用预览
+  const replyBox = useCallback(() => {
+    if (reply) {
+      return <View style={{
+        paddingHorizontal: 10, paddingBottom: 10,
+        backgroundColor: '#e0e0e0',
+      }}><View style={{
+        backgroundColor: '#f0f0f0', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        padding: 6, borderRadius: 10, marginRight: 40
+      }}>
+          <MessageRef eventId={reply.getId()} width={size.width - 150}></MessageRef>
+          <Icon name='close' size={16} onPress={() => setReply(null)}></Icon>
+        </View>
+      </View>
+    }
+  }, [reply])
+
+  // 提醒选择框
+  const mentionSheet = useCallback(() => {
+    const members: IListItem[] = room?.getMembers().filter(i => i.userId !== client.getUserId())
+      .map(i => ({
+        id: i.userId,
+        title: i.name,
+        subtitle: normalizeUserId(i.userId),
+        avatar: i.getAvatarUrl(client.baseUrl, 30, 30, 'scale', true, true)
+      }))
+
+    return <BottomSheet isVisible={mentionSheetState.visible} onBackdropPress={() => setMentionSheetState({ ...mentionSheetState, visible: false })} >
+      <Header
+        leftComponent={<Button onPress={() => setMentionSheetState({ ...mentionSheetState, visible: false })} size="sm" type='clear' title={'返回'} titleStyle={{ color: theme.colors.background }}></Button>}
+        rightComponent={mentionSheetState.enableSelect ?
+          <Button onPress={onMutilMention} size="sm" type='clear' title={'确定'} titleStyle={{ color: theme.colors.background }}></Button> :
+          <Button onPress={() => setMentionSheetState({ ...mentionSheetState, enableSelect: true })} size="sm" type='clear' title={'多选'} titleStyle={{ color: theme.colors.background }}></Button>}
+        centerComponent={<Text style={{ color: '#fff', fontSize: globalStyle.titleFontStyle.fontSize }}>选择提醒的人</Text>}
+        centerContainerStyle={{ marginTop: 4 }}
+        containerStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }}></Header>
+      <ListView items={members} size={30} multiSelect {...mentionSheetState} onPressItem={(item) => !mentionSheetState.enableSelect && onMention(item)}></ListView>
+    </BottomSheet>;
+  }, [room, mentionSheetState])
+
   return (<>
     <BpayHeader showback title={room?.name} rightComponent={headerRight}></BpayHeader>
     <View style={styles.container}>
-      <Overlay isVisible={true} overlayStyle={{ backgroundColor: 'transparent' }}
-        onPressIn={() => { console.log('pressin') }}
-        onBackdropPress={() => { console.log('backdrops') }}>
-        <View style={{ position: 'absolute', top: 0, zIndex: 999, backgroundColor: '#000', borderRadius: 10 }}>
-          <MessageTools currentMessage={{}} onContextPress={undefined} onClose={undefined} onLayout={undefined} ></MessageTools>
-        </View>
-      </Overlay>
+      {messageTools}
       <Dialog
         isVisible={showTopic}
         onBackdropPress={() => setShowTopic(false)}>
@@ -376,14 +508,18 @@ export function Room({ route, navigation }) {
         <GiftedChat
           locale='zh'
           onPress={onMessagePress}
+          onLongPress={onMessageLongPress}
+          onLongPressAvatar={onLongPressAvatar}
           messages={messages}
-          onInputTextChanged={() => { setBottomSheetShow(false) }}
+          onInputTextChanged={onInputTextChanged}
           scrollToBottom
+          showAvatarForEveryMessage
           renderUsernameOnMessage
           onLoadEarlier={LoadEarlier}
           keyboardShouldPersistTaps='never'
           onSend={messages => sendText(messages)}
           placeholder='说点什么吧...'
+          text={inputText}
           infiniteScroll
           showUserAvatar
           messagesContainerStyle={{ paddingBottom: 10 }}
@@ -397,6 +533,9 @@ export function Room({ route, navigation }) {
             avatar: user?.avatarUrl
           }}
           onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
+          scrollToBottomComponent={() => <Icon name='keyboard-double-arrow-down' color={theme.colors.background}></Icon>}
+          scrollToBottomStyle={{ backgroundColor: theme.colors.primary }}
+          renderMessage={(props) => <Message {...props}></Message>}
           renderMessageImage={MessageImage}
           renderMessageVideo={MessageVideo}
           renderMessageText={MessageText}
@@ -404,27 +543,50 @@ export function Room({ route, navigation }) {
           renderBubble={(props) => <Bubble {...props}></Bubble>}
           renderCustomView={renderCustomView}
           renderSend={renderSend}
-          onContextPress={onContextPress}
         />
-        {bottomSheetShow && <View >
-          <Divider style={{ width: '100%' }}></Divider>
-          <View style={{ flexDirection: 'row' }}>
-            <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'相册'} type='clear' icon={<Icon name='image' type='font-awesome'></Icon>} iconPosition='top'
-              onPress={sendGalley}
-            ></Button>
-            <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'拍摄'} type='clear' icon={<Icon name='video' type='font-awesome-5'></Icon>} iconPosition='top'
-              onPress={sendCamera}>
-            </Button>
-            <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'文档'} type='clear' icon={<Icon name='file' type='font-awesome-5'></Icon>} iconPosition='top'
-              onPress={sendDocument}>
-            </Button>
-          </View>
-        </View>}
+        {mentionSheet()}
+        {showSendPanel && sendPanel}
+        {!!reply && replyBox()}
       </View>
     </View >
   </>
 
   )
+
+  // 文本消息
+  async function sendText(messages = []) {
+    setShowSendPanel(false)
+    const message: IChatMessage = messages[0]
+    message.pending = true
+    setMessages(prev => GiftedChat.append(prev, [message]))
+    const mentions = message.text.match(/@\w+/g)
+    const user_ids = mentions && mentions.map(i => room?.getMembers().find(m => m.name === i.slice(1))?.userId)
+    const content: IContent = {
+      msgtype: MsgType.Text,
+      body: message.text
+    }
+    if (user_ids?.length > 0) {
+      content['m.mentions'] = {
+        user_ids: user_ids || []
+      }
+    }
+    if (reply) {
+      content['m.relates_to'] = {
+        'm.in_reply_to': {
+          event_id: reply.getId()
+        }
+      }
+      if (content['m.mentions']) {
+        content['m.mentions'].user_ids.push(reply.getSender())
+      } else {
+        content['m.mentions'] = {
+          user_ids: [reply.getSender()]
+        }
+      }
+    }
+    setReply(null)
+    client.sendMessage(room?.roomId, content)
+  }
 
   async function sendVideo(uri: string) {
     const parsedUri = new URI(uri)

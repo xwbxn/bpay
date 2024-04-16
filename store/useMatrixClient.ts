@@ -10,7 +10,6 @@ import URI from 'urijs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
-import { AppState } from 'react-native';
 import { SqliteStore } from './sqliteStore';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
@@ -37,6 +36,26 @@ export function createClient(opts: ICreateClientOpts): BChatClient {
 export class BChatClient extends MatrixClient {
 
     private _txnToEvent: Map<string, MatrixEvent> = new Map<string, MatrixEvent>()
+
+    public async getEvent(eventId) {
+        const e = await _store.getEvent(eventId)
+        if (e) {
+            return new MatrixEvent({
+                event_id: e.event_id,
+                sender: e.sender,
+                room_id: e.room_id,
+                origin_server_ts: e.origin_server_ts.getUTCMilliseconds(),
+                state_key: e.state_key,
+                content: e.content,
+                type: e.type,
+                txn_id: e.txn_id,
+                membership: e.membership,
+                unsigned: e.unsigned,
+                redacts: e.redacts
+            })
+        }
+        return null
+    }
 
     public getSessions() {
         return this.getRooms()
@@ -287,7 +306,7 @@ const sendRoomNotify = async (room, membership) => {
         // if (currentNotifId !== null) {
         //     await Notifications.dismissNotificationAsync(currentNotifId)
         // }
-         await Notifications.scheduleNotificationAsync({
+        await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'BPay',
                 body: `有新的聊天邀请`
@@ -351,7 +370,6 @@ export const useMatrixClient = () => {
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
         _client.on(RoomEvent.Timeline, (event, room) => {
-            console.log('RoomEvent.Timeline', event.getId(), event.getTxnId())
             _client.saveToStore(event, room)
         })
 
@@ -389,6 +407,10 @@ export const useMatrixClient = () => {
                     if (!_client.isDirectRoom(r.roomId) && r.getMyMembership() === 'invite') {
                         r.setUnreadNotificationCount(NotificationCountType.Total, r.getUnreadNotificationCount() + 1)
                     }
+
+                    // r.on(RoomEvent.UnreadNotifications, (unreadNotifications) => {
+                    //     console.log('unreadNotifications', unreadNotifications.highlight, unreadNotifications.total)
+                    // })
                 })
 
                 _client.on(RoomEvent.MyMembership, (room, membership, prevMembership) => {
