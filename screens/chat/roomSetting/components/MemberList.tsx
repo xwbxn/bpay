@@ -54,12 +54,14 @@ export const MemberList = ({
     return <View>
         <View style={[{ flexDirection: 'row', flexWrap: 'wrap' }, containerStyle]}
             onLayout={onLayout}>
-            {filtedItems.map((i, index) => <MemberItem key={index} width={width / 5}>
-                {i.avatar
-                    ? <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={itemWidth} containerStyle={{ backgroundColor: theme.colors.primary }} source={{ uri: i.avatar }}></Avatar>
-                    : <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={itemWidth} containerStyle={{ backgroundColor: theme.colors.primary }} title={i.name[0]}></Avatar>}
-                <Text style={{ color: theme.colors.grey3 }}>{i.name}</Text>
-            </MemberItem>)}
+            {filtedItems.map((i, index) => {
+                return <MemberItem key={index} width={width / 5}>
+                    {i.avatar
+                        ? <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={itemWidth} containerStyle={{ backgroundColor: theme.colors.primary }} source={{ uri: i.avatar }}></Avatar>
+                        : <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={itemWidth} containerStyle={{ backgroundColor: theme.colors.primary }} title={i.name[0]}></Avatar>}
+                    <Text style={{ color: theme.colors.grey3 }}>{i.name}</Text>
+                </MemberItem>
+            })}
             {onAppend && <MemberItem width={width / 5}>
                 <Icon size={itemWidth - 4} onPress={() => { onAppend && onAppend() }} name={'plus'} type='antdesign'
                     color={theme.colors.primary}

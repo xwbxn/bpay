@@ -92,7 +92,6 @@ export const RoomSetting = ({ navigation, route }) => {
         Alert.alert("确认", "是否要退出群聊?", [
             {
                 text: '取消',
-                onPress: () => console.log('Cancel Pressed'),
                 style: 'cancel',
             },
             {

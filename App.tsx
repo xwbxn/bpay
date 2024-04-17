@@ -1,10 +1,9 @@
 import { loadAsync } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Updates from 'expo-updates';
 
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Spinner from 'react-native-loading-spinner-overlay';
 import { MenuProvider } from 'react-native-popup-menu';
 import { RootSiblingParent } from 'react-native-root-siblings';
@@ -20,7 +19,10 @@ import Login from './screens/profile/login';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
 import { PendingEventOrdering } from 'matrix-js-sdk';
-import { Alert } from 'react-native';
+import { Alert, AppRegistry } from 'react-native';
+import ForwardMessage from './screens/chat/forwardMessage';
+
+AppRegistry.registerComponent("ShareMenuModuleComponent", () => ForwardMessage);
 
 const theme = createTheme({
   lightColors: {
@@ -56,6 +58,7 @@ export default function App() {
           client.startClient({
             pendingEventOrdering: PendingEventOrdering.Detached
           })
+          console.debug('------------- starting client --------------')
         }
       })
       AsyncStorage.getItem("PROFILE").then(data => {
@@ -78,14 +81,6 @@ export default function App() {
     }
 
     prepare()
-    Updates.checkForUpdateAsync().then(update => {
-      console.log('---------check update---------:', update.isAvailable)
-      if (update.isAvailable) {
-        Alert.alert('测试', '在线升级测试')
-      }
-    }).catch(e => {
-      console.log('---------check update---------', e.toString())
-    })
   }, [])
 
   const onLayoutRootView = useCallback(async () => {
@@ -115,6 +110,7 @@ export default function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="PostDetail" component={PostDetail} />
             <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen name='ForwardMessage' component={ForwardMessage} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />

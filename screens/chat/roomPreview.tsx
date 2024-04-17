@@ -26,7 +26,6 @@ export default function RoomPreview({ navigation, route }) {
             setRoomName(room.name)
             setAvatarUrl(room.getAvatarUrl(client.baseUrl, 50, 50, 'scale'))
             setJoinrule(room.getJoinRule())
-            console.log('room', room.getJoinRule())
         })
 
         return () => {

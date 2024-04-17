@@ -15,7 +15,6 @@ export default function Qrcode({ route }) {
     const [title, setTitle] = useState('')
     const [headerTitle, setHeaderTitle] = useState('')
 
-    console.log('uri', uri)
     useEffect(() => {
         if (uri.startsWith("@")) {
             setHeaderTitle('我的二维码')

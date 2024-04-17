@@ -8,7 +8,7 @@ import { FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 import * as Linking from 'expo-linking';
 
-import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme, Image } from '@rneui/themed';
+import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
 
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import BpayHeader from '../../components/BpayHeader';
@@ -92,13 +92,12 @@ const Session = ({ navigation }) => {
         if (item.getMyMembership() === 'leave') {
             return <></>
         }
-
         return (
             <Menu>
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
                     <ListItem topDivider bottomDivider
                         containerStyle={[client.isRoomOnTop(item.roomId) && { backgroundColor: '#f5f5f5' }, { padding: 10 }]}>
-                        {avatar_url
+                        {(avatar_url)
                             ? <Avatar size={50} rounded source={{ uri: avatar_url }}
                                 containerStyle={{ backgroundColor: theme.colors.primary }}>
                                 {item.getUnreadNotificationCount() > 0
@@ -196,11 +195,14 @@ const Session = ({ navigation }) => {
         })
     }
 
+
     return <View style={styles.container}>
-        <BpayHeader title='聊天' leftComponent={profile?.avatar ? <Avatar rounded source={{ uri: profile?.avatar }} size={24}
-            onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Avatar>
-            : <Icon iconStyle={{ color: theme.colors.background }}
-                name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
+        <BpayHeader title='聊天'
+            leftComponent={(profile?.avatar !== '' && profile?.avatar !== null) ?
+                <Avatar rounded source={{ uri: profile?.avatar }} size={24}
+                    onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Avatar> :
+                <Icon iconStyle={{ color: theme.colors.background }}
+                    name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
             rightComponent={headerRight}></BpayHeader>
         <Qrcode isVisible={openQrCode} onClose={() => {
             setOpenQrCode(false)

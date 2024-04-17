@@ -50,13 +50,13 @@ import MessageRef from './messageRenders/MessageRef';
 export function Room({ route, navigation }) {
 
   const { theme } = useTheme()
-  const { id } = route.params
+  const { id: roomId } = route.params
   const { client } = useMatrixClient()
-  const [room, setRoom] = useState(client.getRoom(id))
+  const [room, setRoom] = useState(client.getRoom(roomId))
   const [user] = useState(client.getUser(client.getUserId()))
   const [topic, setTopic] = useState('')
   const [showTopic, setShowTopic] = useState(false)
-  const isDirectRoom = client.isDirectRoom(id)
+  const isDirectRoom = client.isDirectRoom(roomId)
   const [showSendPanel, setShowSendPanel] = useState(false)
   const size = useWindowDimensions()
   const { setShowBottomTabBar } = useGlobalState()
@@ -81,8 +81,8 @@ export function Room({ route, navigation }) {
 
   // 隐藏底部tapbar
   useEffect(() => {
-    client.getStateEvent(id, EventType.RoomMember, client.getUserId()).then(evt => {
-      setRoom(client.getRoom(id))
+    client.getStateEvent(roomId, EventType.RoomMember, client.getUserId()).then(evt => {
+      setRoom(client.getRoom(roomId))
     })
     setShowBottomTabBar(false)
     return () => {
@@ -332,7 +332,7 @@ export function Room({ route, navigation }) {
 
   // 转发
   const onForward = (currentMesssage) => {
-    navigation.push('ForwardMessage', { eventId: currentMesssage._id, roomId: room.roomId })
+    navigation.push('ForwardMessage', { target: currentMesssage._id, roomId: room.roomId })
   }
 
   const onReply = (currentMessage) => {
@@ -640,33 +640,10 @@ export function Room({ route, navigation }) {
 
   async function sendImage(uri: string) {
     Image.getSize(uri, async (width, height) => {
-      const parsedUri = new URI(uri)
-      const fileinfo = await FileSystem.getInfoAsync(uri, { size: true })
-      let thumbnail: ImageResult = null
-      if (width > 600) {
-        thumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }])
-      }
-
       const txnId = client.makeTxnId()
-      const localEventId = "~" + room.roomId + ":" + txnId
-      const localContent: IContent = {
-        msgtype: MsgType.Image,
-        body: parsedUri.filename(),
-        url: uri,
-        info: {
-          h: height,
-          w: width,
-          mimetype: mime.lookup(uri),
-          //@ts-ignore
-          size: fileinfo.size,
-          thumbnail_url: thumbnail?.uri,
-          thumbnail_info: {
-            w: thumbnail?.width,
-            h: thumbnail?.height,
-            minetype: mime.lookup(thumbnail?.uri),
-          }
-        },
-      }
+      const localEventId = "~" + roomId + ":" + txnId
+
+      const localContent: IContent = await createImageContent(uri, width, height);
       const eventObject: Partial<IEvent> = {
         type: EventType.RoomMessage,
         content: localContent
@@ -728,3 +705,32 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   content: { backgroundColor: '#f9f9f9', flex: 1 },
 })
+
+export async function createImageContent(uri: string, width: number, height: number) {
+  const parsedUri = new URI(uri);
+  const fileinfo = await FileSystem.getInfoAsync(uri, { size: true });
+  let thumbnail: ImageResult = null;
+  if (width > 600) {
+    thumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }]);
+  }
+
+  const localContent: IContent = {
+    msgtype: MsgType.Image,
+    body: parsedUri.filename(),
+    url: uri,
+    info: {
+      h: height,
+      w: width,
+      mimetype: mime.lookup(uri),
+      //@ts-ignore
+      size: fileinfo.size,
+      thumbnail_url: thumbnail?.uri,
+      thumbnail_info: {
+        w: thumbnail?.width,
+        h: thumbnail?.height,
+        minetype: mime.lookup(thumbnail?.uri),
+      }
+    },
+  };
+  return localContent;
+}

@@ -86,7 +86,6 @@ export default function PostDetail({ route, navigation }) {
             return getAuthor(res.author)
         }).then(res => {
             setAuthor(res)
-            console.log('res', res)
         }).finally(() => {
             setLoading(false)
         })

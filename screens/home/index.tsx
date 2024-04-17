@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
+import * as mime from 'react-native-mime-types';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { registerCustomIconType, useTheme, Icon } from '@rneui/themed';
+import ShareMenu from "react-native-share-menu";
 
 import { getCategories } from '../../service/wordpress';
 import { useMatrixClient } from '../../store/useMatrixClient';
@@ -19,6 +21,30 @@ const fontelloIcon = createIconSetFromFontello(fontelloConfig);
 const Tab = createBottomTabNavigator();
 
 export default function HomeScreen({ navigation }) {
+
+    const handleShare = useCallback((item) => {
+        if (!item) {
+            return;
+        }
+        const { mimeType, data, extraData } = item;
+        if (data) {
+            const mimetype = mime.lookup(data)
+            if (mimetype && mimetype.startsWith("image/")) {
+                appEmitter.emit('SHARED_FROM', data)
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        ShareMenu.getInitialShare(handleShare);
+    }, []);
+
+    useEffect(() => {
+        const listener = ShareMenu.addNewShareListener(handleShare);
+        return () => {
+            listener.remove();
+        };
+    }, []);
 
     registerCustomIconType('fontello', fontelloIcon)
     const { client } = useMatrixClient()
@@ -53,10 +79,15 @@ export default function HomeScreen({ navigation }) {
         const toLogin = () => {
             navigation.replace('Login')
         }
+        const toForward = (target) => {
+            navigation.navigate('Chatting', { screen: 'ForwardMessage', params: { target, roomId: undefined } })
+        }
         appEmitter.on('TO_LOGIN', toLogin)
+        appEmitter.on('SHARED_FROM', toForward)
 
         return () => {
             appEmitter.off('TO_LOGIN', toLogin)
+            appEmitter.off('SHARED_FROM', toForward)
         }
     }, [])
 

@@ -70,7 +70,6 @@ const ImageRender = (opts) => {
     }
 
     const saveToCamera = async () => {
-        console.log('call saveToCamera')
         if (permissionResponse.status !== 'granted') {
             await requestPermission();
         }

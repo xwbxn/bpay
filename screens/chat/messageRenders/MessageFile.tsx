@@ -88,7 +88,8 @@ export const MessageFile = (props) => {
             url = client.mxcUrlToHttp(url)
         }
         const mediaId = new URL(url).pathname.split('/').slice(-1)[0]
-        const cacheFilename = `${FileSystem.cacheDirectory}${mediaId}.file`
+        const ext = content.body.split('.')[1] || 'file'
+        const cacheFilename = `${FileSystem.cacheDirectory}${mediaId}.${ext}`
         if ((await FileSystem.getInfoAsync(cacheFilename)).exists) {
             Sharing.shareAsync(cacheFilename, {
                 dialogTitle: '选择应用',

@@ -170,7 +170,9 @@ export const roomPreview = (room: Room, client: BChatClient) => {
         const element = events[events.length - index - 1];
         const handler = roomPreviewMap[element.getType()]
         if (handler) {
-            return { text: handler(element, room, client), ts: element.localTimestamp }
+            const preview = handler(element, room, client)
+            if (preview)
+                return { text: preview, ts: element.localTimestamp }
         }
     }
 
@@ -199,10 +201,12 @@ const roomPreviewMap = {
         const prevMembership = event.getPrevContent().membership
         if (membership === 'join' && prevMembership === 'join') {
             if (event.getContent().avatar_url !== event.getPrevContent().avatar_url) {
-                return `[${event.sender.name} 修改了头像]`
+                return null
+                // return `[${event.sender.name} 修改了头像]`
             }
             if (event.getContent().displayname !== event.getPrevContent().displayname) {
-                return `[${event.getPrevContent().displayname} 将昵称修改为 ${event.getContent().displayname}]`
+                return null
+                // return `[${event.getPrevContent().displayname} 将昵称修改为 ${event.getContent().displayname}]`
             }
         }
         if (client.isDirectRoom(room.roomId)) {
