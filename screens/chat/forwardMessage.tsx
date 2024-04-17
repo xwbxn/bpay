@@ -191,8 +191,8 @@ export default function ForwardMessage({ navigation, route }) {
                 setEvent(event);
             });
         } else if (target.startsWith("content://")) {
-            const ext = target.split('.').slice(-1)[0]
-            const cacheFilename = FileSystem.cacheDirectory + randomUUID() + (ext && '.') + ext;
+            // const ext = target.split('.').slice(-1)[0]
+            const cacheFilename = FileSystem.cacheDirectory + randomUUID()// + (ext && '.') + ext;
             setCachedFile(cacheFilename)
             FileSystem.copyAsync({
                 from: target,

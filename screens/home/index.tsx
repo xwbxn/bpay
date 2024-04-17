@@ -27,10 +27,12 @@ export default function HomeScreen({ navigation }) {
             return;
         }
         const { mimeType, data, extraData } = item;
-        if (data) {
-            const mimetype = mime.lookup(data)
-            if (mimetype && mimetype.startsWith("image/")) {
-                appEmitter.emit('SHARED_FROM', data)
+        if (data && mimeType) {
+            console.log('----------------data', data)
+            console.log('mimeType', mimeType)
+            if (mimeType && mimeType.startsWith("image/")) {
+
+                navigation.navigate('Chatting', { screen: 'ForwardMessage', params: { target: data, roomId: undefined } })
             }
         }
     }, []);
@@ -79,15 +81,10 @@ export default function HomeScreen({ navigation }) {
         const toLogin = () => {
             navigation.replace('Login')
         }
-        const toForward = (target) => {
-            navigation.navigate('Chatting', { screen: 'ForwardMessage', params: { target, roomId: undefined } })
-        }
         appEmitter.on('TO_LOGIN', toLogin)
-        appEmitter.on('SHARED_FROM', toForward)
 
         return () => {
             appEmitter.off('TO_LOGIN', toLogin)
-            appEmitter.off('SHARED_FROM', toForward)
         }
     }, [])
 
