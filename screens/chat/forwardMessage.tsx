@@ -62,8 +62,10 @@ export default function ForwardMessage({ navigation, route }) {
             }
             if (cachedFile) {
                 FileSystem.deleteAsync(cachedFile)
+                navigation.replace('Room', { id: seletedItem.id })
+            } else {
+                navigation.goBack()
             }
-            navigation.goBack()
         } catch (e) {
             Alert.alert('错误', e.toString())
         } finally {
