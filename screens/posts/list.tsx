@@ -6,7 +6,6 @@ import { Avatar, Icon, Tab, TabView, useTheme } from '@rneui/themed';
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import PostFlatList from './components/PostFlatList';
 import PostHeader from './components/PostHeader';
-import { useMatrixClient } from '../../store/useMatrixClient';
 
 const getSubCateIds = (root, cates) => {
     const result = []

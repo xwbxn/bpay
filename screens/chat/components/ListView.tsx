@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import ParsedText from 'react-native-parsed-text';
 
 import { Avatar, ListItem, useTheme } from '@rneui/themed';
+
 import { globalStyle } from '../../../utils/styles';
 
 export interface IListItem {
@@ -17,6 +19,7 @@ interface IProps {
     itemKey?: string
     search?: string
     size?: number
+    highlight?: string | RegExp
 
     accordion?: boolean
     accordionTitle?: string
@@ -36,6 +39,7 @@ export const ListView = ({
     items,
     search = "",
     size = 50,
+    highlight = null,
     accordion,
     accordionExpand = true,
     accordionTitle,
@@ -104,8 +108,11 @@ export const ListView = ({
                         : <Avatar size={size} rounded title={m.title[0].toUpperCase()}
                             containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
                     <ListItem.Content>
-                        <ListItem.Title style={{ fontSize: globalStyle.titleFontStyle.fontSize }}>{m.title}</ListItem.Title>
-                        <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{m.subtitle}</ListItem.Subtitle>
+                        <ListItem.Title numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize }}>{m.title}</ListItem.Title>
+                        <ListItem.Subtitle >
+                            <ParsedText numberOfLines={1} style={{ color: theme.colors.grey2 }}
+                                parse={highlight && [{ pattern: highlight, style: { color: theme.colors.primary } }]}>{m.subtitle}</ParsedText>
+                        </ListItem.Subtitle>
                     </ListItem.Content>
                     {m.right ?
                         <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{m.right}</ListItem.Subtitle> :

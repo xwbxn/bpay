@@ -4,7 +4,6 @@ import { BChatClient } from "../../store/useMatrixClient";
 export const eventMessage = (event: MatrixEvent, room: Room, client: BChatClient): {
     [id: string]: any
 } => {
-    // console.log('event', event.getId(), event.getContent())
     if (event.isRedacted()) {
         return {
             text: "[消息已被撤回]",
@@ -75,7 +74,6 @@ const eventMap = {
                 return { text: `[${event.sender.name} 邀请 ${event.target.name} 加入群聊]`, system: true }
             }
         }
-        console.log(event.getContent(), event.getPrevContent())
         return { text: `[不支持的消息类型${event.getType()}]`, system: true }
     },
     [EventType.RoomMessage]: (event: MatrixEvent, room: Room, client: BChatClient) => {
@@ -162,6 +160,12 @@ const messageMap = {
             text: '[语音]'
         }
     },
+    [MsgType.Notice]: (content: IContent, room: Room, client: BChatClient) => {
+        return {
+            text: '[以上消息被清空]',
+            system: true
+        }
+    },
 }
 
 export const roomPreview = (room: Room, client: BChatClient) => {
@@ -239,13 +243,17 @@ const roomPreviewMap = {
                 return `[${event.sender.name} 邀请 ${event.getContent().displayname} 加入群聊]`
             }
         }
-        console.log(event.getType(), event.getContent(), event.getPrevContent())
         return `[不支持的消息类型${event.getType()}]`
     },
     [EventType.RoomMessage]: (event: MatrixEvent, room: Room, client: BChatClient) => {
         const handler = eventPreviewMap[event.getContent().msgtype]
         const prefix = client.isDirectRoom(room.roomId) ? '' : event.sender.name + ": "
         if (handler) {
+            const msg = handler(event.getContent())
+            // 空消息，但是需要显示时间，需要返回空格
+            if (msg.trim() === '') {
+                return ' '
+            }
             return prefix + handler(event.getContent())
         }
         return prefix + `[不支持的消息类型${event.getContent().msgtype}]`
@@ -288,5 +296,8 @@ const eventPreviewMap = {
     },
     [MsgType.Audio]: (content: IContent, room: Room, client: BChatClient) => {
         return '[语音]'
+    },
+    [MsgType.Notice]: (content: IContent, room: Room, client: BChatClient) => {
+        return ' '
     },
 }

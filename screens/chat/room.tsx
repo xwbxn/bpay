@@ -15,7 +15,7 @@ import {
   Direction, EventStatus, EventType, IContent, IEvent, JoinRule, MatrixEvent, MatrixEventEvent,
   MsgType, RoomEvent
 } from 'matrix-js-sdk';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
 import * as mime from 'react-native-mime-types';
@@ -45,12 +45,13 @@ import { globalStyle } from '../../utils/styles';
 import { IListItem, ListView } from './components/ListView';
 import { normalizeUserId } from '../../utils';
 import MessageRef from './messageRenders/MessageRef';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 export function Room({ route, navigation }) {
 
   const { theme } = useTheme()
-  const { id: roomId } = route.params
+  const { id: roomId, forward, search } = route.params
   const { client } = useMatrixClient()
   const [room, setRoom] = useState(client.getRoom(roomId))
   const [user] = useState(client.getUser(client.getUserId()))
@@ -59,12 +60,12 @@ export function Room({ route, navigation }) {
   const isDirectRoom = client.isDirectRoom(roomId)
   const [showSendPanel, setShowSendPanel] = useState(false)
   const size = useWindowDimensions()
-  const { setShowBottomTabBar } = useGlobalState()
 
   const [messages, setMessages] = useState<IChatMessage[]>([])
   const [currentMessage, setCurrentMessage] = useState<IChatMessage>()
   const [readupTo, setReadUpTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
+  const flatlist = useRef(null)
 
   const [disabled, setDisabled] = useState(false)
   const [knockBadge, setKnockBadge] = useState(0)
@@ -79,14 +80,11 @@ export function Room({ route, navigation }) {
   const { setLoading } = useGlobalState()
 
 
-  // 隐藏底部tapbar
   useEffect(() => {
-    client.getStateEvent(roomId, EventType.RoomMember, client.getUserId()).then(evt => {
-      setRoom(client.getRoom(roomId))
-    })
-    setShowBottomTabBar(false)
-    return () => {
-      setShowBottomTabBar(true)
+    if (!room) {
+      client.getStateEvent(roomId, EventType.RoomMember, client.getUserId()).then(evt => {
+        setRoom(client.getRoom(roomId))
+      })
     }
   }, [])
 
@@ -128,6 +126,19 @@ export function Room({ route, navigation }) {
     return msg
   }
 
+  const refreshMessage = useCallback(_.debounce(() => {
+    setRefreshKey(crypto.randomUUID())
+  }, 150), [])
+
+  // 处理回声信息，将回声中的content替换回本地
+  const onLocalEchoUpdated = async (event: MatrixEvent, room, oldEventId?: string, oldStatus?: EventStatus) => {
+    const existsLocal = await client.getEvent(oldEventId)
+    if (existsLocal) {
+      event.event.content = existsLocal.event.content
+      refreshMessage()
+    }
+  }
+
   // 初始化
   useEffect(() => {
     if (!room) {
@@ -141,14 +152,12 @@ export function Room({ route, navigation }) {
       setTopic(topicEvents[0].getContent().topic || '')
     }
 
-    const refreshMessage = _.debounce(() => {
-      setRefreshKey(crypto.randomUUID())
-    }, 150)
-
+    // 进入房间后，取消隐藏
     if (room?.tags[hiddenTagName]) {
       client.deleteRoomTag(room.roomId, hiddenTagName)
     }
 
+    // 处理邀请场景
     if (room.getMyMembership() == 'invite') {
       const memberEvt = room.getMember(client.getUserId()).events.member
       const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room?.name}]`
@@ -179,11 +188,32 @@ export function Room({ route, navigation }) {
 
     room.on(RoomEvent.Timeline, refreshMessage)
     room.on(RoomEvent.TimelineRefresh, refreshMessage)
+    room.on(RoomEvent.LocalEchoUpdated, onLocalEchoUpdated)
     return () => {
       room.off(RoomEvent.Timeline, refreshMessage)
       room.off(RoomEvent.TimelineRefresh, refreshMessage)
+      room.off(RoomEvent.LocalEchoUpdated, onLocalEchoUpdated)
     }
   }, [room])
+
+  // 加载历史消息，直到搜索位置已加载
+  useEffect(() => {
+    (async () => {
+      if (search && room) {
+        while (!room.findEventById(search.initEventId)) {
+          const total = await client.scrollbackLocal(room)
+          if (total === 0) {
+            break
+          }
+        }
+      }
+    })()
+  }, [search, room])
+
+  // 进入页面刷新信息
+  useFocusEffect(useCallback(() => {
+    refreshMessage()
+  }, []))
 
   // timeline event 转为 消息
   useEffect(() => {
@@ -213,6 +243,25 @@ export function Room({ route, navigation }) {
       }
     }
   }, [refreshKey])
+
+  // 处理分享消息
+  useEffect(() => {
+    (async () => {
+      if (forward) {
+        const { uri, mimetype, message } = forward
+        if (mimetype.startsWith('video/')) {
+          await sendVideo(uri)
+        } else if (mimetype.startsWith('image/')) {
+          await sendImage(uri)
+        } else if (mimetype.startsWith('application/')) {
+          await sendFile(uri)
+        }
+        if (message) {
+          await sendText([message])
+        }
+      }
+    })()
+  }, [forward])
 
   // 相册
   const sendGalley = useCallback(() => {
@@ -267,7 +316,7 @@ export function Room({ route, navigation }) {
   // 查看历史消息
   const LoadEarlier = useCallback(() => {
     if (room) {
-      client.scrollback(room)
+      client.scrollbackLocal(room)
     }
   }, [client, room])
 
@@ -335,6 +384,7 @@ export function Room({ route, navigation }) {
     navigation.push('ForwardMessage', { target: currentMesssage._id, roomId: room.roomId })
   }
 
+  // 引用
   const onReply = (currentMessage) => {
     setReply(currentMessage.event)
   }
@@ -352,7 +402,8 @@ export function Room({ route, navigation }) {
       { code: 'forward', name: '转发', icon: 'share', type: 'font-awesome-5' },
       { code: 'refer', name: '引用', icon: 'comment-quotes', type: 'foundation' },
       { code: 'favorite', name: '收藏', icon: 'favorite' },
-      { code: 'redact', name: '撤回', icon: 'delete' }]
+      { code: 'redact', name: '撤回', icon: 'delete' },
+      { code: 'code', name: '代码', icon: 'code' }]
     if (content?.msgtype === MsgType.Text) {
       options.unshift({ code: 'copy', name: '复制', icon: 'copy', type: 'font-awesome-5' })
     }
@@ -387,12 +438,19 @@ export function Room({ route, navigation }) {
       case 'refer':
         onReply(currentMessage)
         break;
+      case 'code':
+        Alert.alert('代码', JSON.stringify(currentMessage.event.getContent()))
+        client.getEvent(currentMessage.event.getId()).then(r => {
+          console.debug('--------event.local--------', currentMessage.event.getId(), r)
+        })
+        console.debug('--------event--------', currentMessage.event.getId(), currentMessage.event)
+        break;
       default:
         break;
     }
   }
 
-  // @提醒
+  // @提醒列表
   const onInputTextChanged = (text) => {
     setShowSendPanel(false)
     setInputText(text)
@@ -401,11 +459,13 @@ export function Room({ route, navigation }) {
     }
   }
 
+  // @提醒
   const onMention = (member) => {
     setInputText(text => text + member.title + ' ')
     setMentionSheetState({ search: '', selectedValues: [], enableSelect: false, visible: false })
   }
 
+  // @提醒列表多选
   const onMutilMention = () => {
     const mentionsText = mentionSheetState.selectedValues.map(i => room.getMember(i).name).join(' @')
     setInputText(text => text + mentionsText + ' ')
@@ -422,6 +482,7 @@ export function Room({ route, navigation }) {
     {knockBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
       badgeStyle={{ backgroundColor: theme.colors.error }} value={knockBadge}></Badge>}</View>
 
+  // 渲染长按工具条
   const messageTools = useMemo(() => <Overlay isVisible={tooltipState.visible}
     overlayStyle={{
       backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
@@ -437,7 +498,7 @@ export function Room({ route, navigation }) {
     </View>
   </Overlay>, [tooltipState])
 
-  // 消息增强面板
+  // 渲染视频、文件等消息按钮
   const sendPanel = <View>
     <Divider style={{ width: '100%' }}></Divider>
     <View style={{ flexDirection: 'row' }}>
@@ -493,8 +554,21 @@ export function Room({ route, navigation }) {
     </BottomSheet>;
   }, [room, mentionSheetState])
 
+  const onMessageLayout = useCallback((e, m) => {
+    if (m._id === search?.initEventId) {
+      const index = messages.indexOf(m)
+      if (index > -1) {
+        flatlist.current.scrollToIndex({
+          index,
+          viewPosition: 0.5,
+          animated: false
+        })
+      }
+    }
+  }, [search, flatlist.current, messages])
+
   return (<>
-    <BpayHeader showback title={room?.name} rightComponent={headerRight}></BpayHeader>
+    <BpayHeader showback title={room?.name} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>
     <View style={styles.container}>
       {messageTools}
       <Dialog
@@ -506,10 +580,14 @@ export function Room({ route, navigation }) {
       {topic !== '' && <Text style={{ padding: 8 }} numberOfLines={1} lineBreakMode='clip' onPress={() => setShowTopic(true)}>群公告: {topic}</Text>}
       <View style={styles.content}>
         <GiftedChat
+          messageContainerRef={flatlist}
+          //@ts-ignore
           locale='zh'
           onPress={onMessagePress}
           onLongPress={onMessageLongPress}
           onLongPressAvatar={onLongPressAvatar}
+          // @ts-ignore
+          onMessageLayout={onMessageLayout}
           messages={messages}
           onInputTextChanged={onInputTextChanged}
           scrollToBottom
@@ -523,6 +601,7 @@ export function Room({ route, navigation }) {
           infiniteScroll
           showUserAvatar
           messagesContainerStyle={{ paddingBottom: 10 }}
+          parsePatterns={!!search ? () => [{ pattern: new RegExp(search.keyword), style: { color: theme.colors.primary, fontWeight: 'bold' } }] : undefined}
           // @ts-ignore
           primaryStyle={{ paddingTop: 6, paddingBottom: 6, backgroundColor: '#e0e0e0' }}
           textInputStyle={{ backgroundColor: '#ffffff', borderRadius: 10, paddingLeft: 10, lineHeight: 24 }}
@@ -555,6 +634,7 @@ export function Room({ route, navigation }) {
 
   // 文本消息
   async function sendText(messages = []) {
+    const txnId = client.makeTxnId()
     setShowSendPanel(false)
     const message: IChatMessage = messages[0]
     message.pending = true
@@ -585,9 +665,10 @@ export function Room({ route, navigation }) {
       }
     }
     setReply(null)
-    client.sendMessage(room?.roomId, content)
+    client.sendMessage(room?.roomId, content, txnId)
   }
 
+  // 视频消息
   async function sendVideo(uri: string) {
     const parsedUri = new URI(uri)
     const fileinfo = await FileSystem.getInfoAsync(uri, { size: true })
@@ -638,15 +719,39 @@ export function Room({ route, navigation }) {
     setRefreshKey(crypto.randomUUID())
   }
 
+  // 图片消息
   async function sendImage(uri: string) {
     Image.getSize(uri, async (width, height) => {
       const txnId = client.makeTxnId()
       const localEventId = "~" + roomId + ":" + txnId
 
-      const localContent: IContent = await createImageContent(uri, width, height);
+      const parsedUri = new URI(uri);
+      const fileinfo = await FileSystem.getInfoAsync(uri, { size: true });
+      let thumbnail: ImageResult = null;
+      if (width > 600) {
+        thumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }])
+      }
+      const content: IContent = {
+        msgtype: MsgType.Image,
+        body: parsedUri.filename(),
+        url: uri,
+        info: {
+          h: height,
+          w: width,
+          mimetype: mime.lookup(uri),
+          //@ts-ignore
+          size: fileinfo.size,
+          thumbnail_url: thumbnail?.uri,
+          thumbnail_info: {
+            w: thumbnail?.width,
+            h: thumbnail?.height,
+            minetype: mime.lookup(thumbnail?.uri),
+          }
+        },
+      };
       const eventObject: Partial<IEvent> = {
         type: EventType.RoomMessage,
-        content: localContent
+        content
       }
       const localEvent = new MatrixEvent(Object.assign(eventObject, {
         event_id: localEventId,
@@ -666,6 +771,7 @@ export function Room({ route, navigation }) {
     })
   }
 
+  // 文件消息
   async function sendFile(file: DocumentPickerAsset) {
     const txnId = client.makeTxnId()
     const localEventId = "~" + room.roomId + ":" + txnId
@@ -705,32 +811,3 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   content: { backgroundColor: '#f9f9f9', flex: 1 },
 })
-
-export async function createImageContent(uri: string, width: number, height: number) {
-  const parsedUri = new URI(uri);
-  const fileinfo = await FileSystem.getInfoAsync(uri, { size: true });
-  let thumbnail: ImageResult = null;
-  if (width > 600) {
-    thumbnail = await manipulateAsync(uri, [{ resize: { width: 600 } }]);
-  }
-
-  const localContent: IContent = {
-    msgtype: MsgType.Image,
-    body: parsedUri.filename(),
-    url: uri,
-    info: {
-      h: height,
-      w: width,
-      mimetype: mime.lookup(uri),
-      //@ts-ignore
-      size: fileinfo.size,
-      thumbnail_url: thumbnail?.uri,
-      thumbnail_info: {
-        w: thumbnail?.width,
-        h: thumbnail?.height,
-        minetype: mime.lookup(thumbnail?.uri),
-      }
-    },
-  };
-  return localContent;
-}

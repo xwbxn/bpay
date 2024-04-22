@@ -1,13 +1,16 @@
-import * as Notifications from 'expo-notifications';
-
+import * as FileSystem from 'expo-file-system';
+import _ from 'lodash';
 import {
-    ClientEvent, Direction, EventType, ICreateClientOpts, MatrixClient, MatrixEvent, MatrixScheduler, MediaPrefix,
-    MemoryCryptoStore, MemoryStore, Method, NotificationCountType, Preset, Room, RoomEvent, RoomMember, RoomNameType, RoomStateEvent, SyncState, UploadProgress, Visibility
+    ClientEvent, ConnectionError, Direction, EventType, ICreateClientOpts, MatrixClient,
+    MatrixEvent, MatrixEventEvent, MatrixScheduler, MediaPrefix, MemoryCryptoStore, MemoryStore,
+    Method, NotificationCountType, Preset, Room, RoomEvent, RoomNameType, SyncState, Upload,
+    UploadOpts, UploadProgress, UploadResponse, Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
-import URI from 'urijs';
+import { defer } from 'matrix-js-sdk/lib/utils';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReactNativeForegroundService from '@supersami/rn-foreground-service';
 
 import { appEmitter } from '../utils/event';
 import { SqliteStore } from './sqliteStore';
@@ -44,7 +47,7 @@ export class BChatClient extends MatrixClient {
                 event_id: e.event_id,
                 sender: e.sender,
                 room_id: e.room_id,
-                origin_server_ts: e.origin_server_ts.getUTCMilliseconds(),
+                origin_server_ts: e.origin_server_ts.getTime(),
                 state_key: e.state_key,
                 content: e.content,
                 type: e.type,
@@ -55,6 +58,11 @@ export class BChatClient extends MatrixClient {
             })
         }
         return null
+    }
+
+    public async searchEvent(roomId, keyword) {
+        const rows = await _store.searchEvent(roomId, keyword)
+        return _.groupBy(rows, (value) => value.room_id)
     }
 
     public getSessions() {
@@ -78,10 +86,10 @@ export class BChatClient extends MatrixClient {
             })
     }
 
-    public async scrollback(room: Room, limit = 30): Promise<Room> {
-        console.debug('overide scrollback')
+    public async scrollbackLocal(room: Room, limit = 30): Promise<number> {
+        console.debug('scrollbackLocal', room.roomId)
         const store = this.store as SqliteStore
-        return store.scrollbackFromDB(room, limit)
+        return store.scrollbackLocal(room, limit)
     }
 
     public getMediaMessages(
@@ -104,7 +112,6 @@ export class BChatClient extends MatrixClient {
         if (filter) {
             params.filter = JSON.stringify(filter);
         }
-        console.log('params', params)
         return this.http.authedRequest(Method.Get, path, params);
     }
 
@@ -204,6 +211,7 @@ export class BChatClient extends MatrixClient {
         friendRooms.forEach(async roomId => {
             try { await this.leave(roomId) } catch { }
             try { await this.forget(roomId) } catch { }
+            try { await this.clearRoomEvent(roomId) } catch { }
         })
         delete content[userId]
         await this.setAccountData(EventType.Direct, content)
@@ -265,14 +273,22 @@ export class BChatClient extends MatrixClient {
     }
 
     async uploadFile(opts: { uri: string, mimeType?: string, name: string, callback?: (progress: UploadProgress) => void }) {
-        const fileUri = new URI(opts.uri)
-        const response = await fetch(opts.uri)
-        const blob = await response.blob()
-        const upload = await this.uploadContent(blob, {
-            name: fileUri.filename(),
-            progressHandler: opts.callback
+        const uploadUrl = this.http.getUrl("/upload", undefined, MediaPrefix.V3);
+        const contentType = opts.mimeType || "application/octet-stream";
+
+        const uploadTask = FileSystem.createUploadTask(uploadUrl.href, opts.uri, {
+            headers: {
+                "Authorization": "Bearer " + this.http.opts.accessToken,
+                "Content-Type": contentType
+            }
+        }, (data: FileSystem.UploadProgressData) => {
+            opts.callback && opts.callback({
+                loaded: data.totalBytesSent,
+                total: data.totalBytesExpectedToSend
+            })
         })
-        return { content_uri: upload.content_uri || undefined }
+        const upload = await uploadTask.uploadAsync()
+        return JSON.parse(upload.body)
     }
 
     addLocalEvent(room: Room, event: MatrixEvent) {
@@ -284,18 +300,42 @@ export class BChatClient extends MatrixClient {
         return room.getLiveTimeline().removeEvent(event.getId())
     }
 
+    // send event, recv event, sync event 以上三类信息需要保存
     async saveToStore(event: MatrixEvent, room: Room) {
         const txnId = event.getTxnId()
-        const localEvent = this._txnToEvent.get(txnId)
-
-        if (txnId && localEvent) {
-            localEvent.replaceLocalEventId(event.getId())
-            Object.assign(event.event.content, { ...localEvent.event.content })
-            room.emit(RoomEvent.LocalEchoUpdated, event, room, localEvent.getId(), localEvent.status)
-            this._txnToEvent.delete(txnId)
+        // 本地发送的消息，需要在处理回声消息，并将回声消息的资源替换为本地资源后进行持久化
+        if (txnId) {
+            // 收到回声后,持久化 
+            // console.debug('--------saveToStore.txnId--------', event.getId(), txnId)
+            event.on(MatrixEventEvent.LocalEventIdReplaced, async (echo) => {
+                const localEvent = this._txnToEvent.get(txnId)
+                // console.debug('--------saveToStore.LocalEventIdReplaced--------', event.getId(), txnId)
+                // 更新消息为本地资源，例如图片，视频url
+                if (localEvent) {
+                    // console.debug('--------saveToStore.UpdateLocalEvent--------', event.getId(), localEvent.getId(), txnId)
+                    Object.assign(event.event.content, { ...localEvent.event.content })
+                    this._txnToEvent.delete(txnId)
+                }
+                return await _store.persistEvent(event)
+            })
+        } else {
+            // 非本地消息，外部发来的消息直接持久化不做处理
+            // console.debug('--------saveToStore.noTxnId--------', event.getId(), txnId)
+            return await _store.persistEvent(event)
         }
-        return await _store.persistEvent(event)
     }
+
+    async clearRoomEvent(roomId) {
+        _store.clearRoomEvent(roomId)
+    }
+}
+
+export const NotificationHandler = (e: any) => {
+    console.log('e', e)
+}
+
+const checkNotification = () => {
+
 }
 
 const sendRoomNotify = async (room, membership) => {
@@ -303,38 +343,43 @@ const sendRoomNotify = async (room, membership) => {
     if (membership === 'invite'
         // && AppState.currentState.match(/background|inactive/)
     ) {
-        // if (currentNotifId !== null) {
-        //     await Notifications.dismissNotificationAsync(currentNotifId)
-        // }
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: 'BPay',
-                body: `有新的聊天邀请`
-            },
-            trigger: null,
-        });
+        ReactNativeForegroundService.update({
+            id: 2,
+            title: "BPay",
+            message: `您有新的聊天邀请`,
+        })
     }
 }
 
-const sendTimelineNotify = async (event: MatrixEvent, room: Room) => {
+const sendTimelineNotify = _.debounce(async (event: MatrixEvent, room: Room) => {
     // 通知栏消息
     if (event.getSender() !== _client.getUserId()
         // && AppState.currentState.match(/background|inactive/)
         && event.getType() === EventType.RoomMessage) {
 
-        // if (currentNotifId !== null) {
-        //     await Notifications.dismissNotificationAsync(currentNotifId)
-        // }
+        const highlight = _client.getRooms().reduce((count, room) => room.getUnreadNotificationCount(NotificationCountType.Highlight), 0)
         const total = _client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0)
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: 'BPay',
-                body: `您有${total}条未读信息`
-            },
-            trigger: null,
-        });
+        if (total > 0) {
+            ReactNativeForegroundService.update({
+                id: 1,
+                title: "BPay",
+                message: `${highlight > 0 ? "有人@你 " : ''}您有${total}条未读信息`,
+                setOnlyAlertOnce: "true",
+                button: true,
+                mainOnPress: console.log(event.getId())
+            })
+        } else {
+            ReactNativeForegroundService.stop()
+            ReactNativeForegroundService.update({
+                id: 1,
+                title: "BPay",
+                message: `正在运行`,
+                setOnlyAlertOnce: "true",
+            })
+        }
     }
-}
+}, 1000)
+
 
 let _client: BChatClient = null
 let _store: SqliteStore = null
@@ -369,7 +414,9 @@ export const useMatrixClient = () => {
         })
         _client.usingExternalCrypto = true // hack , ignore encrypt
 
+        // 保存本地消息
         _client.on(RoomEvent.Timeline, (event, room) => {
+            // 本地发送的信息，收到其他人的信息，同步服务器信息均会触发 
             _client.saveToStore(event, room)
         })
 
@@ -398,30 +445,14 @@ export const useMatrixClient = () => {
                 }
             }
             if (state === SyncState.Prepared) {
-                // 通知
-                _client.on(RoomEvent.Timeline, sendTimelineNotify)
-                _client.on(RoomEvent.MyMembership, sendRoomNotify)
-
+                // 预加载离线消息
                 _client.getRooms().forEach(r => {
                     _store.preloadPage(r)
-                    if (!_client.isDirectRoom(r.roomId) && r.getMyMembership() === 'invite') {
-                        r.setUnreadNotificationCount(NotificationCountType.Total, r.getUnreadNotificationCount() + 1)
-                    }
-
-                    // r.on(RoomEvent.UnreadNotifications, (unreadNotifications) => {
-                    //     console.log('unreadNotifications', unreadNotifications.highlight, unreadNotifications.total)
-                    // })
                 })
 
-                _client.on(RoomEvent.MyMembership, (room, membership, prevMembership) => {
-                    if (!_client.isDirectRoom(room.roomId)) {
-                        if (membership === 'invite') {
-                            room.setUnreadNotificationCount(NotificationCountType.Total, room.getUnreadNotificationCount() + 1)
-                        } else if (membership === 'join' && prevMembership === 'invite') {
-                            room.setUnreadNotificationCount(NotificationCountType.Total, room.getUnreadNotificationCount() - 1)
-                        }
-                    }
-                })
+                // 通知
+                _client.on(RoomEvent.Timeline, sendTimelineNotify)
+                // _client.on(RoomEvent.MyMembership, sendRoomNotify)
             }
 
         })

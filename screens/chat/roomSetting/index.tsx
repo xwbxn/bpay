@@ -13,7 +13,7 @@ import { useMatrixClient } from '../../../store/useMatrixClient';
 import { IListItem } from '../components/ListView';
 import { IMemberItem, MemberList } from './components/MemberList';
 import { IPropEditorProps, PropEditor } from '../components/PropEditor';
-import { Direction, EventType, Filter, JoinRule, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
+import { Direction, EventType, Filter, JoinRule, MatrixEvent, MsgType, RoomEvent, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
 import { ISettingItem, SettingList } from '../components/SettingList';
 import ListItemPicker from '../components/ListItemPicker';
 import { IRoomSetting } from '../groups';
@@ -100,6 +100,7 @@ export const RoomSetting = ({ navigation, route }) => {
                     try {
                         await client.leave(room.roomId)
                         await client.forget(room.roomId)
+                        await client.clearRoomEvent(room.roomId)
                         navigation.replace('Sessions')
                     } catch (e) {
                         Alert.alert('错误', e.toString())
@@ -242,6 +243,34 @@ export const RoomSetting = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     })
 
+    const clearLocalMessage = () => {
+        Alert.alert('提示', '删除后无法恢复，是否确认?', [
+            { text: '取消' },
+            {
+                text: '确定', onPress: () => {
+                    setLoading(true)
+                    room.getLiveTimeline().getEvents()
+                        .map(i => i.getId())
+                        .forEach(i => room.getLiveTimeline().removeEvent(i))
+                    room.getLiveTimeline().addEvent(new MatrixEvent({
+                        type: EventType.RoomMessage,
+                        origin_server_ts: new Date().getTime(),
+                        content: {
+                            msgtype: MsgType.Notice,
+                            body: '[消息被清空]'
+                        },
+                        user_id: client.credentials.userId,
+                        sender: client.credentials.userId,
+                        room_id: room.roomId,
+                    }), { toStartOfTimeline: true })
+                    client.clearRoomEvent(id).finally(() => {
+                        setLoading(false)
+                        room.emit(RoomEvent.TimelineReset, room, room.getUnfilteredTimelineSet(), false)
+                    })
+                }
+            }
+        ])
+    }
 
     const friendSettingItems: ISettingItem[] = [
         {
@@ -260,6 +289,10 @@ export const RoomSetting = ({ navigation, route }) => {
         {
             title: '置顶聊天',
             right: () => <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>
+        },
+        {
+            title: '清空聊天记录',
+            onPress: clearLocalMessage
         }
     ]
 
@@ -361,6 +394,10 @@ export const RoomSetting = ({ navigation, route }) => {
         {
             title: '置顶聊天',
             right: () => <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>,
+        },
+        {
+            title: '清空聊天记录',
+            onPress: clearLocalMessage
         },
         {
             title: '退出群聊',

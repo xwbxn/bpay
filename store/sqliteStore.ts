@@ -4,7 +4,7 @@ import { openDatabaseSync } from "expo-sqlite/next";
 import migrations from "../drizzle/migrations";
 import { migrate } from 'drizzle-orm/expo-sqlite/migrator';
 import * as schema from '../db/schema'
-import { and, count, desc, eq, lt, max } from "drizzle-orm";
+import { and, count, desc, eq, lt, max, like } from "drizzle-orm";
 import { sleep } from "matrix-js-sdk/lib/utils";
 
 const SCROLLBACK_DELAY_MS = 3000;
@@ -12,7 +12,7 @@ export class SqliteStore extends MemoryStore {
 
     public cursor: { [id: string]: Date } = {}
     private db: ExpoSQLiteDatabase<typeof schema>
-    protected ongoingScrollbacks: { [roomId: string]: { promise?: Promise<Room>; errorTs?: number } } = {};
+    protected ongoingScrollbacks: { [roomId: string]: { promise?: Promise<number>; errorTs?: number } } = {};
 
     constructor(opts) {
         super(opts);
@@ -35,7 +35,7 @@ export class SqliteStore extends MemoryStore {
         initAsync()
     }
 
-    scrollbackFromDB(room: Room, limit: number): Promise<Room> {
+    scrollbackLocal(room: Room, limit: number): Promise<number> {
         let timeToWaitMs = 0;
 
         let info = this.ongoingScrollbacks[room.roomId] || {};
@@ -47,10 +47,10 @@ export class SqliteStore extends MemoryStore {
         }
 
         if (this.cursor[room.roomId].getMilliseconds() === 0) {
-            return Promise.resolve(room); // already at the start.
+            return Promise.resolve(0); // already at the start.
         }
 
-        const promise = new Promise<Room>((resolve, reject) => {
+        const promise = new Promise<number>((resolve, reject) => {
             // wait for a time before doing this request
             // (which may be 0 in order not to special case the code paths)
             sleep(timeToWaitMs)
@@ -62,7 +62,6 @@ export class SqliteStore extends MemoryStore {
                     })
                 })
                 .then((page) => {
-                    console.debug('scrollbackFromDB', room.roomId, page.length, this.cursor[room.roomId])
                     const cursor = page.length > 0 ? page[page.length - 1].origin_server_ts : new Date(0)
                     this.cursor[room.roomId] = cursor
                     page.forEach(e => {
@@ -70,7 +69,7 @@ export class SqliteStore extends MemoryStore {
                             event_id: e.event_id,
                             sender: e.sender,
                             room_id: e.room_id,
-                            origin_server_ts: e.origin_server_ts.getUTCMilliseconds(),
+                            origin_server_ts: e.origin_server_ts.getTime(),
                             state_key: e.state_key,
                             content: e.content,
                             type: e.type,
@@ -82,7 +81,7 @@ export class SqliteStore extends MemoryStore {
                     })
                     delete this.ongoingScrollbacks[room.roomId];
                     room.emit(RoomEvent.TimelineRefresh, room, room.getUnfilteredTimelineSet())
-                    resolve(room);
+                    resolve(page.length);
                 })
                 .catch((err) => {
                     this.ongoingScrollbacks[room.roomId] = {
@@ -102,13 +101,13 @@ export class SqliteStore extends MemoryStore {
         const res = await this.db.select({ value: max(schema.events.origin_server_ts) })
             .from(schema.events)
             .where(eq(schema.events.room_id, room.roomId))
-        let cursor = res[0]?.value || new Date(2099, 12, 31)
-        let active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts || 0)
-        while (active > cursor) {
+        let dbRef = res[0]?.value || new Date(2099, 12, 31)
+        let timelineRef = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts || 0)
+        while (timelineRef > dbRef) {
             const r = await this.scrollback(room, 30)
-            active = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts)
+            timelineRef = new Date(room.getLiveTimeline().getEvents()[0]?.event.origin_server_ts)
         }
-        this.cursor[room.roomId] = cursor > active ? active : cursor
+        this.cursor[room.roomId] = dbRef > timelineRef ? timelineRef : dbRef
     }
 
     async getEvent(eventId: string) {
@@ -138,7 +137,15 @@ export class SqliteStore extends MemoryStore {
                 redacts: event.event.redacts || ''
             }).onConflictDoNothing()
         } catch (e) {
-            console.warn('persistEvent', JSON.stringify(e), event.getId())
+            console.warn('--------persistEvent.exception--------', event.getId())
         }
+    }
+
+    async clearRoomEvent(roomId: string) {
+        return await this.db.delete(schema.events).where(eq(schema.events.room_id, roomId))
+    }
+
+    async searchEvent(roomId, keyword) {
+        return await this.db.select().from(schema.events).where(like(schema.events.content, `%body%${keyword}%`))
     }
 }

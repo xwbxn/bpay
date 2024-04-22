@@ -1,18 +1,20 @@
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, TextInput, View } from 'react-native';
 import URI from 'urijs';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Avatar, Icon, useTheme } from '@rneui/themed';
 
+import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
-import { IPropEditorProps, PropEditor } from './components/PropEditor';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ISettingItem, SettingList } from './components/SettingList';
-import { CardView } from './components/CardView';
-import BpayHeader from '../../components/BpayHeader';
 import { normalizeUserId } from '../../utils';
+import { CardView } from './components/CardView';
+import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import { ISettingItem, SettingList } from './components/SettingList';
+import Toast from 'react-native-root-toast';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -26,6 +28,7 @@ export const MemberProfile = ({ navigation, route }) => {
     const [reason, setReason] = useState<string>()
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
     const globelProfile = useProfile()
+    const [cacheSize, setCacheSize] = useState(0)
 
     useEffect(() => {
         const directRoom = client.findDirectRoom(userId)
@@ -226,10 +229,26 @@ export const MemberProfile = ({ navigation, route }) => {
         {
             title: '我的二维码',
             right: () => <Icon size={20} name='qrcode' type='material-community' color={theme.colors.grey2}></Icon>,
-            onPress: () => navigation.push('Qrcode', {uri: userId})
+            onPress: () => navigation.push('Qrcode', { uri: userId })
         },
         {
             title: '我的收藏',
+        },
+        {
+            title: '清理缓存',
+            onPress: () => {
+                Alert.alert('确认', '清理缓存不会清除聊天记录，但附件需要重新下载。', [
+                    { text: '取消' },
+                    {
+                        text: '确定', onPress: async () => {
+                            setLoading(true)
+                            await FileSystem.deleteAsync(FileSystem.cacheDirectory)
+                            setLoading(false)
+                            Toast.show('缓存清理成功')
+                        }
+                    }
+                ])
+            }
         },
         {
             title: '修改密码',

@@ -1,13 +1,15 @@
 
-import { View, StyleSheet } from 'react-native'
-import React, { useEffect, useState } from 'react'
 import * as crypto from 'expo-crypto';
+import { Image } from 'expo-image';
+import _ from 'lodash';
+import {
+    EventStatus, EventType, IEvent, MatrixEvent, MatrixEventEvent, MsgType, UploadProgress
+} from 'matrix-js-sdk';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import * as Progress from 'react-native-progress';
-import _ from 'lodash'
 
 import { useMatrixClient } from '../../../store/useMatrixClient';
-import { EventStatus, EventType, IEvent, MatrixEvent, MatrixEventEvent, MsgType, UploadProgress } from 'matrix-js-sdk';
-import { Image } from 'expo-image';
 import RenderFile, { MessageFile } from './MessageFile';
 
 export default function Upload({ event }: { event: MatrixEvent }) {
@@ -42,14 +44,18 @@ export default function Upload({ event }: { event: MatrixEvent }) {
                     })
                     newContent.info.thumbnail_url = uploadedThumb.content_uri
                 }
+
+                console.log('upload', content.url)
                 const uploaded = await client.uploadFile({
                     uri: content.url,
                     mimeType: content.info.mimetype,
                     name: content.body,
                     callback: (progress: UploadProgress) => {
+                        console.log('progress', progress)
                         setProgress(progress.loaded / progress.total)
                     }
                 })
+
                 newContent.url = uploaded.content_uri
                 event.emit(MatrixEventEvent.Replaced, cloneEvent(newContent))
             })()
@@ -73,8 +79,8 @@ export default function Upload({ event }: { event: MatrixEvent }) {
     }, [])
 
     if ([MsgType.Video, MsgType.Image].includes(content.msgtype as MsgType)) {
-        let width = content.info.thumbnail_info.w
-        let height = content.info.thumbnail_info.h
+        let width = content.info.thumbnail_info?.w || content.info.w
+        let height = content.info.thumbnail_info?.h || content.info.h
         if (width > 150 || height > 150) {
             const ratio = Math.max(width, height) / 150
             width = width / ratio
@@ -89,7 +95,7 @@ export default function Upload({ event }: { event: MatrixEvent }) {
                     <Progress.Circle size={50} progress={progress}></Progress.Circle>
                 </View>
                 <Image style={{ ...styles.image, width, height, opacity: 0.8 }}
-                    source={{ uri: content.info.thumbnail_url }}></Image>
+                    source={{ uri: content.info.thumbnail_url || content.url }}></Image>
             </View>
         )
     }

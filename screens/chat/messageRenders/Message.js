@@ -104,7 +104,7 @@ export default class Message extends React.Component {
         const { currentMessage, onMessageLayout, nextMessage, position, containerStyle, } = this.props;
         if (currentMessage) {
             const sameUser = isSameUser(currentMessage, nextMessage);
-            return (<View onLayout={onMessageLayout}>
+            return (<View onLayout={e => onMessageLayout(e, currentMessage)}>
           {this.renderDay()}
           {currentMessage.system ? (this.renderSystemMessage()) : (<View style={[
                         styles[position].container,

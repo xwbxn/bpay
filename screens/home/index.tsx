@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
-import * as mime from 'react-native-mime-types';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { registerCustomIconType, useTheme, Icon } from '@rneui/themed';
@@ -20,7 +19,8 @@ const fontelloIcon = createIconSetFromFontello(fontelloConfig);
 
 const Tab = createBottomTabNavigator();
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, route }) {
+    const { setShowBottomTabBar } = useGlobalState()
 
     const handleShare = useCallback((item) => {
         if (!item) {
@@ -28,25 +28,42 @@ export default function HomeScreen({ navigation }) {
         }
         const { mimeType, data, extraData } = item;
         if (data && mimeType) {
-            console.log('----------------data', data)
-            console.log('mimeType', mimeType)
-            if (mimeType && mimeType.startsWith("image/")) {
-
-                navigation.navigate('Chatting', { screen: 'ForwardMessage', params: { target: data, roomId: undefined } })
+            if (mimeType &&
+                (mimeType.startsWith("image/") ||
+                    mimeType.startsWith("video/") ||
+                    mimeType.startsWith("application/"))) {
+                navigation.navigate('Chatting', {
+                    screen: 'ForwardMessage',
+                    params: { target: data, mimetype: mimeType, roomId: undefined }
+                })
             }
         }
     }, []);
 
     useEffect(() => {
         ShareMenu.getInitialShare(handleShare);
-    }, []);
-
-    useEffect(() => {
         const listener = ShareMenu.addNewShareListener(handleShare);
         return () => {
             listener.remove();
         };
     }, []);
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('state', (e) => {
+            // do something
+            const topStack = e.data.state.routes[e.data.state.index]
+            if (topStack.name === 'Home') {
+                const tabPage = topStack.state?.routes[topStack.state.index]
+                if (tabPage?.name === 'Chatting') {
+                    const chattingPage = tabPage.state?.routes[tabPage.state.index]
+                    setShowBottomTabBar(chattingPage?.name !== 'Room')
+                }
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation])
+
 
     registerCustomIconType('fontello', fontelloIcon)
     const { client } = useMatrixClient()

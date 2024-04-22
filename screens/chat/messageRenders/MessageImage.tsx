@@ -86,7 +86,7 @@ const ImageRender = (opts) => {
     if (fullscreen) {
         return <Overlay animationType='slide' isVisible={true} fullScreen
             overlayStyle={{ padding: 0 }} onRequestClose={() => setFullscreen(false)}>
-            <ImageViewer imageUrls={[{ url: showOriginImage ? url : thumbnail_url }]}
+            <ImageViewer imageUrls={[{ url: showOriginImage ? url : (thumbnail_url || url) }]}
                 onSave={saveToCamera}
                 renderImage={renderImage}
                 renderFooter={renderFooter}

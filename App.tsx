@@ -3,7 +3,7 @@ import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Spinner from 'react-native-loading-spinner-overlay';
 import { MenuProvider } from 'react-native-popup-menu';
 import { RootSiblingParent } from 'react-native-root-siblings';
@@ -17,10 +17,28 @@ import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
-import { useMatrixClient } from './store/useMatrixClient';
-import { PendingEventOrdering } from 'matrix-js-sdk';
-import { Alert, AppRegistry } from 'react-native';
+import { NotificationHandler, useMatrixClient } from './store/useMatrixClient';
+import { AppRegistry, DeviceEventEmitter } from 'react-native';
 import ForwardMessage from './screens/chat/forwardMessage';
+import ReactNativeForegroundService from "@supersami/rn-foreground-service";
+
+
+//@ts-ignore
+global.DOMException = function DOMException(message, name) {
+  console.log(message, name);
+};
+
+// notification task
+ReactNativeForegroundService.register();
+ReactNativeForegroundService.stopAll()
+ReactNativeForegroundService.eventListener((event) => {
+  console.log('--------ReactNativeForegroundService.event--------', event)
+})
+ReactNativeForegroundService.add_task(() => { }, {
+  delay: 5000,
+  onLoop: true,
+  taskId: 'message',
+})
 
 AppRegistry.registerComponent("ShareMenuModuleComponent", () => ForwardMessage);
 
@@ -55,9 +73,7 @@ export default function App() {
           client.credentials.userId = auth.user_id
           client.setAccessToken(auth.access_token)
           setStore(auth.user_id)
-          client.startClient({
-            pendingEventOrdering: PendingEventOrdering.Detached
-          })
+          client.startClient()
           console.debug('------------- starting client --------------')
         }
       })
@@ -110,7 +126,6 @@ export default function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="PostDetail" component={PostDetail} />
             <Stack.Screen name="Login" component={Login} />
-            <Stack.Screen name='ForwardMessage' component={ForwardMessage} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />

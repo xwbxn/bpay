@@ -89,7 +89,6 @@ export const RoomAdmin = ({ navigation, route }) => {
         try {
             const appended = selectedValues.filter(i => (!admins.map(a => a.id).includes(i)) && i !== owner)
             const removed = admins.map(i => i.id).filter(i => !selectedValues.includes(i) && i !== owner)
-            console.log('appended, removed', appended, removed)
             await appended.length > 0 && client.setPowerLevel(id, appended, 50)
             await removed.length > 0 && client.setPowerLevel(id, removed, null)
             removed.forEach(i => {

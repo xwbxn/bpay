@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
 import { Header, Icon, useTheme } from '@rneui/themed';
@@ -10,12 +10,19 @@ interface IBpayHeaderProps {
     leftComponent?: React.ReactElement
     rightComponent?: React.ReactElement
     centerComponent?: React.ReactElement
+    centerContainerStyle?: StyleProp<ViewStyle>
     title?: string
-    showback?: boolean
+    showback?: boolean,
+    onBack?: () => void,
 }
 
 export default function BpayHeader(opts: IBpayHeaderProps) {
-    const { leftComponent = null, rightComponent = null, centerComponent = null, title, showback = false } = opts
+    const { leftComponent = null,
+        rightComponent = null,
+        centerComponent = null,
+        title, showback = false,
+        onBack = null,
+        centerContainerStyle = null } = opts
     const { theme } = useTheme()
     const styles = StyleSheet.create({
         headTitle: {
@@ -30,7 +37,8 @@ export default function BpayHeader(opts: IBpayHeaderProps) {
         <Header
             leftContainerStyle={{ marginLeft: 6 }}
             rightContainerStyle={{ marginRight: 6 }}
-            leftComponent={leftComponent ? leftComponent : (showback && <Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.goBack()}></Icon>)}
+            centerContainerStyle={centerContainerStyle}
+            leftComponent={leftComponent ? leftComponent : (showback && <Icon name='arrow-back' color={theme.colors.background} onPress={() => onBack ? onBack() : navigation.goBack()}></Icon>)}
             centerComponent={centerComponent ? centerComponent : <Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>{title}</Text>}
             rightComponent={rightComponent ? rightComponent : null}
         ></Header >

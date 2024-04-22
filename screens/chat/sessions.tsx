@@ -1,23 +1,26 @@
 import 'moment/locale/zh-cn';
 
-import _ from 'lodash'
+import { BarcodeScanningResult } from 'expo-camera/next';
+import * as ImagePicker from 'expo-image-picker';
+import * as Linking from 'expo-linking';
+import RNQRGenerator from 'rn-qr-generator';
+
+import _ from 'lodash';
 import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
-import * as Linking from 'expo-linking';
+import Toast from 'react-native-root-toast';
 
 import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
 
-import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import BpayHeader from '../../components/BpayHeader';
-import { globalStyle } from '../../utils/styles';
 import { useProfile } from '../../store/globalContext';
-import { roomPreview } from './eventMessage';
+import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import { globalStyle } from '../../utils/styles';
 import Qrcode from './components/Qrcode';
-import { BarcodeScanningResult } from 'expo-camera/next';
-import Toast from 'react-native-root-toast';
+import { roomPreview } from './eventMessage';
 
 const Session = ({ navigation }) => {
 
@@ -27,16 +30,20 @@ const Session = ({ navigation }) => {
     const [rooms, setRooms] = useState([])
     const { profile } = useProfile()
     const [openQrCode, setOpenQrCode] = useState(false)
+    const [refreshing, setRefreshing] = useState(false)
+
+
+    const refreshRooms = useCallback(_.debounce(() => {
+        setRooms(client.getSessions().filter(r => !r.tags[hiddenTagName]))
+        setInviteBadge(client.getRooms()
+            .filter(i => client.isDirectRoom(i.roomId))
+            .reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
+    }, 150), [client])
 
     useEffect(() => {
-        const refreshRooms = _.debounce(() => {
-            setRooms(client.getSessions().filter(r => !r.tags[hiddenTagName]))
-            setInviteBadge(client.getRooms().filter(i => client.isDirectRoom(i.roomId)).reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
-        }, 150)
-
         refreshRooms()
-
         client.on(RoomEvent.Timeline, refreshRooms)
+        client.on(RoomEvent.TimelineReset, refreshRooms)
         client.on(RoomEvent.Receipt, refreshRooms)
         client.on(ClientEvent.Room, refreshRooms)
         client.on(ClientEvent.DeleteRoom, refreshRooms)
@@ -46,6 +53,7 @@ const Session = ({ navigation }) => {
 
         return () => {
             client.off(RoomEvent.Timeline, refreshRooms)
+            client.off(RoomEvent.TimelineReset, refreshRooms)
             client.off(RoomEvent.Receipt, refreshRooms)
             client.off(ClientEvent.Room, refreshRooms)
             client.off(ClientEvent.DeleteRoom, refreshRooms)
@@ -146,55 +154,79 @@ const Session = ({ navigation }) => {
         }
     })
 
-    const headerRight = useMemo(() => <Menu>
-        <MenuTrigger>
-            <Icon color={theme.colors.background} name='plus-circle' type='feather'></Icon>
-            {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
-                badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}
-        </MenuTrigger>
-        <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20, marginLeft: -16 } }}>
-            <MenuOption onSelect={onContactPress}>
-                <View style={menuStyles.buttonItem}>
-                    <Icon name='person' type='octicon' containerStyle={{ width: 40 }} color={theme.colors.white}></Icon>
-                    <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>联系人</Text>
-                </View>
-            </MenuOption>
-            <Divider style={{ width: '100%' }}></Divider>
-            <MenuOption onSelect={onGroupPress}>
-                <View style={menuStyles.buttonItem}>
-                    <Icon name='comment-discussion' containerStyle={{ width: 40 }} type='octicon' color={theme.colors.white}></Icon>
-                    <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>发起群聊</Text>
-                </View>
-            </MenuOption>
-            <Divider style={{ width: '100%' }}></Divider>
-            <MenuOption onSelect={() => setOpenQrCode(true)}>
-                <View style={menuStyles.buttonItem}>
-                    <Icon name='scan' containerStyle={{ width: 40 }} type='ionicon' color={theme.colors.white}></Icon>
-                    <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>扫一扫</Text>
-                </View>
-            </MenuOption>
-        </MenuOptions>
-    </Menu>, [inviteBadge])
+    const headerRight = useMemo(() => <View style={{ flexDirection: 'row' }}>
+        <Icon color={theme.colors.background} onPress={() => navigation.push('SearchMessage')} name='search' type='feather' style={{ marginHorizontal: 14 }}></Icon>
+        <Menu>
+            <MenuTrigger>
+                <Icon color={theme.colors.background} name='plus-circle' type='feather'></Icon>
+                {inviteBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
+                    badgeStyle={{ backgroundColor: theme.colors.error }} value={inviteBadge}></Badge>}
+            </MenuTrigger>
+            <MenuOptions customStyles={{ optionWrapper: menuStyles.optionWrapper, optionsContainer: { marginTop: 20, marginLeft: -16 } }}>
+                <MenuOption onSelect={onContactPress}>
+                    <View style={menuStyles.buttonItem}>
+                        <Icon name='person' type='octicon' containerStyle={{ width: 40 }} color={theme.colors.white}></Icon>
+                        <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>联系人</Text>
+                    </View>
+                </MenuOption>
+                <Divider style={{ width: '100%' }}></Divider>
+                <MenuOption onSelect={onGroupPress}>
+                    <View style={menuStyles.buttonItem}>
+                        <Icon name='comment-discussion' containerStyle={{ width: 40 }} type='octicon' color={theme.colors.white}></Icon>
+                        <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>发起群聊</Text>
+                    </View>
+                </MenuOption>
+                <Divider style={{ width: '100%' }}></Divider>
+                <MenuOption onSelect={() => setOpenQrCode(true)}>
+                    <View style={menuStyles.buttonItem}>
+                        <Icon name='scan' containerStyle={{ width: 40 }} type='ionicon' color={theme.colors.white}></Icon>
+                        <Text style={[menuStyles.titleStyle, globalStyle.headTitleFontStyle]}>扫一扫</Text>
+                    </View>
+                </MenuOption>
+            </MenuOptions>
+        </Menu>
+    </View>, [inviteBadge])
 
-    const onBarcodeScanned = (res: BarcodeScanningResult) => {
-        setOpenQrCode(false)
-        if (res.data.startsWith('!')) {
-            navigation.push('RoomPreview', { id: res.data })
+    const handleQrCode = (scanValue) => {
+        if (scanValue.startsWith('!')) {
+            navigation.push('RoomPreview', { id: scanValue })
             return
         }
-        if (res.data.startsWith('@')) {
-            navigation.push('Member', { userId: res.data })
+        if (scanValue.startsWith('@')) {
+            navigation.push('Member', { userId: scanValue })
             return
         }
-        Linking.canOpenURL(res.data).then(can => {
+        Linking.canOpenURL(scanValue).then(can => {
             if (can) {
-                Linking.openURL(res.data)
+                Linking.openURL(scanValue)
             } else {
-                Toast.show(res.data)
+                Toast.show(scanValue)
             }
         })
     }
 
+    const onBarcodeScanned = (res: BarcodeScanningResult) => {
+        setOpenQrCode(false)
+        handleQrCode(res.data)
+    }
+
+    const onBarcodeFromGalley = async () => {
+        setOpenQrCode(false)
+        const picked = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            aspect: [4, 3],
+            quality: 1,
+            allowsMultipleSelection: false,
+            selectionLimit: 9
+        })
+
+        if (!picked.canceled) {
+            const result = await RNQRGenerator.detect({
+                uri: picked.assets[0].uri
+            })
+            handleQrCode(result.values[0])
+        }
+    }
 
     return <View style={styles.container}>
         <BpayHeader title='聊天'
@@ -206,9 +238,9 @@ const Session = ({ navigation }) => {
             rightComponent={headerRight}></BpayHeader>
         <Qrcode isVisible={openQrCode} onClose={() => {
             setOpenQrCode(false)
-        }} onBarcodeScanned={onBarcodeScanned}></Qrcode>
+        }} onBarcodeScanned={onBarcodeScanned} onBarcodeFromGalley={onBarcodeFromGalley}></Qrcode>
         <View style={styles.content}>
-            <FlatList data={rooms} renderItem={renderItem}>
+            <FlatList data={rooms} renderItem={renderItem} onRefresh={refreshRooms} refreshing={refreshing}>
             </FlatList>
         </View>
     </View>

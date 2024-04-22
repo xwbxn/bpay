@@ -56,7 +56,6 @@ const PostFlatList = (props: IProps) => {
             per_page: 10
         }).then(res => {
             const moreData = data.concat(res)
-            console.log('moreData.length', moreData.length)
             setData(moreData)
             setPage(page + 1)
         }).catch(res => {
