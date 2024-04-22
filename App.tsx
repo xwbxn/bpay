@@ -79,7 +79,6 @@ export default function App() {
       })
 
       await SplashScreen.hideAsync();
-      setAppIsReady(true)
 
       // 检查通知权限
       if (! await allowsNotificationsAsync()) {
@@ -91,6 +90,10 @@ export default function App() {
         title: "BPay",
         message: `正在运行`
       })
+
+      setTimeout(() => {
+        setAppIsReady(true)
+      }, 3000);
     }
     prepare()
 
@@ -100,7 +103,8 @@ export default function App() {
   }, [])
 
   if (!appIsReady) {
-    return <Splash/>;
+    console.log('splash')
+    return <Splash />;
   }
 
   SplashScreen.hideAsync()
