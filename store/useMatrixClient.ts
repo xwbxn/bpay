@@ -14,6 +14,8 @@ import ReactNativeForegroundService from '@supersami/rn-foreground-service';
 
 import { appEmitter } from '../utils/event';
 import { SqliteStore } from './sqliteStore';
+import { AppState } from 'react-native';
+import { cancelScheduledNotificationAsync, dismissNotificationAsync, scheduleNotificationAsync } from 'expo-notifications';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
 console.log('chaturl: ', BASE_URL)
@@ -330,27 +332,23 @@ export class BChatClient extends MatrixClient {
     }
 }
 
-export const NotificationHandler = (e: any) => {
-    console.log('e', e)
-}
-
-const checkNotification = () => {
-
-}
 
 const sendRoomNotify = async (room, membership) => {
     // 通知栏消息
     if (membership === 'invite'
         // && AppState.currentState.match(/background|inactive/)
     ) {
-        ReactNativeForegroundService.update({
-            id: 2,
-            title: "BPay",
-            message: `您有新的聊天邀请`,
+        scheduleNotificationAsync({
+            content: {
+                title: 'BPay',
+                body: `您有新的聊天邀请`,
+            },
+            trigger: null,
         })
     }
 }
 
+let _notificationId: string
 const sendTimelineNotify = _.debounce(async (event: MatrixEvent, room: Room) => {
     // 通知栏消息
     if (event.getSender() !== _client.getUserId()
@@ -360,21 +358,17 @@ const sendTimelineNotify = _.debounce(async (event: MatrixEvent, room: Room) => 
         const highlight = _client.getRooms().reduce((count, room) => room.getUnreadNotificationCount(NotificationCountType.Highlight), 0)
         const total = _client.getRooms().reduce((count, room) => count + room.getUnreadNotificationCount(), 0)
         if (total > 0) {
-            ReactNativeForegroundService.update({
-                id: 1,
-                title: "BPay",
-                message: `${highlight > 0 ? "有人@你 " : ''}您有${total}条未读信息`,
-                setOnlyAlertOnce: "true",
-                button: true,
-                mainOnPress: console.log(event.getId())
-            })
-        } else {
-            ReactNativeForegroundService.stop()
-            ReactNativeForegroundService.update({
-                id: 1,
-                title: "BPay",
-                message: `正在运行`,
-                setOnlyAlertOnce: "true",
+            if (_notificationId) {
+                await dismissNotificationAsync(_notificationId)
+                _notificationId = null
+            }
+            _notificationId = await scheduleNotificationAsync({
+                content: {
+                    title: 'BPay',
+                    body: `${highlight > 0 ? "有人@你 " : ''}您有${total}条未读信息`,
+                    badge: total
+                },
+                trigger: null,
             })
         }
     }
@@ -452,7 +446,7 @@ export const useMatrixClient = () => {
 
                 // 通知
                 _client.on(RoomEvent.Timeline, sendTimelineNotify)
-                // _client.on(RoomEvent.MyMembership, sendRoomNotify)
+                _client.on(RoomEvent.MyMembership, sendRoomNotify)
             }
 
         })

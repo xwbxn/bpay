@@ -196,7 +196,7 @@ export function Room({ route, navigation }) {
     }
   }, [room])
 
-  // 加载历史消息，直到搜索位置已加载
+  // 加载历史消息，直到查询结果已加载
   useEffect(() => {
     (async () => {
       if (search && room) {
@@ -209,6 +209,20 @@ export function Room({ route, navigation }) {
       }
     })()
   }, [search, room])
+
+  // 定位到查询结果
+  const onMessageLayout = useCallback((e, m) => {
+    if (m._id === search?.initEventId) {
+      const index = messages.indexOf(m)
+      if (index > -1) {
+        flatlist.current.scrollToIndex({
+          index,
+          viewPosition: 0.5
+        })
+      }
+    }
+  }, [search, flatlist.current, messages])
+
 
   // 进入页面刷新信息
   useFocusEffect(useCallback(() => {
@@ -553,19 +567,6 @@ export function Room({ route, navigation }) {
       <ListView items={members} size={30} multiSelect {...mentionSheetState} onPressItem={(item) => !mentionSheetState.enableSelect && onMention(item)}></ListView>
     </BottomSheet>;
   }, [room, mentionSheetState])
-
-  const onMessageLayout = useCallback((e, m) => {
-    if (m._id === search?.initEventId) {
-      const index = messages.indexOf(m)
-      if (index > -1) {
-        flatlist.current.scrollToIndex({
-          index,
-          viewPosition: 0.5,
-          animated: false
-        })
-      }
-    }
-  }, [search, flatlist.current, messages])
 
   return (<>
     <BpayHeader showback title={room?.name} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>

@@ -17,11 +17,11 @@ import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
-import { NotificationHandler, useMatrixClient } from './store/useMatrixClient';
-import { AppRegistry, DeviceEventEmitter } from 'react-native';
+import { useMatrixClient } from './store/useMatrixClient';
+import { AppRegistry, AppState } from 'react-native';
 import ForwardMessage from './screens/chat/forwardMessage';
 import ReactNativeForegroundService from "@supersami/rn-foreground-service";
-
+import Splash from './Splash';
 
 //@ts-ignore
 global.DOMException = function DOMException(message, name) {
@@ -30,15 +30,6 @@ global.DOMException = function DOMException(message, name) {
 
 // notification task
 ReactNativeForegroundService.register();
-ReactNativeForegroundService.stopAll()
-ReactNativeForegroundService.eventListener((event) => {
-  console.log('--------ReactNativeForegroundService.event--------', event)
-})
-ReactNativeForegroundService.add_task(() => { }, {
-  delay: 5000,
-  onLoop: true,
-  taskId: 'message',
-})
 
 AppRegistry.registerComponent("ShareMenuModuleComponent", () => ForwardMessage);
 
@@ -94,28 +85,30 @@ export default function App() {
       if (! await allowsNotificationsAsync()) {
         await Notifications.requestPermissionsAsync()
       }
-    }
 
+      ReactNativeForegroundService.start({
+        id: 1,
+        title: "BPay",
+        message: `正在运行`
+      })
+    }
     prepare()
+
+    return () => {
+      ReactNativeForegroundService.stopAll();
+    }
   }, [])
 
-  const onLayoutRootView = useCallback(async () => {
-    if (appIsReady) {
-      setTimeout(() => {
-        SplashScreen.hideAsync();
-      }, 3000);
-    }
-  }, [appIsReady]);
-
   if (!appIsReady) {
-    return null;
+    return <Splash/>;
   }
 
+  SplashScreen.hideAsync()
   return <><RootSiblingParent>
     <Spinner visible={loading}></Spinner>
     <ThemeProvider theme={theme}>
       <MenuProvider>
-        <NavigationContainer onReady={onLayoutRootView}>
+        <NavigationContainer>
           <Stack.Navigator screenOptions={{
             headerShown: false,
             headerTitleAlign: 'center',
