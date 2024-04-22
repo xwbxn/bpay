@@ -582,6 +582,11 @@ export function Room({ route, navigation }) {
       <View style={styles.content}>
         <GiftedChat
           messageContainerRef={flatlist}
+          listViewProps={{
+            onScrollToIndexFailed: (info) => {
+              console.log('onScrollToIndexFailed', info)
+            }
+          }}
           //@ts-ignore
           locale='zh'
           onPress={onMessagePress}

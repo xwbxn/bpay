@@ -20,6 +20,7 @@ export default function SearchMessage({ navigation }) {
 
     const doSearch = useCallback(_.debounce((searchVal) => {
         client.searchEvent(null, searchVal).then(rows => {
+            setSelectedRoom(null)
             setResult(rows);
             const _result: IListItem[] = [];
             for (const key in rows) {
