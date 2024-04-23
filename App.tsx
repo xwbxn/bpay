@@ -1,9 +1,9 @@
 import { loadAsync } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
-
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { AppRegistry } from 'react-native';
 import Spinner from 'react-native-loading-spinner-overlay';
 import { MenuProvider } from 'react-native-popup-menu';
 import { RootSiblingParent } from 'react-native-root-siblings';
@@ -12,16 +12,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createTheme, ThemeProvider } from '@rneui/themed';
+import ReactNativeForegroundService from '@supersami/rn-foreground-service';
 
+import ForwardMessage from './screens/chat/forwardMessage';
 import HomeScreen from './screens/home';
 import PostDetail from './screens/posts/detail';
 import Login from './screens/profile/login';
+import Splash from './Splash';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
-import { AppRegistry, AppState } from 'react-native';
-import ForwardMessage from './screens/chat/forwardMessage';
-import ReactNativeForegroundService from "@supersami/rn-foreground-service";
-import Splash from './Splash';
 
 //@ts-ignore
 global.DOMException = function DOMException(message, name) {

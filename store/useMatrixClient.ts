@@ -1,21 +1,18 @@
 import * as FileSystem from 'expo-file-system';
+import { dismissNotificationAsync, scheduleNotificationAsync } from 'expo-notifications';
 import _ from 'lodash';
 import {
-    ClientEvent, ConnectionError, Direction, EventType, ICreateClientOpts, MatrixClient,
-    MatrixEvent, MatrixEventEvent, MatrixScheduler, MediaPrefix, MemoryCryptoStore, MemoryStore,
-    Method, NotificationCountType, Preset, Room, RoomEvent, RoomNameType, SyncState, Upload,
-    UploadOpts, UploadProgress, UploadResponse, Visibility
+    ClientEvent, Direction, EventType, ICreateClientOpts, MatrixClient, MatrixEvent,
+    MatrixEventEvent, MatrixScheduler, MediaPrefix, MemoryCryptoStore, MemoryStore, Method,
+    NotificationCountType, Preset, Room, RoomEvent, RoomNameType, SyncState, Upload, UploadProgress,
+    Visibility
 } from 'matrix-js-sdk';
 import { CryptoStore } from 'matrix-js-sdk/lib/crypto/store/base';
-import { defer } from 'matrix-js-sdk/lib/utils';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ReactNativeForegroundService from '@supersami/rn-foreground-service';
 
 import { appEmitter } from '../utils/event';
 import { SqliteStore } from './sqliteStore';
-import { AppState } from 'react-native';
-import { cancelScheduledNotificationAsync, dismissNotificationAsync, scheduleNotificationAsync } from 'expo-notifications';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
 console.log('chaturl: ', BASE_URL)

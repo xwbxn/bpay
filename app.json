@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "bpay",
+    "name": "BPay",
     "slug": "bpay",
     "version": "0.1.7",
     "orientation": "portrait",
@@ -20,10 +20,10 @@
       "bundleIdentifier": "life.bpay"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
+      // "adaptiveIcon": {
+      //   "foregroundImage": "./assets/adaptive-icon.png",
+      //   "backgroundColor": "#ffffff"
+      // },
       "package": "life.bpay",
       "permissions": [
         "android.permission.RECORD_AUDIO"
@@ -86,7 +86,8 @@
           "icon": "./assets/icon.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      ["./app.plugin.js"]
     ],
     "runtimeVersion": {
       "policy": "appVersion"

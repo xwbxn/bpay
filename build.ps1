@@ -1,1 +1,1 @@
-eas build --platform android
+eas build --platform android --local

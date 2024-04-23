@@ -23,19 +23,23 @@ const PostFlatList = (props: IProps) => {
     const { theme } = useTheme()
 
     const renderItem = useCallback(({ item }) => {
-
-        const category = item._embedded['wp:term'][0][0].name || ''
-        return (
-            <TouchableOpacity activeOpacity={1} onPress={() => { onPress && onPress(item) }}>
-                <ListItem containerStyle={{ width, paddingTop: 4, paddingBottom: 4 }} bottomDivider>
-                    <ListItem.Content style={{ justifyContent: 'space-between', minHeight: 64 }}>
-                        <ListItem.Title style={{ fontWeight: 'bold' }} numberOfLines={2} lineBreakMode='clip'>{item.title.rendered}</ListItem.Title>
-                        <ListItem.Subtitle style={{ color: theme.colors.grey3 }}>{category} {item._embedded.author[0].name} | {moment(item.date).format("YYYY-MM-DD")}</ListItem.Subtitle>
-                    </ListItem.Content>
-                    <Image style={{ width: 80, aspectRatio: 1.1, borderRadius: 0 }}
-                        source={{ uri: item._embedded['wp:featuredmedia'][0].media_details.sizes.thumbnail.source_url }}></Image>
-                </ListItem>
-            </TouchableOpacity>)
+        try {
+            const category = item._embedded['wp:term'].slice(0).slice(0).name || ''
+            return (
+                <TouchableOpacity activeOpacity={1} onPress={() => { onPress && onPress(item) }}>
+                    <ListItem containerStyle={{ width, paddingTop: 4, paddingBottom: 4 }} bottomDivider>
+                        <ListItem.Content style={{ justifyContent: 'space-between', minHeight: 64 }}>
+                            <ListItem.Title style={{ fontWeight: 'bold' }} numberOfLines={2} lineBreakMode='clip'>{item.title.rendered}</ListItem.Title>
+                            <ListItem.Subtitle style={{ color: theme.colors.grey3 }}>{category} {item._embedded.author[0].name} | {moment(item.date).format("YYYY-MM-DD")}</ListItem.Subtitle>
+                        </ListItem.Content>
+                        <Image style={{ width: 80, aspectRatio: 1.1, borderRadius: 0 }}
+                            source={{ uri: item._embedded['wp:featuredmedia'][0].media_details.sizes.thumbnail.source_url }}></Image>
+                    </ListItem>
+                </TouchableOpacity>)
+        } catch {
+            console.log('JSON.strinify(item', JSON.stringify(item))
+            return <></>
+        }
     }, [])
 
     const refreshData = () => {
