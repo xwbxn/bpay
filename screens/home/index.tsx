@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { registerCustomIconType, useTheme, Icon } from '@rneui/themed';
-import ShareMenu from "react-native-share-menu";
+import ShareMenu from "@xwbxn/react-native-share-menu";
 
 import { getCategories } from '../../service/wordpress';
 import { useMatrixClient } from '../../store/useMatrixClient';

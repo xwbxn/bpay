@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createTheme, ThemeProvider } from '@rneui/themed';
-import ReactNativeForegroundService from '@supersami/rn-foreground-service';
+import ReactNativeForegroundService from '@xwbxn/rn-foreground-service';
 
 import ForwardMessage from './screens/chat/forwardMessage';
 import HomeScreen from './screens/home';
