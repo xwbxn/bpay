@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { Button, Dialog, Header, Input, Overlay, Text, useTheme } from '@rneui/themed';
-import BpayHeader from '../../../components/BpayHeader';
-import { globalStyle } from '../../../utils/styles';
+import BpayHeader from './BpayHeader';
+import { globalStyle } from '../utils/styles';
 
 export interface IPropEditorProps {
     isVisible?: boolean,

@@ -8,8 +8,8 @@ import { Avatar, BottomSheet, Button, CheckBox, Input, SearchBar, Switch, Text, 
 import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
-import { ISettingItem, SettingList } from './components/SettingList';
-import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import { ISettingItem, SettingList } from '../../components/SettingList';
+import { IPropEditorProps, PropEditor } from '../../components/PropEditor';
 import BpayHeader from '../../components/BpayHeader';
 
 export interface IRoomSetting {

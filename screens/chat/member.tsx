@@ -1,20 +1,14 @@
-import * as FileSystem from 'expo-file-system';
-import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Switch, TextInput, View } from 'react-native';
-import URI from 'urijs';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Avatar, Icon, useTheme } from '@rneui/themed';
+import { useTheme } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { normalizeUserId } from '../../utils';
-import { CardView } from './components/CardView';
-import { IPropEditorProps, PropEditor } from './components/PropEditor';
-import { ISettingItem, SettingList } from './components/SettingList';
-import Toast from 'react-native-root-toast';
+import { CardView } from '../../components/CardView';
+import { ISettingItem, SettingList } from '../../components/SettingList';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -22,13 +16,9 @@ export const MemberProfile = ({ navigation, route }) => {
     const { theme } = useTheme()
     const { userId } = route.params
     const { client } = useMatrixClient()
-    const isMe = userId === client.getUserId()
 
     const [profile, setProfile] = useState<{ userId: string, avatar_url: string, displayname: string, targetRoomId?: string, isFriend: boolean }>()
     const [reason, setReason] = useState<string>()
-    const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
-    const globelProfile = useProfile()
-    const [cacheSize, setCacheSize] = useState(0)
 
     useEffect(() => {
         const directRoom = client.findDirectRoom(userId)
@@ -99,71 +89,6 @@ export const MemberProfile = ({ navigation, route }) => {
         ]);
     }
 
-    // 设置我的头像
-    const setMyAvatar = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 4],
-            quality: 1,
-        });
-        if (!result.canceled) {
-            result.assets.forEach(async (a) => {
-                const fileUri = new URI(a.uri)
-                const response = await fetch(a.uri)
-                const blob = await response.blob()
-                const upload = await client.uploadContent(blob, {
-                    name: fileUri.filename()
-                })
-                const avatar_url = client.mxcUrlToHttp(upload.content_uri, 80, 80, 'scale', true, true)
-                await client.setAvatarUrl(avatar_url)
-                setProfile({
-                    ...profile,
-                    avatar_url: avatar_url
-                })
-            })
-        }
-    }
-
-    // 设置我的昵称
-    const setMyNickName = () => {
-        setEditProps({
-            isVisible: true,
-            title: '设置昵称',
-            props: {
-                name: {
-                    value: profile?.displayname,
-                    title: '昵称'
-                },
-            },
-            onSave(data) {
-                setLoading(true)
-                client.setDisplayName(data.name.value).then(() => {
-                    setProfile({
-                        ...profile, displayname: data.name.value
-                    })
-                    setEditProps({ isVisible: false })
-                }).finally(() => {
-                    setLoading(false)
-                })
-            },
-            onCancel() {
-                setEditProps({ isVisible: false })
-            },
-        })
-    }
-
-    // 登出
-    const logOut = async () => {
-        await AsyncStorage.removeItem('TOKEN')
-        await AsyncStorage.removeItem('MATRIX_AUTH')
-        await AsyncStorage.removeItem('PROFILE')
-        globelProfile.setProfile({})
-        client.stopClient()
-        navigation.popToTop()
-        navigation.replace('Home')
-    }
-
     const styles = StyleSheet.create({
         container: { flex: 1, backgroundColor: '#f5f5f5' },
         content: { backgroundColor: '#ffffff', marginBottom: 12, paddingHorizontal: 10 },
@@ -215,65 +140,13 @@ export const MemberProfile = ({ navigation, route }) => {
         },
     ]
 
-    const mySettingItems: ISettingItem[] = [
-        {
-            title: '设置昵称',
-            onPress: setMyNickName,
-            text: profile?.displayname
-        },
-        {
-            title: '设置头像',
-            onPress: setMyAvatar,
-            right: () => <Avatar size={24} source={{ uri: profile?.avatar_url }}></Avatar>
-        },
-        {
-            title: '我的二维码',
-            right: () => <Icon size={20} name='qrcode' type='material-community' color={theme.colors.grey2}></Icon>,
-            onPress: () => navigation.push('Qrcode', { uri: userId })
-        },
-        {
-            title: '我的收藏',
-        },
-        {
-            title: '清理缓存',
-            onPress: () => {
-                Alert.alert('确认', '清理缓存不会清除聊天记录，但附件需要重新下载。', [
-                    { text: '取消' },
-                    {
-                        text: '确定', onPress: async () => {
-                            setLoading(true)
-                            await FileSystem.deleteAsync(FileSystem.cacheDirectory)
-                            setLoading(false)
-                            Toast.show('缓存清理成功')
-                        }
-                    }
-                ])
-            }
-        },
-        {
-            title: '修改密码',
-            breakTop: true,
-            titleStyle: { color: theme.colors.primary, alignItems: 'center' },
-            titleContainerStyle: { alignItems: 'center' },
-            hideChevron: true
-        },
-        {
-            title: '退出登录',
-            onPress: logOut,
-            breakTop: true,
-            titleStyle: { color: theme.colors.error, alignItems: 'center' },
-            titleContainerStyle: { alignItems: 'center' },
-            hideChevron: true
-        }
-    ]
-
     const friendSetting = (<View style={styles.container}>
-        <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url} />
+        <CardView title={profile?.displayname} subTittle={profile?.userId} avatar={profile?.avatar_url} />
         <SettingList items={friendSettingItems}></SettingList>
     </View >)
 
     const foreignerSetting = (<View style={styles.container}>
-        <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url} />
+        <CardView title={profile?.displayname} subTittle={profile?.userId} avatar={profile?.avatar_url} />
         <View style={{ backgroundColor: '#fff', marginTop: -10, padding: 20 }}>
             <TextInput style={{ borderRadius: 10, backgroundColor: '#eee', height: 80, lineHeight: 20, padding: 8, textAlignVertical: 'top' }} multiline={true}
                 numberOfLines={3} defaultValue={reason} onChangeText={setReason}></TextInput>
@@ -281,22 +154,8 @@ export const MemberProfile = ({ navigation, route }) => {
         <SettingList items={foreignerSettingItems}></SettingList>
     </View >)
 
-    const mySetting = (<View style={styles.container}>
-        <CardView title={profile?.displayname} subTittle={profile?.userId} avatarUrl={profile?.avatar_url}
-            onAvatarPress={setMyAvatar} />
-        <SettingList items={mySettingItems}></SettingList>
-    </View >)
-
     return <>
         <BpayHeader showback title='用户信息'></BpayHeader>
-        <PropEditor editProps={editProps}></PropEditor>
-        {isMe && mySetting}
-        {!isMe && profile?.isFriend && friendSetting}
-        {!isMe && !profile?.isFriend && foreignerSetting}
+        {profile?.isFriend ? friendSetting : foreignerSetting}
     </>
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f5f5' },
-    content: { backgroundColor: '#ffffff' },
-})

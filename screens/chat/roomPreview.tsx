@@ -1,10 +1,10 @@
 import { View, Text, TextInput } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import BpayHeader from '../../components/BpayHeader'
-import { CardView } from './components/CardView'
+import { CardView } from '../../components/CardView'
 import { useMatrixClient } from '../../store/useMatrixClient'
 import { useGlobalState, useProfile } from '../../store/globalContext'
-import { ISettingItem, SettingList } from './components/SettingList'
+import { ISettingItem, SettingList } from '../../components/SettingList'
 import { useTheme } from '@rneui/themed'
 import Toast from 'react-native-root-toast'
 import { JoinRule } from 'matrix-js-sdk'
@@ -80,7 +80,7 @@ export default function RoomPreview({ navigation, route }) {
     return (
         <View>
             <BpayHeader showback title={''}></BpayHeader>
-            <CardView title={roomName} subTittle={id} avatarUrl={avatarUrl}></CardView>
+            <CardView title={roomName} subTittle={id} avatar={avatarUrl}></CardView>
             <View style={{ backgroundColor: '#fff', marginTop: -10, padding: 20 }}>
                 <TextInput style={{ borderRadius: 10, backgroundColor: '#eee', height: 80, lineHeight: 20, padding: 8, textAlignVertical: 'top' }} multiline={true}
                     numberOfLines={3} defaultValue={reason} onChangeText={setReason}></TextInput>

@@ -51,16 +51,9 @@ export default function PostList({ route, navigation }) {
         navigation.push('PostDetail', { id: item.id, link: item.link })
     }
 
-    const onLoginPress = () => {
-        navigation.push('Login')
-    }
-
     return <>
         <View style={{ flex: 1 }}>
-            <PostHeader leftComponent={profile.authenticated && profile.avatar
-                ? <Avatar rounded source={{ uri: profile.avatar }} size={24}></Avatar>
-                : <Icon iconStyle={{ color: theme.colors.background }}
-                    name="user" type="font-awesome" onPress={() => { onLoginPress() }}></Icon>}></PostHeader>
+            <PostHeader></PostHeader>
             {/* 滚动菜单 */}
             <Tab value={tabIndex} onChange={(e) => { setTabIndex(e) }}
                 scrollable dense

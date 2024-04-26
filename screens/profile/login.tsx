@@ -1,58 +1,49 @@
 import { encode as base64_encode } from 'base-64';
 import React, { useState } from 'react';
-import { Alert, KeyboardAvoidingView, useWindowDimensions, View } from 'react-native';
+import { Alert, TouchableOpacity, View } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Button, Header, Icon, Image, Input, useTheme } from '@rneui/themed';
+import { Avatar, Button, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 
 import { getAuth, getMatrixAuth } from '../../service/wordpress';
-import { IProfile, useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState, useProfile } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
-import { PendingEventOrdering } from 'matrix-js-sdk';
+import { normalizeUserId } from '../../utils';
 
 export default function Login({ navigation, route }) {
 
     const { theme } = useTheme()
-    const { width } = useWindowDimensions()
     const { client, setStore } = useMatrixClient()
     const { setLoading } = useGlobalState()
+    const { login, profile } = useProfile()
 
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
-    const [setProfile] = useProfile((state) => [state.setProfile])
 
     const onLoginPress = async () => {
         if (!username || !password) {
             Alert.alert("请填写用户名和密码")
             return
         }
-        await AsyncStorage.removeItem("TOKEN")
+        doLogin()
+    }
+
+    const doLogin = async () => {
         const token = `Basic ${base64_encode(`${username}:${password}`)}`
         try {
             setLoading(true)
-            const bpayRes = await getAuth(token)
-
-            AsyncStorage.setItem("TOKEN", token)
-            const chatAuth = await getMatrixAuth()
-            const chatRes = await client.loginWithPassword(`@${chatAuth.username}:chat.b-pay.life`, chatAuth.random_password)
-            const chatProfile = await client.getProfileInfo(client.getUserId())
-            AsyncStorage.setItem("MATRIX_AUTH", JSON.stringify(chatRes))
-            const profile: IProfile = {
-                id: bpayRes.id,
-                name: bpayRes.name,
-                avatar: chatProfile.avatar_url,
-                authenticated: true
-            }
-            setProfile(profile)
-            AsyncStorage.setItem("PROFILE", JSON.stringify(profile))
+            await AsyncStorage.setItem("TOKEN", token)
+            const bpayUser = await getAuth(token)
+            const chatSecret = await getMatrixAuth()
+            const chatAuth = await client.loginWithPassword(`@${chatSecret.username}:chat.b-pay.life`, chatSecret.random_password)
+            const chatProfile = await client.getProfileInfo(chatAuth.user_id)
+            await login(bpayUser, token, chatAuth, chatProfile)
             if (client.clientRunning) {
                 client.stopClient()
             }
-            setStore(chatRes.user_id)
-            client.startClient({
-                pendingEventOrdering: PendingEventOrdering.Detached
-            })
+            setStore(chatAuth.user_id)
+            client.startClient()
             navigation.replace('Home')
         } catch (err) {
             console.log('err', err)
@@ -66,28 +57,55 @@ export default function Login({ navigation, route }) {
         }
     }
 
+    let avatar = null
+    if (profile.avatar) {
+        avatar = <Avatar source={{ uri: profile.avatar }} size={50} rounded
+            onPress={() => setUsername(normalizeUserId(profile.matrixId) || '')}
+            containerStyle={{ backgroundColor: theme.colors.primary }}
+        ></Avatar>
+    } else if (profile.name) {
+        avatar = <Avatar title={profile.name.slice(0)} size={50} rounded
+            onPress={() => setUsername(normalizeUserId(profile.matrixId) || '')}
+            containerStyle={{ backgroundColor: theme.colors.primary }}
+        ></Avatar>
+    }
+
     return <>
+        <Header leftComponent={<Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home')}></Icon>}></Header>
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
-            <Header leftComponent={<Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home')}></Icon>}></Header>
-            <KeyboardAvoidingView behavior='padding' style={{ justifyContent: 'flex-end' }}>
-                <View style={{ alignItems: 'center', paddingTop: 0 }}>
-                    <Image resizeMethod='scale' style={{ width: width / 1, height: width / 1 }} resizeMode='stretch'
-                        source={require('../../assets/login.jpg')}></Image>
+            <View style={{
+                flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                paddingTop: 26, paddingHorizontal: 20, marginTop: 0
+            }}>
+                <Text h3>密码登录</Text>
+                {avatar}
+            </View>
+            <View style={{ flex: 1, paddingHorizontal: 0, marginTop: 60 }} >
+                <Input placeholder='手机/用户名'
+                    errorStyle={{ height: 0 }}
+                    inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
+                    onChangeText={setUsername} value={username}></Input>
+                <Input placeholder='密码'
+                    errorStyle={{ height: 0 }}
+                    inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
+                    rightIcon={<Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
+                        onPress={() => setShowPassword(!showPassword)}></Icon>}
+                    secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
+                <View style={{ paddingHorizontal: 20 }}>
+                    <Button disabled={username.length === 0 || password.length === 0} radius={10}
+                        onPress={() => onLoginPress()}>登录</Button>
+
                 </View>
-                <View style={{ alignItems: 'center', paddingHorizontal: 29, marginTop: 0 }} >
-                    <Input placeholder='用户名'
-                        inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }} onChangeText={setUsername} value={username}></Input>
-                    <Input placeholder='密码'
-                        inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 1, borderRadius: 10, height: 40 }}
-                        rightIcon={<Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
-                            onPressIn={() => setShowPassword(true)}
-                            onPressOut={() => setShowPassword(false)}></Icon>}
-                        secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
+                <View style={{ marginTop: 14, marginHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <TouchableOpacity onPress={() => navigation.push('Register')}>
+                        <Text style={{ color: theme.colors.primary }}>找回密码</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.push('Register')}>
+                        <Text style={{ color: theme.colors.primary }}>用户注册</Text>
+                    </TouchableOpacity>
                 </View>
-                <View style={{ paddingHorizontal: 36 }}>
-                    <Button radius={10} onPress={() => onLoginPress()}>登录</Button>
-                </View>
-            </KeyboardAvoidingView>
+            </View>
         </View>
+
     </>
 }

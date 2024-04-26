@@ -209,7 +209,6 @@ export default function ForwardMessage({ navigation, route }) {
     function handleShared() {
         if (target.startsWith('$')) {
             client.fetchRoomEvent(roomId, target).then(event => {
-                console.log('event', event?.content.info?.thumbnail_url)
                 setEvent(event);
             });
         } else if (target.startsWith("content://")) {

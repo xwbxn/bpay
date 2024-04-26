@@ -21,7 +21,7 @@ export default function PostHeader(opts) {
 
     return (
         <BpayHeader
-            leftComponent={leftComponent ? leftComponent : <Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.goBack()}></Icon>}
+            leftComponent={leftComponent}
             centerComponent={<View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                 <TouchableOpacity><Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>首页</Text></TouchableOpacity>
                 <TouchableOpacity><Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>视频</Text></TouchableOpacity>

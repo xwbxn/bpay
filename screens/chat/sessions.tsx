@@ -232,7 +232,7 @@ const Session = ({ navigation }) => {
         <BpayHeader title='聊天'
             leftComponent={(profile?.avatar !== '' && profile?.avatar !== null) ?
                 <Avatar rounded source={{ uri: profile?.avatar }} size={24}
-                    onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Avatar> :
+                    onPress={() => navigation.push('Profile')}></Avatar> :
                 <Icon iconStyle={{ color: theme.colors.background }}
                     name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
             rightComponent={headerRight}></BpayHeader>

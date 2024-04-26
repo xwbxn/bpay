@@ -18,8 +18,8 @@ export function normalizeSize(fileSize) {
 }
 
 export function normalizeUserId(userId: string) {
-    if (userId.startsWith('@') && userId.includes(':chat.b-pay.life')) {
-        return userId.slice(0).replace(':chat.b-pay.life', '')
+    if (userId && userId.startsWith('@') && userId.includes(':chat.b-pay.life')) {
+        return userId.slice(1).replace(':chat.b-pay.life', '')
     }
     return userId
 }

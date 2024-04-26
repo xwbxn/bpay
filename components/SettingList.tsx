@@ -2,7 +2,7 @@ import { ListItem, useTheme, Text, Divider } from '@rneui/themed'
 import React, { ReactElement } from 'react'
 import { ReactNode } from 'react'
 import { StyleProp, View, ViewStyle, StyleSheet, TextStyle } from 'react-native'
-import { globalStyle } from '../../../utils/styles'
+import { globalStyle } from '../utils/styles'
 
 export interface ISettingItem {
     title: string

@@ -21,6 +21,9 @@ import Login from './screens/profile/login';
 import Splash from './Splash';
 import { IProfile, useGlobalState, useProfile } from './store/globalContext';
 import { useMatrixClient } from './store/useMatrixClient';
+import Profile from './screens/profile/profile';
+import Qrcode from './screens/chat/qrcode';
+import Register from './screens/profile/register';
 
 //@ts-ignore
 global.DOMException = function DOMException(message, name) {
@@ -45,7 +48,7 @@ export default function App() {
   const [appIsReady, setAppIsReady] = useState(false)
   const { client, setStore } = useMatrixClient()
   const { loading } = useGlobalState()
-  const { setProfile } = useProfile()
+  const { profile, hasHydrated } = useProfile()
 
   async function allowsNotificationsAsync() {
     const settings = await Notifications.getPermissionsAsync();
@@ -55,24 +58,17 @@ export default function App() {
   }
 
   useEffect(() => {
+    if (hasHydrated && profile.matrixAuth) {
+      client.credentials.userId = profile.matrixAuth.user_id
+      client.setAccessToken(profile.matrixAuth.access_token)
+      setStore(profile.matrixAuth.user_id)
+      client.startClient()
+      console.debug('------------- starting client --------------')
+    }
+  }, [hasHydrated])
+
+  useEffect(() => {
     const prepare = async () => {
-      AsyncStorage.getItem("MATRIX_AUTH").then(data => {
-        if (data) {
-          const auth: { user_id: string, access_token: string, refresh_token: string } = JSON.parse(data)
-          console.log('auth', auth)
-          client.credentials.userId = auth.user_id
-          client.setAccessToken(auth.access_token)
-          setStore(auth.user_id)
-          client.startClient()
-          console.debug('------------- starting client --------------')
-        }
-      })
-      AsyncStorage.getItem("PROFILE").then(data => {
-        if (data) {
-          const profile: IProfile = JSON.parse(data)
-          setProfile(profile)
-        }
-      })
       await loadAsync({
         'fontello': require('./assets/fonts/font/fontello.ttf'),
       })
@@ -102,7 +98,6 @@ export default function App() {
   }, [])
 
   if (!appIsReady) {
-    console.log('splash')
     return <Splash />;
   }
 
@@ -122,6 +117,9 @@ export default function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="PostDetail" component={PostDetail} />
             <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen name="Profile" component={Profile} />
+            <Stack.Screen name="Qrcode" component={Qrcode}/>
+            <Stack.Screen name="Register" component={Register} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />

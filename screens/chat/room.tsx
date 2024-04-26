@@ -491,6 +491,14 @@ export function Room({ route, navigation }) {
     setInputText(text => text + '@' + user.name + ' ')
   }
 
+  const onPressAvatar = useCallback((user) => {
+    if (user._id === client.getUserId()) {
+      navigation.push('Profile')
+    } else {
+      navigation.push('Member', { userId: user._id })
+    }
+  }, [client])
+
   const headerRight = !disabled && <View><Icon name='options' size={30} type='simple-line-icon' color={theme.colors.background}
     onPress={() => { navigation.push('RoomSetting', { id: room?.roomId }) }}></Icon>
     {knockBadge > 0 && <Badge containerStyle={{ position: 'absolute', left: 20, top: -4 }}
@@ -601,7 +609,7 @@ export function Room({ route, navigation }) {
           renderUsernameOnMessage
           onLoadEarlier={LoadEarlier}
           keyboardShouldPersistTaps='never'
-          onSend={messages => sendText(messages)}
+          onSend={sendText}
           placeholder='说点什么吧...'
           text={inputText}
           infiniteScroll
@@ -617,7 +625,7 @@ export function Room({ route, navigation }) {
             name: user?.displayName,
             avatar: user?.avatarUrl
           }}
-          onPressAvatar={(user) => navigation.push('Member', { userId: user._id })}
+          onPressAvatar={onPressAvatar}
           scrollToBottomComponent={() => <Icon name='keyboard-double-arrow-down' color={theme.colors.background}></Icon>}
           scrollToBottomStyle={{ backgroundColor: theme.colors.primary }}
           renderMessage={(props) => <Message {...props}></Message>}

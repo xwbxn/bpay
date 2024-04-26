@@ -45,13 +45,11 @@ export default function Upload({ event }: { event: MatrixEvent }) {
                     newContent.info.thumbnail_url = uploadedThumb.content_uri
                 }
 
-                console.log('upload', content.url)
                 const uploaded = await client.uploadFile({
                     uri: content.url,
                     mimeType: content.info.mimetype,
                     name: content.body,
                     callback: (progress: UploadProgress) => {
-                        console.log('progress', progress)
                         setProgress(progress.loaded / progress.total)
                     }
                 })

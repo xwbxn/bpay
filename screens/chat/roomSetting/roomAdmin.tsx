@@ -7,9 +7,9 @@ import URI from 'urijs'
 import BpayHeader from '../../../components/BpayHeader'
 import { useGlobalState } from '../../../store/globalContext'
 import { useMatrixClient } from '../../../store/useMatrixClient'
-import { CardView } from '../components/CardView'
+import { CardView } from '../../../components/CardView'
 import ListItemPicker from '../components/ListItemPicker'
-import { ISettingItem, SettingList } from '../components/SettingList'
+import { ISettingItem, SettingList } from '../../../components/SettingList'
 import { IMemberItem, MemberList } from './components/MemberList'
 
 export const RoomAdmin = ({ navigation, route }) => {
@@ -131,7 +131,7 @@ export const RoomAdmin = ({ navigation, route }) => {
     return <View style={styles.container}>
         <BpayHeader title='群管理' showback></BpayHeader>
         <CardView title={profile.name} subTittle={profile.roomId}
-            avatarUrl={profile.avatar_url}></CardView>
+            avatar={profile.avatar_url}></CardView>
         <SettingList items={[{ title: '群管理员', hideChevron: true }]}></SettingList>
         <MemberList containerStyle={{ paddingHorizontal: 10, paddingVertical: 20 }}
             items={admins} onSetting={() => { setShowPicker(true) }}></MemberList>

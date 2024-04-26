@@ -8,7 +8,7 @@ import { useGlobalState } from '../../store/globalContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 import { randomUUID } from 'expo-crypto';
-import { IPropEditorProps, PropEditor } from './components/PropEditor';
+import { IPropEditorProps, PropEditor } from '../../components/PropEditor';
 import Toast from 'react-native-root-toast';
 import BpayHeader from '../../components/BpayHeader';
 import { normalizeUserId } from '../../utils';
