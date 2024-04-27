@@ -38,7 +38,8 @@ const Profile = ({ navigation, route }) => {
             result.assets.forEach(async (a) => {
                 const upload = await client.uploadFile({
                     uri: a.uri,
-                    name: a.fileName
+                    name: a.fileName,
+                    mimeType: a.mimeType
                 })
                 const avatar_url = client.mxcUrlToHttp(upload.content_uri, 80, 80, 'scale', true, true)
                 await client.setAvatarUrl(avatar_url)
@@ -82,7 +83,7 @@ const Profile = ({ navigation, route }) => {
         await logout()
         client.stopClient()
         navigation.popToTop()
-        navigation.replace('Home')
+        navigation.replace('Welcome')
     }
 
     const styles = useMemo(() => StyleSheet.create({

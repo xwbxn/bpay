@@ -10,7 +10,7 @@ import { useMatrixClient } from '../../store/useMatrixClient';
 import { ChatIndex } from '../chat';
 import PostList from '../posts/list';
 import { RoomEvent } from 'matrix-js-sdk';
-import { useGlobalState } from '../../store/globalContext';
+import { useGlobalState, useProfile } from '../../store/globalContext';
 import { appEmitter } from '../../utils/event';
 import { createIconSetFromFontello } from 'react-native-vector-icons';
 import fontelloConfig from '../../assets/fonts/config.json';
@@ -20,7 +20,11 @@ const fontelloIcon = createIconSetFromFontello(fontelloConfig);
 const Tab = createBottomTabNavigator();
 
 export default function HomeScreen({ navigation, route }) {
-    const { setShowBottomTabBar } = useGlobalState()
+    const { client } = useMatrixClient()
+    const [unReadTotal, setUnReadTotal] = useState(0)
+    const { setCategories, showbottomTabBar, setShowBottomTabBar } = useGlobalState()
+    const { theme } = useTheme()
+    const { profile } = useProfile()
 
     const handleShare = useCallback((item) => {
         if (!item) {
@@ -49,6 +53,11 @@ export default function HomeScreen({ navigation, route }) {
     }, []);
 
     useEffect(() => {
+        setShowBottomTabBar(profile.roles?.includes('contributor'))
+    }, [profile.roles])
+
+
+    useEffect(() => {
         const unsubscribe = navigation.addListener('state', (e) => {
             // do something
             const topStack = e.data.state.routes[e.data.state.index]
@@ -56,20 +65,16 @@ export default function HomeScreen({ navigation, route }) {
                 const tabPage = topStack.state?.routes[topStack.state.index]
                 if (tabPage?.name === 'Chatting') {
                     const chattingPage = tabPage.state?.routes[tabPage.state.index]
-                    setShowBottomTabBar(chattingPage?.name !== 'Room')
+                    profile.roles?.includes('contributor') && setShowBottomTabBar(chattingPage?.name !== 'Room')
                 }
             }
         });
 
         return unsubscribe;
-    }, [navigation])
+    }, [navigation, profile.roles])
 
 
     registerCustomIconType('fontello', fontelloIcon)
-    const { client } = useMatrixClient()
-    const [unReadTotal, setUnReadTotal] = useState(0)
-    const { setCategories, showbottomTabBar } = useGlobalState()
-    const { theme } = useTheme()
 
     useEffect(() => {
         getCategories({
@@ -107,33 +112,33 @@ export default function HomeScreen({ navigation, route }) {
 
 
     return <>
-        <Tab.Navigator screenOptions={{
+        <Tab.Navigator initialRouteName='Chatting' screenOptions={{
             tabBarHideOnKeyboard: true,
             tabBarStyle: { display: showbottomTabBar ? undefined : 'none' },
             headerShown: false,
             tabBarActiveTintColor: theme.colors.primary,
         }}>
-            <Tab.Screen options={{
+            {profile.roles?.includes('contributor') && <Tab.Screen options={{
                 tabBarIcon: ({ color }) => <Icon size={30} iconStyle={styles.iconStyle} name='infomation' type='fontello' color={color}></Icon>,
                 title: '币看',
-            }} name="Information" component={PostList} initialParams={{ id: 78 }} />
-            <Tab.Screen options={{
+            }} name="Information" component={PostList} initialParams={{ id: 78 }} />}
+            {profile.roles?.includes('contributor') && <Tab.Screen options={{
                 tabBarIcon: ({ color }) => <Icon size={30} iconStyle={styles.iconStyle} name='recommend' type='fontello' color={color}></Icon>,
                 title: '币推',
-            }} name="Recommend" component={PostList} initialParams={{ id: 79 }} />
+            }} name="Recommend" component={PostList} initialParams={{ id: 79 }} />}
             <Tab.Screen options={{
                 tabBarIcon: ({ color }) => <Icon size={30} iconStyle={styles.iconStyle} name='chat' type='fontello' color={color}></Icon>,
                 title: '聊天',
                 tabBarBadge: unReadTotal > 0 ? unReadTotal : null
             }} name="Chatting" component={ChatIndex} />
-            <Tab.Screen options={{
+            {profile.roles?.includes('contributor') && <Tab.Screen options={{
                 tabBarIcon: ({ color }) => <Icon size={30} iconStyle={styles.iconStyle} name='invest' type='fontello' color={color}></Icon>,
                 title: '币投',
-            }} name="Investing" component={PostList} initialParams={{ id: 80 }} />
-            <Tab.Screen options={{
+            }} name="Investing" component={PostList} initialParams={{ id: 80 }} />}
+            {profile.roles?.includes('contributor') && <Tab.Screen options={{
                 tabBarIcon: ({ color }) => <Icon size={30} iconStyle={styles.iconStyle} name='follow' type='fontello' color={color}></Icon>,
                 title: '币跟',
-            }} name="Follow" component={PostList} initialParams={{ id: 81 }} />
+            }} name="Follow" component={PostList} initialParams={{ id: 81 }} />}
         </Tab.Navigator>
     </>
 }

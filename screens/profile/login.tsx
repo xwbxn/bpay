@@ -1,19 +1,15 @@
-import { encode as base64_encode } from 'base-64';
 import React, { useState } from 'react';
 import { Alert, TouchableOpacity, View } from 'react-native';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Avatar, Button, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
+import { Avatar, Button, Icon, Input, Text, useTheme } from '@rneui/themed';
 
-import { getAuth, getMatrixAuth } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
-import { useMatrixClient } from '../../store/useMatrixClient';
 import { normalizeUserId } from '../../utils';
+import BpayHeader from '../../components/BpayHeader';
 
 export default function Login({ navigation, route }) {
 
     const { theme } = useTheme()
-    const { client, setStore } = useMatrixClient()
     const { setLoading } = useGlobalState()
     const { login, profile } = useProfile()
 
@@ -30,25 +26,17 @@ export default function Login({ navigation, route }) {
     }
 
     const doLogin = async () => {
-        const token = `Basic ${base64_encode(`${username}:${password}`)}`
         try {
             setLoading(true)
-            await AsyncStorage.setItem("TOKEN", token)
-            const bpayUser = await getAuth(token)
-            const chatSecret = await getMatrixAuth()
-            const chatAuth = await client.loginWithPassword(`@${chatSecret.username}:chat.b-pay.life`, chatSecret.random_password)
-            const chatProfile = await client.getProfileInfo(chatAuth.user_id)
-            await login(bpayUser, token, chatAuth, chatProfile)
-            if (client.clientRunning) {
-                client.stopClient()
-            }
-            setStore(chatAuth.user_id)
-            client.startClient()
+            await login(username, password)
+            navigation.popToTop()
             navigation.replace('Home')
         } catch (err) {
             console.log('err', err)
             if (err.data?.code.match(/invalid_username|incorrect_password/)) {
                 Alert.alert("用户名或密码错")
+            } else if(err.errcode && err.errcode === 'M_LIMIT_EXCEEDED') {
+                Alert.alert("操作过于频繁，请稍后再试")
             } else {
                 Alert.alert(err.toString())
             }
@@ -64,23 +52,24 @@ export default function Login({ navigation, route }) {
             containerStyle={{ backgroundColor: theme.colors.primary }}
         ></Avatar>
     } else if (profile.name) {
-        avatar = <Avatar title={profile.name.slice(0)} size={50} rounded
+        avatar = <Avatar title={profile.name[0].toUpperCase()} size={50} rounded
             onPress={() => setUsername(normalizeUserId(profile.matrixId) || '')}
             containerStyle={{ backgroundColor: theme.colors.primary }}
         ></Avatar>
     }
 
     return <>
-        <Header leftComponent={<Icon name='arrow-back' color={theme.colors.background} onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home')}></Icon>}></Header>
+        <BpayHeader title='用户登录' leftComponent={<Icon name='arrow-back' color={theme.colors.background}
+            onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home')}></Icon>} />
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
             <View style={{
                 flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                paddingTop: 26, paddingHorizontal: 20, marginTop: 0
+                paddingVertical: 20, paddingHorizontal: 26, marginTop: 0
             }}>
                 <Text h3>密码登录</Text>
                 {avatar}
             </View>
-            <View style={{ flex: 1, paddingHorizontal: 0, marginTop: 60 }} >
+            <View style={{ flex: 1, marginTop: 40 }} >
                 <Input placeholder='手机/用户名'
                     errorStyle={{ height: 0 }}
                     inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}

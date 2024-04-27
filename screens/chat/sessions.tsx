@@ -3,24 +3,25 @@ import 'moment/locale/zh-cn';
 import { BarcodeScanningResult } from 'expo-camera/next';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
+import * as Notifications from 'expo-notifications';
 import RNQRGenerator from 'rn-qr-generator';
 
 import _ from 'lodash';
 import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
 import moment from 'moment';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 import Toast from 'react-native-root-toast';
 
-import { Avatar, Badge, Divider, Icon, ListItem, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, Button, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
-import { useProfile } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { globalStyle } from '../../utils/styles';
 import Qrcode from './components/Qrcode';
 import { roomPreview } from './eventMessage';
+import { useProfile } from '../../store/globalContext';
 
 const Session = ({ navigation }) => {
 
@@ -28,10 +29,33 @@ const Session = ({ navigation }) => {
     const { theme } = useTheme()
     const { client } = useMatrixClient()
     const [rooms, setRooms] = useState([])
-    const { profile } = useProfile()
     const [openQrCode, setOpenQrCode] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+    const { profile } = useProfile()
 
+    async function allowsNotificationsAsync() {
+        const settings = await Notifications.getPermissionsAsync();
+        const permission = (
+            settings.granted || settings.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL
+        );
+        if (!permission) {
+            Alert.alert('通知权限申请', '开启通知权限以便于有新消息是能提醒您',
+                [
+                    { text: '不同意' },
+                    {
+                        text: '同意', onPress: () => {
+                            Notifications.requestPermissionsAsync()
+                        }
+                    }
+                ])
+        }
+    }
+
+    useEffect(() => {
+        if (profile.authenticated) {
+            allowsNotificationsAsync()
+        }
+    }, [profile.authenticated])
 
     const refreshRooms = useCallback(_.debounce(() => {
         setRooms(client.getSessions().filter(r => !r.tags[hiddenTagName]))
@@ -230,19 +254,25 @@ const Session = ({ navigation }) => {
 
     return <View style={styles.container}>
         <BpayHeader title='聊天'
-            leftComponent={(profile?.avatar !== '' && profile?.avatar !== null) ?
-                <Avatar rounded source={{ uri: profile?.avatar }} size={24}
-                    onPress={() => navigation.push('Profile')}></Avatar> :
-                <Icon iconStyle={{ color: theme.colors.background }}
-                    name="user" type="font-awesome" onPress={() => navigation.push('Member', { userId: client.getUserId() })}></Icon>}
             rightComponent={headerRight}></BpayHeader>
         <Qrcode isVisible={openQrCode} onClose={() => {
             setOpenQrCode(false)
         }} onBarcodeScanned={onBarcodeScanned} onBarcodeFromGalley={onBarcodeFromGalley}></Qrcode>
-        <View style={styles.content}>
+        {profile.authenticated ? <View style={styles.content}>
             <FlatList data={rooms} renderItem={renderItem} onRefresh={refreshRooms} refreshing={refreshing}>
             </FlatList>
-        </View>
+        </View> :
+            <Overlay isVisible={true} fullScreen
+                overlayStyle={{ backgroundColor: 'transparent' }}
+                backdropStyle={{ opacity: 0.4}}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text>登录后查看更多功能</Text>
+                    <Button title={'登录'} buttonStyle={{ borderRadius: 10, paddingHorizontal: 20 }}
+                        onPress={() => navigation.replace('Login')}
+                        size='md' containerStyle={{ padding: 10 }}></Button>
+                </View>
+            </Overlay>
+        }
     </View>
 }
 

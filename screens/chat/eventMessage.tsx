@@ -16,6 +16,7 @@ export const eventMessage = (event: MatrixEvent, room: Room, client: BChatClient
     if (handler) {
         return handler(event, room, client)
     }
+    console.log('event.getContent(), event.getPrevContent()', event.getContent(), event.getPrevContent())
     return { text: `[不支持的消息类型${event.getType()}]`, system: false }
 }
 
@@ -52,7 +53,7 @@ const eventMap = {
                 return { text: `[${event.sender.name} 拒绝了好友申请]`, system: true }
             }
             if (membership === 'leave' && prevMembership === 'join') {
-                return { text: `[${event.sender.name} 删除了好友 ${event.target.name}]`, system: true }
+                return { text: `[${event.sender.name} 删除了好友`, system: true }
             }
         } else {
             if (membership === 'join') {
@@ -220,10 +221,10 @@ const roomPreviewMap = {
             if (membership === 'join' && prevMembership === 'invite' && event.getSender() === client.getUserId()) {
                 return '[同意了对方的好友申请]'
             }
-            if (membership === 'leave' && prevMembership === 'invite' && event.getSender() === client.getUserId()) {
+            if (membership === 'leave' && prevMembership === 'invite' && event.getSender() !== client.getUserId()) {
                 return '[拒绝了您的好友申请]'
             }
-            if (membership === 'leave' && prevMembership === 'join' && event.getSender() === client.getUserId()) {
+            if (membership === 'leave' && prevMembership === 'join' && event.getSender() !== client.getUserId()) {
                 return '[已不再是好友关系]'
             }
         } else {

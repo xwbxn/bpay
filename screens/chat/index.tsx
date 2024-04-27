@@ -1,9 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '@rneui/themed';
 
-import { useMatrixClient } from '../../store/useMatrixClient';
 import { Contacts } from './contacts';
 import { GroupChat } from './groups';
 import { MemberProfile } from './member';
@@ -22,15 +21,6 @@ const Stack = createNativeStackNavigator();
 export const ChatIndex = ({ navigation, route }) => {
 
     const { theme } = useTheme()
-    const { client } = useMatrixClient()
-
-    useEffect(() => {
-        if (!client.clientRunning) {
-            navigation.replace('Login')
-        }
-    }, [])
-
-
     return <>
         <Stack.Navigator screenOptions={{
             headerShown: false,

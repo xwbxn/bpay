@@ -1,5 +1,3 @@
-import 'dayjs/locale/zh';
-
 import * as Clipboard from 'expo-clipboard';
 import * as crypto from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
@@ -47,7 +45,6 @@ import { normalizeUserId } from '../../utils';
 import MessageRef from './messageRenders/MessageRef';
 import { useFocusEffect } from '@react-navigation/native';
 
-
 export function Room({ route, navigation }) {
 
   const { theme } = useTheme()
@@ -66,6 +63,7 @@ export function Room({ route, navigation }) {
   const [readupTo, setReadUpTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(crypto.randomUUID())
   const flatlist = useRef(null)
+  const [loadMoreLabel, setLoadMoreLabel] = useState('触摸查看更多消息')
 
   const [disabled, setDisabled] = useState(false)
   const [knockBadge, setKnockBadge] = useState(0)
@@ -328,9 +326,12 @@ export function Room({ route, navigation }) {
   }, [client, room])
 
   // 查看历史消息
-  const LoadEarlier = useCallback(() => {
+  const LoadEarlier = useCallback(async () => {
     if (room) {
-      client.scrollbackLocal(room)
+      const num = await client.scrollbackLocal(room)
+      if (num === 0) {
+        setLoadMoreLabel('已经到顶了')
+      }
     }
   }, [client, room])
 
@@ -596,18 +597,20 @@ export function Room({ route, navigation }) {
             }
           }}
           //@ts-ignore
-          locale='zh'
+          locale='zh-cn'
           onPress={onMessagePress}
           onLongPress={onMessageLongPress}
           onLongPressAvatar={onLongPressAvatar}
           // @ts-ignore
           onMessageLayout={onMessageLayout}
+          dateFormat="YYYY-MM-DD"
           messages={messages}
           onInputTextChanged={onInputTextChanged}
           scrollToBottom
           showAvatarForEveryMessage
           renderUsernameOnMessage
           onLoadEarlier={LoadEarlier}
+          label={loadMoreLabel}
           keyboardShouldPersistTaps='never'
           onSend={sendText}
           placeholder='说点什么吧...'
