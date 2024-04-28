@@ -70,7 +70,7 @@ export default function Login({ navigation, route }) {
                 {avatar}
             </View>
             <View style={{ flex: 1, marginTop: 40 }} >
-                <Input placeholder='手机/用户名'
+                <Input placeholder='用户名'
                     errorStyle={{ height: 0 }}
                     inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
                     onChangeText={setUsername} value={username}></Input>
