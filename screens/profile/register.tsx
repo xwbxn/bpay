@@ -1,61 +1,32 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import ParsedText from 'react-native-parsed-text';
 
-import { Button, CheckBox, Divider, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
+import { Button, CheckBox, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 
-import { getSmsCode, register } from '../../service/wordpress';
+import { register } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
-import { useMatrixClient } from '../../store/useMatrixClient';
-import Toast from 'react-native-root-toast';
-import { globalStyle } from '../../utils/styles';
 
 export default function Register({ navigation, route }) {
 
     const { theme } = useTheme()
-    const { client, setStore } = useMatrixClient()
     const { setLoading } = useGlobalState()
 
     const [username, setUsername] = useState('')
-    const [mobile, setMobile] = useState('')
+    const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [rePassword, setRePassword] = useState('')
-    const [smscode, setSmscode] = useState('')
-    const [smsCD, setSmsCD] = useState(0)
-    const interval = useRef(null)
     const [agreement, setAgreement] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
-    const [privicyBox, setPrivicyBox] = useState(false)
     const { login } = useProfile()
 
-    const sendSmsCode = async () => {
-        if (mobile.length < 11) {
-            Alert.alert('手机号错误', '请输入正确的手机号')
-            return
-        }
-        const res = await getSmsCode(mobile)
-        if (res.result) {
-            Toast.show(res.message.code, {
-                position: Toast.positions.CENTER
-            })
-            setSmsCD(60)
-            if (!interval.current) {
-                interval.current = setInterval(() => {
-                    setSmsCD(state => state - 1)
-                }, 1000)
-            }
-        } else {
-            Alert.alert('发送失败', res.message)
-        }
-    }
-
     const onRegister = () => {
-        if (username.length < 3) {
-            Alert.alert('用户名错误', '用户名至少3个字符')
+        if (username.length < 5) {
+            Alert.alert('用户名错误', '用户名至少5个字符')
             return
         }
-        if (mobile.length < 11) {
-            Alert.alert('手机号错误', '请输入正确的手机号')
+        if (email.length == 0) {
+            Alert.alert('邮箱错误', '请正确输入邮箱地址')
             return
         }
         if (password.length < 6) {
@@ -64,10 +35,6 @@ export default function Register({ navigation, route }) {
         }
         if (password !== rePassword) {
             Alert.alert('密码错误', '两次输入的密码不一致')
-            return
-        }
-        if (smscode.length !== 6) {
-            Alert.alert('验证码错误', '请输入正确的验证码')
             return
         }
         if (!agreement) {
@@ -79,9 +46,8 @@ export default function Register({ navigation, route }) {
     const doRegister = async () => {
         const data = {
             username,
-            mobile,
+            email,
             password,
-            smscode,
             agreement: true
         }
         setLoading(true)
@@ -92,18 +58,12 @@ export default function Register({ navigation, route }) {
             navigation.popToTop()
             navigation.replace('Home')
         } else {
+            //existing_user_email
+            //existing_user_login
             setLoading(false)
             Alert.alert('注册失败', res.message)
         }
     }
-
-    useEffect(() => {
-        if (smsCD === 0) {
-            clearInterval(interval.current)
-            interval.current = null
-        }
-    }, [smsCD])
-
 
     return <>
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
@@ -122,24 +82,10 @@ export default function Register({ navigation, route }) {
                             errorStyle={{ height: 0 }}
                             inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
                             onChangeText={setUsername} value={username}></Input>
-                        <Input placeholder='手机号'
+                        <Input placeholder='邮箱'
                             errorStyle={{ height: 0 }}
                             inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
-                            onChangeText={setMobile} value={mobile}></Input>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                            <Input placeholder='验证码'
-                                errorStyle={{ height: 0 }}
-                                inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
-                                onChangeText={setSmscode} value={smscode}></Input>
-                            <Button containerStyle={{ position: 'absolute', right: 20, top: 8 }}
-                                title={`发送验证码${smsCD > 0 ? `(${smsCD})` : ''}`}
-                                onPress={sendSmsCode}
-                                titleStyle={{ fontSize: 16 }}
-                                buttonStyle={{ borderRadius: 5 }}
-                                disabled={smsCD > 0}
-                                size='sm' type='outline'>
-                            </Button>
-                        </View>
+                            onChangeText={setEmail} value={email}></Input>
                         <Input placeholder='密码'
                             errorStyle={{ height: 0 }}
                             inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}

@@ -36,15 +36,7 @@ export function getAuthor(id) {
     return request.get(`/wp-json/wp/v2/users/${id}`)
 }
 
-export function getSmsCode(mobile) {
-    return request.post(`/wp-json/bpay/v1/register/smscode`, {
-        data: {
-            mobile
-        }
-    })
-}
-
-export function register(data: { username: string, mobile: string, smscode: string, password: string, agreement: boolean }) {
+export function register(data: { username: string, email: string, password: string, agreement: boolean }) {
     return request.post(`/wp-json/bpay/v1/register`, {
         data
     })
