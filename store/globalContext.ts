@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand'
 import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import { encode as base64_encode } from 'base-64';
-import { getAuth, getMatrixAuth } from '../service/wordpress';
+import { authenticate, register } from '../service/wordpress';
 import { useMatrixClient } from './useMatrixClient';
 
 export interface IGlobalState {
@@ -37,8 +37,9 @@ export interface IProfile {
 export interface IProfileState {
     profile: Partial<IProfile>,
     hasHydrated: boolean
-    login: (username: string, password: string) => Promise<void>,
+    login: (username: string, password: string, code: string) => Promise<void>,
     loginWithToken: (token: string) => Promise<void>,
+    register: (data: { username: string, email: string, password: string, agreement: boolean, code: string }) => Promise<void>,
     logout: () => Promise<void>,
     setHasHydrated: (state: boolean) => void,
     setProfile: (state: Partial<IProfile>) => void
@@ -55,25 +56,27 @@ export const useProfile = create<IProfileState>()(
                 roles: []
             },
             hasHydrated: false,
-            login: async (username: string, password: string) => {
-                console.log('username, password', username, password)
+            login: async (username: string, password: string, code: string) => {
+                await AsyncStorage.removeItem("TOKEN")
                 const token = `Basic ${base64_encode(`${username}:${password}`)}`
                 const { client, setStore } = useMatrixClient()
-                await AsyncStorage.removeItem('TOKEN')
-                const bpayUser = await getAuth(token)
+                const loginRes = await authenticate({ username, password, code })
+                if (!loginRes.result) {
+                    throw new Error(loginRes.message);
+                }
+                const bpayUser = loginRes.message
                 await AsyncStorage.setItem("TOKEN", token)
-                const chatSecret = await getMatrixAuth()
-                const chatAuth = await client.loginWithPassword(`@${chatSecret.username}:chat.b-pay.life`, chatSecret.random_password)
-                const chatProfile = await client.getProfileInfo(chatAuth.user_id)
+                const matrixAuth = await client.loginWithPassword(`@${username}:chat.b-pay.life`, loginRes.message.matrix_password)
+                const chatProfile = await client.getProfileInfo(matrixAuth.user_id)
                 const profile: IProfile = {
-                    id: bpayUser.id,
-                    matrixId: chatAuth.user_id,
+                    id: bpayUser.ID,
+                    matrixId: matrixAuth.user_id,
                     name: chatProfile.displayname,
                     avatar: chatProfile.avatar_url,
-                    roles: chatSecret.roles,
+                    roles: bpayUser.roles,
                     authenticated: true,
                     token,
-                    matrixAuth: chatAuth
+                    matrixAuth: matrixAuth
                 }
                 set({ profile })
                 client.credentials.userId = profile.matrixAuth.user_id
@@ -98,6 +101,39 @@ export const useProfile = create<IProfileState>()(
                 client.startClient({
                     initialSyncLimit: 30
                 })
+            },
+            async register({ username, password, email, code, agreement }) {
+                await AsyncStorage.removeItem("TOKEN")
+                const token = `Basic ${base64_encode(`${username}:${password}`)}`
+                const regUser = await register({ username, password, email, code, agreement })
+                if (!regUser.result) {
+                    throw new Error(regUser.message);
+                }
+                const { client, setStore } = useMatrixClient()
+                await AsyncStorage.setItem("TOKEN", token)
+                const matrixAuth = await client.loginWithPassword(`@${username}:chat.b-pay.life`, regUser.message.matrix_password)
+                const chatProfile = await client.getProfileInfo(matrixAuth.user_id)
+                const profile: IProfile = {
+                    id: regUser.ID,
+                    matrixId: matrixAuth.user_id,
+                    name: chatProfile.displayname,
+                    avatar: chatProfile.avatar_url,
+                    roles: regUser.roles,
+                    authenticated: true,
+                    token,
+                    matrixAuth: matrixAuth
+                }
+                set({ profile })
+                client.credentials.userId = profile.matrixAuth.user_id
+                client.setAccessToken(profile.matrixAuth.access_token)
+                setStore(profile.matrixAuth.user_id)
+                if (client.clientRunning) {
+                    client.stopClient()
+                }
+                client.startClient({
+                    initialSyncLimit: 30
+                })
+
             },
             logout: async () => {
                 const { client } = useMatrixClient()

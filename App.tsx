@@ -25,11 +25,9 @@ import Register from './screens/profile/register';
 import Welcome from './screens/profile/welcome';
 import Splash from './Splash';
 import { useGlobalState, useProfile } from './store/globalContext';
-import { useMatrixClient } from './store/useMatrixClient';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
-console.log('dayjs(new Date()', dayjs(new Date()).format('YYYY-MM-DD HH:mm:ss'))
 //@ts-ignore
 global.DOMException = function DOMException(message, name) {
   console.log(message, name);
@@ -51,7 +49,6 @@ SplashScreen.preventAutoHideAsync();
 export default function App() {
 
   const [appIsReady, setAppIsReady] = useState(false)
-  const { client, setStore } = useMatrixClient()
   const { loading } = useGlobalState()
   const { profile, hasHydrated, loginWithToken } = useProfile()
 

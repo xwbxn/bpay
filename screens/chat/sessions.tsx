@@ -22,6 +22,7 @@ import { globalStyle } from '../../utils/styles';
 import Qrcode from './components/Qrcode';
 import { roomPreview } from './eventMessage';
 import { useProfile } from '../../store/globalContext';
+import { Image } from 'expo-image';
 
 const Session = ({ navigation }) => {
 
@@ -259,12 +260,16 @@ const Session = ({ navigation }) => {
             setOpenQrCode(false)
         }} onBarcodeScanned={onBarcodeScanned} onBarcodeFromGalley={onBarcodeFromGalley}></Qrcode>
         {profile.authenticated ? <View style={styles.content}>
-            <FlatList data={rooms} renderItem={renderItem} onRefresh={refreshRooms} refreshing={refreshing}>
+            <FlatList data={rooms} renderItem={renderItem} onRefresh={refreshRooms} refreshing={refreshing}
+                ListEmptyComponent={<View style={{ alignItems: 'center', marginTop: 200 }}>
+                    <Image style={{ width: 100, height: 100, opacity: 0.3 }} source={require('../../assets/icon.png')}></Image>
+                    <Text style={{ fontSize: 16, color: 'grey' }}>暂无聊天记录</Text>
+                </View>}>
             </FlatList>
         </View> :
             <Overlay isVisible={true} fullScreen
                 overlayStyle={{ backgroundColor: 'transparent' }}
-                backdropStyle={{ opacity: 0.4}}>
+                backdropStyle={{ opacity: 0.4 }}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text>登录后查看更多功能</Text>
                     <Button title={'登录'} buttonStyle={{ borderRadius: 10, paddingHorizontal: 20 }}

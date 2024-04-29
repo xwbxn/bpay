@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Alert, TouchableOpacity, View } from 'react-native';
+import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 
 import { Avatar, Button, Icon, Input, Text, useTheme } from '@rneui/themed';
 
+import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState, useProfile } from '../../store/globalContext';
 import { normalizeUserId } from '../../utils';
-import BpayHeader from '../../components/BpayHeader';
 
 export default function Login({ navigation, route }) {
 
@@ -16,26 +17,28 @@ export default function Login({ navigation, route }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
+    const recaptcha = useRef<RecaptchaRef>(null);
 
     const onLoginPress = async () => {
         if (!username || !password) {
             Alert.alert("请填写用户名和密码")
             return
         }
-        doLogin()
+        recaptcha.current.open()
+        // doLogin()
     }
 
-    const doLogin = async () => {
+    const doLogin = async (code) => {
         try {
             setLoading(true)
-            await login(username, password)
+            await login(username, password, code)
             navigation.popToTop()
             navigation.replace('Home')
         } catch (err) {
             console.log('err', err)
             if (err.data?.code.match(/invalid_username|incorrect_password/)) {
                 Alert.alert("用户名或密码错")
-            } else if(err.errcode && err.errcode === 'M_LIMIT_EXCEEDED') {
+            } else if (err.errcode && err.errcode === 'M_LIMIT_EXCEEDED') {
                 Alert.alert("操作过于频繁，请稍后再试")
             } else {
                 Alert.alert(err.toString())
@@ -43,6 +46,10 @@ export default function Login({ navigation, route }) {
         } finally {
             setLoading(false)
         }
+    }
+
+    const onExpire = () => {
+        console.warn('expired!');
     }
 
     let avatar = null
@@ -80,6 +87,20 @@ export default function Login({ navigation, route }) {
                     rightIcon={<Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
                         onPress={() => setShowPassword(!showPassword)}></Icon>}
                     secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
+                <Recaptcha
+                    ref={recaptcha}
+                    siteKey="6LeBW8opAAAAAKpTg4n7EoIGFQdkV8nvNGueEwdI"
+                    baseUrl="https://www.b-pay.ilfe"
+                    onVerify={doLogin}
+                    onExpire={onExpire}
+                    size='invisible'
+                    recaptchaDomain='www.recaptcha.net'
+                    onError={(err) => {
+                        // Alert.alert('onError event');
+                        console.warn(err);
+                    }}
+                />
+
                 <View style={{ paddingHorizontal: 20 }}>
                     <Button disabled={username.length === 0 || password.length === 0} radius={10}
                         onPress={() => onLoginPress()}>登录</Button>

@@ -3,6 +3,7 @@ import { Alert, ScrollView, View } from 'react-native';
 import ParsedText from 'react-native-parsed-text';
 
 import { Button, CheckBox, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
+import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 
 import { register } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
@@ -18,7 +19,10 @@ export default function Register({ navigation, route }) {
     const [rePassword, setRePassword] = useState('')
     const [agreement, setAgreement] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
-    const { login } = useProfile()
+    const { register } = useProfile()
+
+    const recaptcha = useRef<RecaptchaRef>(null);
+
 
     const onRegister = () => {
         if (username.length < 5) {
@@ -38,31 +42,34 @@ export default function Register({ navigation, route }) {
             return
         }
         if (!agreement) {
-            alert('请勾选同意用户协议')
+            Alert.alert('提示', '请勾选同意用户协议')
+            return
         }
-        doRegister()
+        recaptcha.current.open()
     }
 
-    const doRegister = async () => {
+    const doRegister = async (code) => {
         const data = {
             username,
             email,
             password,
-            agreement: true
+            agreement: true,
+            code
         }
         setLoading(true)
-        const res = await register(data)
-        if (res.result) {
-            await login(username, password)
-            setLoading(false)
+        try {
+            await register(data)
             navigation.popToTop()
             navigation.replace('Home')
-        } else {
-            //existing_user_email
-            //existing_user_login
+        } catch (err) {
+            Alert.alert('注册失败', JSON.stringify(err))
+        } finally {
             setLoading(false)
-            Alert.alert('注册失败', res.message)
         }
+    }
+
+    const onExpire = () => {
+        console.warn('expired!');
     }
 
     return <>
@@ -98,6 +105,19 @@ export default function Register({ navigation, route }) {
                             rightIcon={<Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
                                 onPress={() => setShowPassword(!showPassword)}></Icon>}
                             secureTextEntry={!showPassword} onChangeText={setRePassword} value={rePassword}></Input>
+                        <Recaptcha
+                            ref={recaptcha}
+                            siteKey="6LeBW8opAAAAAKpTg4n7EoIGFQdkV8nvNGueEwdI"
+                            baseUrl="https://www.b-pay.ilfe"
+                            onVerify={doRegister}
+                            onExpire={onExpire}
+                            size='invisible'
+                            recaptchaDomain='www.recaptcha.net'
+                            onError={(err) => {
+                                // Alert.alert('onError event');
+                                console.warn(err);
+                            }}
+                        />
                     </View>
                     <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
                         <Button disabled={username.length === 0 || password.length === 0} radius={10} onPress={onRegister}>注册</Button>
