@@ -107,7 +107,7 @@ export default function Login({ navigation, route }) {
 
                 </View>
                 <View style={{ marginTop: 14, marginHorizontal: 24, flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <TouchableOpacity onPress={() => navigation.push('Register')}>
+                    <TouchableOpacity onPress={() => navigation.push('LostPassword')}>
                         <Text style={{ color: theme.colors.primary }}>找回密码</Text>
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => navigation.push('Register')}>

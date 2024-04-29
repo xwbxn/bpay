@@ -5,7 +5,6 @@ import ParsedText from 'react-native-parsed-text';
 import { Button, CheckBox, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 
-import { register } from '../../service/wordpress';
 import { useGlobalState, useProfile } from '../../store/globalContext';
 
 export default function Register({ navigation, route }) {

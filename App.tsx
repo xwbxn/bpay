@@ -25,6 +25,8 @@ import Register from './screens/profile/register';
 import Welcome from './screens/profile/welcome';
 import Splash from './Splash';
 import { useGlobalState, useProfile } from './store/globalContext';
+import UpdatePassword from './screens/profile/updatePassword';
+import LostPassword from './screens/profile/lostPassword';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
@@ -109,6 +111,8 @@ export default function App() {
             <Stack.Screen name="Qrcode" component={Qrcode} />
             <Stack.Screen name="Register" component={Register} />
             <Stack.Screen name="Welcome" component={Welcome} />
+            <Stack.Screen name='UpdatePassword' component={UpdatePassword} />
+            <Stack.Screen name='LostPassword' component={LostPassword} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />

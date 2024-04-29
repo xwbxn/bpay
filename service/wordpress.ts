@@ -35,3 +35,21 @@ export function authenticate(data: { username: string, password: string, code: s
         data
     })
 }
+
+export function updatePassword(data: { prev_password: string, password: string }) {
+    return request.post(`/wp-json/bpay/v1/update-password`, {
+        data
+    })
+}
+
+export function sendCode(data: { username: string, code: string }) {
+    return request.post(`/wp-json/bpay/v1/send-code`, {
+        data
+    })
+}
+
+export function resetPassword(data: { username: string, password: string, vcode: string }) {
+    return request.post(`/wp-json/bpay/v1/reset-password`, {
+        data
+    })
+}

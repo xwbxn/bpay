@@ -132,6 +132,7 @@ const Profile = ({ navigation, route }) => {
         {
             title: '修改密码',
             breakTop: true,
+            onPress: () => navigation.push('UpdatePassword'),
             titleStyle: { color: theme.colors.primary, alignItems: 'center' },
             titleContainerStyle: { alignItems: 'center' },
             hideChevron: true,
