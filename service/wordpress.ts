@@ -19,7 +19,6 @@ export function getPost(id) {
         }
     })
 }
-
 export function getAuthor(id) {
     return request.get(`/wp-json/wp/v2/users/${id}`)
 }
@@ -50,6 +49,12 @@ export function sendCode(data: { username: string, code: string }) {
 
 export function resetPassword(data: { username: string, password: string, vcode: string }) {
     return request.post(`/wp-json/bpay/v1/reset-password`, {
+        data
+    })
+}
+
+export function deleteUser(data: { vcode: string }) {
+    return request.post(`/wp-json/bpay/v1/delete-user`, {
         data
     })
 }

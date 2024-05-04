@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import ParsedText from 'react-native-parsed-text';
+import * as Linking from 'expo-linking';
 
 import { Button, CheckBox, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
@@ -123,8 +124,8 @@ export default function Register({ navigation, route }) {
                         <View style={{ marginTop: 14, flexDirection: 'row', alignItems: 'center' }}>
                             <CheckBox checked={agreement} onPress={() => setAgreement(!agreement)} size={16} containerStyle={{ padding: 0, marginLeft: 0, marginRight: 0 }}></CheckBox>
                             <ParsedText parse={[
-                                { pattern: /《用户服务协议》/, style: { color: theme.colors.primary } },
-                                { pattern: /《隐私政策》/, style: { color: theme.colors.primary } }
+                                { pattern: /《用户服务协议》/, style: { color: theme.colors.primary }, onPress: () => Linking.openURL('https://www.b-pay.life/html/service.html') },
+                                { pattern: /《隐私政策》/, style: { color: theme.colors.primary }, onPress: () => Linking.openURL('https://www.b-pay.life/html/privacy_policy.html') }
                             ]}>已阅读并同意《用户服务协议》、《隐私政策》</ParsedText>
                         </View>
                     </View>

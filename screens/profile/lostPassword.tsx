@@ -7,6 +7,7 @@ import { useGlobalState, useProfile } from '../../store/globalContext';
 import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 import Toast from 'react-native-root-toast';
 import { resetPassword, sendCode } from '../../service/wordpress';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LostPassword({ navigation, route }) {
 
@@ -29,8 +30,9 @@ export default function LostPassword({ navigation, route }) {
         }
         setLoading(true)
         try {
+            AsyncStorage.removeItem('TOKEN')
             await sendCode({ username, code: token })
-            Toast.show('验证码已发送到注册邮箱', { duration: Toast.durations.SHORT, position: Toast.positions.CENTER, shadow: true, animation: true, hideOnPress: true, delay: 0, onHidden: () => { } })
+            Toast.show('验证码已发送到您的邮箱', { duration: Toast.durations.SHORT, position: Toast.positions.CENTER, shadow: true, animation: true, hideOnPress: true, delay: 0, onHidden: () => { } })
             setStep(1)
         } catch (error) {
             Alert.alert('错误', error.toString())

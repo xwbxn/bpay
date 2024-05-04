@@ -27,6 +27,8 @@ import Splash from './Splash';
 import { useGlobalState, useProfile } from './store/globalContext';
 import UpdatePassword from './screens/profile/updatePassword';
 import LostPassword from './screens/profile/lostPassword';
+import AdvProfile from './screens/profile/advProfile';
+import DeleteProfile from './screens/profile/deleteProfile';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
@@ -108,6 +110,8 @@ export default function App() {
             <Stack.Screen name="PostDetail" component={PostDetail} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Profile" component={Profile} />
+            <Stack.Screen name='AdvancedSetting' component={AdvProfile} />
+            <Stack.Screen name='DeleteProfile' component={DeleteProfile} />
             <Stack.Screen name="Qrcode" component={Qrcode} />
             <Stack.Screen name="Register" component={Register} />
             <Stack.Screen name="Welcome" component={Welcome} />

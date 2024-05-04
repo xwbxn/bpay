@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand'
 import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import { encode as base64_encode } from 'base-64';
-import { authenticate, register } from '../service/wordpress';
+import { authenticate, deleteUser, register } from '../service/wordpress';
 import { useMatrixClient } from './useMatrixClient';
 
 export interface IGlobalState {
@@ -41,6 +41,7 @@ export interface IProfileState {
     loginWithToken: (token: string) => Promise<void>,
     register: (data: { username: string, email: string, password: string, agreement: boolean, code: string }) => Promise<void>,
     logout: () => Promise<void>,
+    deleteProfile: (data: { vcode: string }) => Promise<{ result: boolean, message: string }>,
     setHasHydrated: (state: boolean) => void,
     setProfile: (state: Partial<IProfile>) => void
 }
@@ -147,6 +148,21 @@ export const useProfile = create<IProfileState>()(
                     },
                     hasHydrated: false
                 }))
+            },
+            deleteProfile: async ({ vcode }) => {
+                const { client } = useMatrixClient()
+                client.stopClient()
+                const res = await deleteUser({ vcode })
+                set(({ profile }) => ({
+                    profile: {
+                        ...profile,
+                        authenticated: false,
+                        matrixAuth: undefined,
+                        roles: []
+                    },
+                    hasHydrated: false
+                }))
+                return res
             },
             setProfile: (state) => set(({ profile }) => ({ profile: { ...profile, ...state } })),
             setHasHydrated: (state) => {

@@ -1,11 +1,9 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Switch, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import URI from 'urijs';
+import React, { useMemo, useState } from 'react';
+import { Alert, StyleSheet, View } from 'react-native';
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Avatar, Button, Icon, Text, useTheme } from '@rneui/themed';
+import { Avatar, Icon, Text, useTheme } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState, useProfile } from '../../store/globalContext';
@@ -128,6 +126,10 @@ const Profile = ({ navigation, route }) => {
                     }
                 ])
             }
+        },
+        {
+            title: '高级设置',
+            onPress: () => navigation.push('AdvancedSetting'),
         },
         {
             title: '修改密码',
