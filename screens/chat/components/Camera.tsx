@@ -1,14 +1,12 @@
 import { ResizeMode } from 'expo-av';
-import {
-    CameraType, CameraView, useCameraPermissions, useMicrophonePermissions
-} from 'expo-camera/next';
+import { Camera, CameraType } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 import { Image } from 'expo-image';
 import VideoPlayer from 'expo-video-player';
 import { useRef, useState } from 'react';
 import { Animated, Button, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-import { Icon, Overlay, Tab } from '@rneui/themed';
+import { Icon, Overlay } from '@rneui/themed';
 
 const opacity = new Animated.Value(0);
 const startBlinking = () => {
@@ -27,16 +25,16 @@ const startBlinking = () => {
 };
 startBlinking(); // 开始闪烁动画
 
-export default function Camera(opts) {
-    const { isVisible, onRecord, onClose } = opts
-    const [facing] = useState<CameraType>('back');
-    const [permission, requestPermission] = useCameraPermissions();
-    const [micStatus, requestMicroPhonePermission] = useMicrophonePermissions();
+export default function CameraPicker(opts) {
+    const { isVisible, onOk, onClose } = opts
+    const [facing] = useState<CameraType>(CameraType.back);
+    const [permission, requestPermission] = Camera.useCameraPermissions();
+    const [micStatus, requestMicroPhonePermission] = Camera.useMicrophonePermissions();
 
-    const cameraRef = useRef<CameraView>()
-    const [recordedVideo, setRecordedVideo] = useState<{ uri: string }>(null)
+    const cameraRef = useRef<Camera>()
+
+    const [media, setMedia] = useState<{ uri: string, type: 'video' | 'picture' }>(null)
     const [isRecording, setIsRecording] = useState(false)
-
 
     if (!permission) {
         // Camera permissions are still loading
@@ -55,30 +53,36 @@ export default function Camera(opts) {
         );
     }
 
-    const onStart = () => {
+    const onCapture = async () => {
+        const pic = await cameraRef.current.takePictureAsync()
+        setMedia({ uri: pic.uri, type: 'picture' })
+    }
+
+    const onRecordVideo = async () => {
         if (!micStatus.granted) {
             requestMicroPhonePermission()
             return
         }
         setIsRecording(true)
-        cameraRef.current.recordAsync().then(video => {
-            setRecordedVideo(video)
-            setIsRecording(false)
+        const video = await cameraRef.current.recordAsync({
+            maxDuration: 15
         })
+        setMedia({ uri: video.uri, type: 'video' })
     }
 
     const onStop = async () => {
+        setIsRecording(false)
         await cameraRef.current.stopRecording()
     }
 
-    const onCancelVideo = async () => {
-        await FileSystem.deleteAsync(recordedVideo.uri)
-        setRecordedVideo(null)
+    const onCancel = async () => {
+        await FileSystem.deleteAsync(media.uri)
+        setMedia(null)
     }
 
-    const onConfirmVideo = async () => {
-        onRecord(recordedVideo)
-        setRecordedVideo(null)
+    const onConfirm = async () => {
+        onOk(media)
+        setMedia(null)
     }
 
     return (
@@ -92,25 +96,25 @@ export default function Camera(opts) {
                         },
                     ]}
                 ></Animated.View>}
-                {!recordedVideo ?
-                    <CameraView ref={cameraRef} style={styles.camera} facing={facing} mode='video' /> :
-                    <View style={{ flex: 1 }}>
-                        <VideoPlayer videoProps={{ source: { uri: recordedVideo?.uri }, resizeMode: ResizeMode.COVER, shouldPlay: false }}
-                            defaultControlsVisible={true} />
-                    </View>}
-                <View style={[styles.buttonContainer, (recordedVideo) && { justifyContent: 'space-between' }]}>
-                    {!recordedVideo && (!isRecording ? <TouchableOpacity style={styles.button}
-                        onPress={onStart}>
+                {!media ?
+                    <Camera ref={cameraRef} style={styles.camera} type={facing} /> :
+                    (media.uri.endsWith('.mp4') ?
+                        <View style={{ flex: 1 }}>
+                            <VideoPlayer videoProps={{ source: { uri: media.uri }, resizeMode: ResizeMode.COVER, shouldPlay: false }}
+                                defaultControlsVisible={true} />
+                        </View> :
+                        <Image source={media.uri} style={{ flex: 1 }} resizeMode='cover' />
+                    )}
+                <View style={[styles.buttonContainer, (media) && { justifyContent: 'space-between' }]}>
+                    {!media && <TouchableOpacity style={styles.button}
+                        onPress={onCapture} onLongPress={onRecordVideo} onPressOut={onStop}>
                         <View style={{ height: 60, width: 60, borderWidth: 5, borderColor: '#fff', borderRadius: 50, backgroundColor: 'red' }} />
-                    </TouchableOpacity> :
-                        <TouchableOpacity style={styles.button}
-                            onPress={onStop}>
-                            <View style={{ height: 60, width: 60, borderWidth: 5, borderColor: '#fff', borderRadius: 50, backgroundColor: 'silver' }} />
-                        </TouchableOpacity>)}
-                    {recordedVideo && <TouchableOpacity style={styles.button} onPress={onCancelVideo}>
+                        <Text style={{ color: 'yellow', marginTop: 20 }}>轻触拍照 长按摄像</Text>
+                    </TouchableOpacity>}
+                    {media && <TouchableOpacity style={styles.button} onPress={onCancel}>
                         <Icon name='x' type='feather' size={50} color='red'></Icon>
                     </TouchableOpacity>}
-                    {recordedVideo && <TouchableOpacity style={styles.button} onPress={onConfirmVideo}>
+                    {media && <TouchableOpacity style={styles.button} onPress={onConfirm}>
                         <Icon name='check' type='feather' size={50} color='green'></Icon>
                     </TouchableOpacity>}
                 </View>
@@ -132,7 +136,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: 'black',
         paddingTop: 40,
-        paddingBottom: 64,
+        paddingBottom: 44,
         paddingHorizontal: 24,
         justifyContent: 'center'
     },

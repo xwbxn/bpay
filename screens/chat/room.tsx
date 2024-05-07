@@ -39,7 +39,7 @@ import Bubble from './messageRenders/Bubble';
 import MessageText from './messageRenders/MessageText';
 import MessageTools from './messageRenders/MessageTools';
 import Message from './messageRenders/Message';
-import Camera from './components/Camera';
+import CameraPicker from './components/Camera';
 import { globalStyle } from '../../utils/styles';
 import { IListItem, ListView } from './components/ListView';
 import { normalizeUserId } from '../../utils';
@@ -281,6 +281,7 @@ export function Room({ route, navigation }) {
   // 相册
   const sendGalley = useCallback(() => {
     (async () => {
+      setShowSendPanel(false)
       const picker = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.All,
         aspect: [4, 3],
@@ -301,31 +302,19 @@ export function Room({ route, navigation }) {
     })()
   }, [client, room])
 
-  // 拍照
-  const sendTakePicture = useCallback(() => {
-    (async () => {
-      const picker = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        aspect: [4, 3],
-        quality: 1,
-        cameraType: CameraType.back
-      })
-      if (!picker.canceled) {
-        picker.assets.forEach(async (a) => {
-          sendImage(a.uri)
-        })
-      }
-    })()
-  }, [client, room])
-
-  // 视频
-  const sendCamera = useCallback(async ({ uri }) => {
+  // 拍摄
+  const sendCamera = useCallback(async ({ uri, type }) => {
     setShowCamera(false)
-    await sendVideo(uri);
+    if (type === 'video') {
+      await sendVideo(uri);
+    } else if (type === 'picture') {
+      sendImage(uri)
+    }
   }, [client, room])
 
   // 文档
   const sendDocument = useCallback(async () => {
+    setShowSendPanel(false)
     const picker = await DocumentPicker.getDocumentAsync()
     if (!picker.canceled) {
       picker.assets.forEach(async a => {
@@ -537,11 +526,11 @@ export function Room({ route, navigation }) {
       <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'相册'} type='clear' icon={<Icon name='image' type='font-awesome'></Icon>} iconPosition='top'
         onPress={sendGalley}
       ></Button>
-      <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'拍照'} type='clear' icon={<Icon name='camera' type='font-awesome-5'></Icon>} iconPosition='top'
-        onPress={sendTakePicture}>
-      </Button>
-      <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'视频'} type='clear' icon={<Icon name='video' type='font-awesome-5'></Icon>} iconPosition='top'
-        onPress={() => setShowCamera(true)}></Button>
+      <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'拍摄'} type='clear' icon={<Icon name='video' type='font-awesome-5'></Icon>} iconPosition='top'
+        onPress={() => {
+          setShowSendPanel(false)
+          setShowCamera(true)
+        }}></Button>
       <Button containerStyle={{ padding: 10 }} color={theme.colors.black} size='sm' titleStyle={{ color: theme.colors.black }} title={'文档'} type='clear' icon={<Icon name='file' type='font-awesome-5'></Icon>} iconPosition='top'
         onPress={sendDocument}>
       </Button>
@@ -590,7 +579,7 @@ export function Room({ route, navigation }) {
 
   return (<>
     <BpayHeader showback title={room?.name} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>
-    <Camera isVisible={showCamera} onClose={() => setShowCamera(false)} onRecord={sendCamera}></Camera>
+    <CameraPicker isVisible={showCamera} onClose={() => setShowCamera(false)} onOk={sendCamera}></CameraPicker>
     <View style={styles.container}>
       {messageTools}
       <Dialog

@@ -29,7 +29,7 @@ import UpdatePassword from './screens/profile/updatePassword';
 import LostPassword from './screens/profile/lostPassword';
 import AdvProfile from './screens/profile/advProfile';
 import DeleteProfile from './screens/profile/deleteProfile';
-import Camera from './screens/chat/components/Camera';
+import CameraPicker from './screens/chat/components/Camera';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
@@ -118,7 +118,7 @@ export default function App() {
             <Stack.Screen name="Welcome" component={Welcome} />
             <Stack.Screen name='UpdatePassword' component={UpdatePassword} />
             <Stack.Screen name='LostPassword' component={LostPassword} />
-            <Stack.Screen name='Camera' component={Camera} />
+            <Stack.Screen name='Camera' component={CameraPicker} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
