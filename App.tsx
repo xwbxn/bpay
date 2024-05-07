@@ -99,7 +99,7 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <MenuProvider>
         <NavigationContainer>
-          <Stack.Navigator initialRouteName={profile.authenticated ? 'Camera' : 'Welcome'}
+          <Stack.Navigator initialRouteName={profile.authenticated ? 'Home' : 'Welcome'}
             screenOptions={{
               headerShown: false,
               headerTitleAlign: 'center',
