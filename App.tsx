@@ -30,6 +30,7 @@ import LostPassword from './screens/profile/lostPassword';
 import AdvProfile from './screens/profile/advProfile';
 import DeleteProfile from './screens/profile/deleteProfile';
 import CameraPicker from './screens/chat/components/Camera';
+import Transations from './screens/profile/transations';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
@@ -111,6 +112,7 @@ export default function App() {
             <Stack.Screen name="PostDetail" component={PostDetail} />
             <Stack.Screen name="Login" component={Login} />
             <Stack.Screen name="Profile" component={Profile} />
+            <Stack.Screen name="transaction" component={Transations} />
             <Stack.Screen name='AdvancedSetting' component={AdvProfile} />
             <Stack.Screen name='DeleteProfile' component={DeleteProfile} />
             <Stack.Screen name="Qrcode" component={Qrcode} />

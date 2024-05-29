@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 
 import { Avatar, Icon, Text, useTheme } from '@rneui/themed';
@@ -13,6 +13,7 @@ import { CardView } from '../../components/CardView';
 import { IPropEditorProps, PropEditor } from '../../components/PropEditor';
 import { ISettingItem, SettingList } from '../../components/SettingList';
 import Toast from 'react-native-root-toast';
+import { getMyBalance } from '../../service/wordpress';
 
 const Profile = ({ navigation, route }) => {
 
@@ -22,6 +23,13 @@ const Profile = ({ navigation, route }) => {
 
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
     const { profile, logout, setProfile } = useProfile()
+    const [balance, setBalance] = useState('0')
+
+    useEffect(() => {
+        getMyBalance().then(res => {
+            setBalance(res.message)
+        })
+    }, [])
 
 
     // 设置我的头像
@@ -94,9 +102,21 @@ const Profile = ({ navigation, route }) => {
 
     const mySettingItems: ISettingItem[] = [
         {
+            title: '我的积分',
+            text: `${balance}`,
+            onPress: () => navigation.push('transaction')
+        },
+        {
+            title: '我的订单',
+        },
+        {
+            title: '我的权益',
+        },
+        {
             title: '设置昵称',
             onPress: profile.authenticated && setMyNickName,
             text: profile.authenticated && profile?.name,
+            breakTop: true
         },
         {
             title: '设置头像',
@@ -171,10 +191,5 @@ const Profile = ({ navigation, route }) => {
         {mySetting}
     </>
 }
-
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f5f5f5' },
-    content: { backgroundColor: '#ffffff' },
-})
 
 export default Profile

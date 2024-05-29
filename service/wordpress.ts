@@ -58,3 +58,11 @@ export function deleteUser(data: { vcode: string }) {
         data
     })
 }
+
+export function getMyBalance() {
+    return request.get(`/wp-json/bpay/v1/wallet/balance`)
+}
+
+export function getMyTransations() {
+    return request.get(`/wp-json/bpay/v1/wallet/transations`)
+}
