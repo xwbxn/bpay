@@ -3,7 +3,7 @@ import { Alert, ScrollView, View } from 'react-native';
 
 import { Button, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
 import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 import Toast from 'react-native-root-toast';
 import { resetPassword, sendCode } from '../../service/wordpress';

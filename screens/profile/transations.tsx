@@ -15,7 +15,7 @@ function Transations() {
     useEffect(() => {
         setLoading(true)
         getMyBalance().then(res => {
-            setBalance(res.message)
+            setBalance(res.message.balance)
             return Promise.resolve()
         }).then(res => {
             getMyTransations().then(res => {

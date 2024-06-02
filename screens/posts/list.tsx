@@ -3,7 +3,8 @@ import { View } from 'react-native';
 
 import { Avatar, Icon, Tab, TabView, useTheme } from '@rneui/themed';
 
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
+import { useProfile } from '../../store/profileContext';
 import PostFlatList from './components/PostFlatList';
 import PostHeader from './components/PostHeader';
 

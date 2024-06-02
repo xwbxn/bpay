@@ -3,7 +3,7 @@ import { Alert, ScrollView, View } from 'react-native';
 
 import { Button, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
 import { updatePassword } from '../../service/wordpress';
 import Toast from 'react-native-root-toast';
 

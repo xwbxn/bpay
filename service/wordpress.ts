@@ -59,10 +59,32 @@ export function deleteUser(data: { vcode: string }) {
     })
 }
 
+export function getProfile() {
+    return request.get(`/wp-json/bpay/v1/profile`)
+}
+
 export function getMyBalance() {
     return request.get(`/wp-json/bpay/v1/wallet/balance`)
 }
 
 export function getMyTransations() {
     return request.get(`/wp-json/bpay/v1/wallet/transations`)
+}
+
+export function getMembershipLevels() {
+    return request.get(`/wp-json/pmpro/v1/membership_levels`)
+}
+
+export function getProducts() {
+    return request.get(`/wp-json/bpay/v1/shop/products`);
+}
+
+export function getOrders() {
+    return request.get(`/wp-json/bpay/v1/shop/orders`);
+}
+
+export function createWalletOrder(data: { line_items: { product_id: number, quantity: number }[] }) {
+    return request.post(`/wp-json/bpay/v1/wallet/order`, {
+        data
+    })
 }

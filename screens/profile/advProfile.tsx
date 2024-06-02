@@ -6,7 +6,8 @@ import { Alert, StyleSheet, View } from 'react-native';
 import { Avatar, Icon, Text, useTheme } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
+import { useProfile } from '../../store/profileContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { normalizeUserId } from '../../utils';
 import { CardView } from '../../components/CardView';
@@ -32,6 +33,10 @@ const AdvProfile = ({ navigation, route }) => {
     }), [theme])
 
     const mySettingItems: ISettingItem[] = [
+        {
+            title: '调试信息',
+            onPress: () => navigation.push('DebugInfo')
+        },
         {
             title: '删除账户',
             onPress: () => navigation.push('DeleteProfile'),

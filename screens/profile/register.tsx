@@ -6,7 +6,8 @@ import * as Linking from 'expo-linking';
 import { Button, CheckBox, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
+import { useProfile } from '../../store/profileContext';
 
 export default function Register({ navigation, route }) {
 

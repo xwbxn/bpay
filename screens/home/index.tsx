@@ -5,12 +5,13 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { registerCustomIconType, useTheme, Icon } from '@rneui/themed';
 import ShareMenu from "@xwbxn/react-native-share-menu";
 
-import { getCategories } from '../../service/wordpress';
+import { getCategories, getMembershipLevels } from '../../service/wordpress';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { ChatIndex } from '../chat';
 import PostList from '../posts/list';
 import { RoomEvent } from 'matrix-js-sdk';
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
+import { useProfile } from '../../store/profileContext';
 import { appEmitter } from '../../utils/event';
 import { createIconSetFromFontello } from 'react-native-vector-icons';
 import fontelloConfig from '../../assets/fonts/config.json';
@@ -22,7 +23,7 @@ const Tab = createBottomTabNavigator();
 export default function HomeScreen({ navigation, route }) {
     const { client } = useMatrixClient()
     const [unReadTotal, setUnReadTotal] = useState(0)
-    const { setCategories, showbottomTabBar, setShowBottomTabBar } = useGlobalState()
+    const { setCategories, showbottomTabBar, setShowBottomTabBar, setMembershipLevels } = useGlobalState()
     const { theme } = useTheme()
     const { profile } = useProfile()
 
@@ -76,11 +77,16 @@ export default function HomeScreen({ navigation, route }) {
 
     registerCustomIconType('fontello', fontelloIcon)
 
+    // 全局状态更新
     useEffect(() => {
         getCategories({
             orderby: 'slug'
         }).then(res => {
             setCategories(res)
+        })
+
+        getMembershipLevels().then(res => {
+            setMembershipLevels(res)
         })
     }, [])
 

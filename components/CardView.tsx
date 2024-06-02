@@ -9,6 +9,7 @@ import Toast from 'react-native-root-toast';
 interface IMemberCardProps {
     title: string | ReactElement
     subTittle?: string | ReactElement
+    right?: ReactElement
     avatar?: string | number
     onAvatarPress?: () => void
     onPress?: () => void
@@ -17,7 +18,7 @@ interface IMemberCardProps {
 
 export const CardView = (opts: IMemberCardProps) => {
 
-    const { title, subTittle, avatar, onAvatarPress, onPress, avatarStyle } = opts
+    const { title, subTittle, avatar, onAvatarPress, onPress, avatarStyle, right } = opts
     const { theme } = useTheme()
 
     const onCopy = async () => {
@@ -49,6 +50,7 @@ export const CardView = (opts: IMemberCardProps) => {
             </ListItem.Content> :
                 (typeof (title) === 'object' ? title :
                     <ListItem.Title style={globalStyle.headTitleFontStyle}>{title}</ListItem.Title>)}
+            {right && right}
         </ListItem>
     </View>
 }

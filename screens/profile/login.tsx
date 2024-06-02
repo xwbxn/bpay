@@ -5,8 +5,9 @@ import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 import { Avatar, Button, Icon, Input, Text, useTheme } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
 import { normalizeUserId } from '../../utils';
+import { useProfile } from '../../store/profileContext';
 
 export default function Login({ navigation, route }) {
 

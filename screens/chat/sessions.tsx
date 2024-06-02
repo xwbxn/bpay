@@ -21,7 +21,7 @@ import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { globalStyle } from '../../utils/styles';
 import Qrcode from './components/Qrcode';
 import { roomPreview } from './eventMessage';
-import { useProfile } from '../../store/globalContext';
+import { useProfile } from '../../store/profileContext';
 import { Image } from 'expo-image';
 
 const Session = ({ navigation }) => {

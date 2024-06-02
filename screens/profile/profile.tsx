@@ -1,12 +1,13 @@
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
-import { Avatar, Icon, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, Icon, Text, useTheme } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
-import { useGlobalState, useProfile } from '../../store/globalContext';
+import { useGlobalState } from '../../store/globalContext';
+import { useProfile } from '../../store/profileContext';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { normalizeUserId } from '../../utils';
 import { CardView } from '../../components/CardView';
@@ -27,7 +28,7 @@ const Profile = ({ navigation, route }) => {
 
     useEffect(() => {
         getMyBalance().then(res => {
-            setBalance(res.message)
+            setBalance(res.message.balance)
         })
     }, [])
 
@@ -108,9 +109,7 @@ const Profile = ({ navigation, route }) => {
         },
         {
             title: '我的订单',
-        },
-        {
-            title: '我的权益',
+            onPress: () => navigation.push('Orders')
         },
         {
             title: '设置昵称',
@@ -171,11 +170,21 @@ const Profile = ({ navigation, route }) => {
         }
     ]
 
+    const membership = useMemo(() => {
+        if (profile.membership_level) {
+            return <View style={{ backgroundColor: theme.colors.primary, padding: 6, borderRadius: 10 }}>
+                <Pressable onPress={() => navigation.push('Membership')}>
+                    <Text style={{ color: theme.colors.background, fontWeight: 'bold' }}>{profile.membership_level.name}</Text>
+                </Pressable>
+            </View>
+        }
+        return null
+    }, [profile])
     const defaultAvatar = require('../../assets/avatars/default.png')
     const mySetting = (<View style={styles.container}>
         {profile.authenticated ?
             <CardView title={profile?.name} subTittle={normalizeUserId(profile?.matrixAuth?.user_id)}
-                avatar={profile?.avatar}
+                avatar={profile?.avatar} right={membership}
                 onAvatarPress={setMyAvatar} />
             :
             <CardView title='登录/注册' onPress={() => navigation.push('Login')}

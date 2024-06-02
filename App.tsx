@@ -24,13 +24,18 @@ import Profile from './screens/profile/profile';
 import Register from './screens/profile/register';
 import Welcome from './screens/profile/welcome';
 import Splash from './Splash';
-import { useGlobalState, useProfile } from './store/globalContext';
+import { useGlobalState } from './store/globalContext';
+import { useProfile } from './store/profileContext';
 import UpdatePassword from './screens/profile/updatePassword';
 import LostPassword from './screens/profile/lostPassword';
 import AdvProfile from './screens/profile/advProfile';
 import DeleteProfile from './screens/profile/deleteProfile';
 import CameraPicker from './screens/chat/components/Camera';
 import Transations from './screens/profile/transations';
+import DebugInfo from './screens/profile/debugInfo';
+import Membership from './screens/profile/membership';
+import Checkout from './screens/profile/checkout';
+import Orders from './screens/profile/orders';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
@@ -121,6 +126,10 @@ export default function App() {
             <Stack.Screen name='UpdatePassword' component={UpdatePassword} />
             <Stack.Screen name='LostPassword' component={LostPassword} />
             <Stack.Screen name='Camera' component={CameraPicker} />
+            <Stack.Screen name='DebugInfo' component={DebugInfo} />
+            <Stack.Screen name='Membership' component={Membership} />
+            <Stack.Screen name='Checkout' component={Checkout} />
+            <Stack.Screen name='Orders' component={Orders} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
