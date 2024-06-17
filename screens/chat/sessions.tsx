@@ -210,7 +210,7 @@ const Session = ({ navigation }) => {
                 </MenuOption>
             </MenuOptions>
         </Menu>
-    </View>, [inviteBadge])
+    </View>, [inviteBadge, theme])
 
     const handleQrCode = (scanValue) => {
         if (scanValue.startsWith('!')) {

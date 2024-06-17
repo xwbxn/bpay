@@ -348,7 +348,7 @@ export function Room({ route, navigation }) {
         </Send>
       </>
     )
-  }, [disabled])
+  }, [disabled, theme])
 
   // 触摸消息
   const onMessagePress = (context, message) => {
@@ -505,12 +505,8 @@ export function Room({ route, navigation }) {
 
   // 渲染长按工具条
   const messageTools = useMemo(() => <Overlay isVisible={tooltipState.visible}
-    overlayStyle={{
-      backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
-      shadowOffset: { width: 0, height: 0 },
-      shadowRadius: 0,
-    }}
-    backdropStyle={{ backgroundColor: 'transparent' }}
+    overlayStyle={styles.toolBarOverlay}
+    backdropStyle={styles.toolbatBackdrop}
     onBackdropPress={() => setTooltipState({ ...tooltipState, visible: false })}>
     <View style={{ position: 'absolute', zIndex: 1, top: tooltipState.top, left: tooltipState.left }}>
       <MessageTools options={tooltipState.options} width={windowSize.width} position={tooltipState.position}
@@ -828,4 +824,10 @@ export function Room({ route, navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   content: { backgroundColor: '#f9f9f9', flex: 1 },
+  toolBarOverlay: {
+    backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 0,
+  },
+  toolbatBackdrop: { backgroundColor: 'transparent' }
 })

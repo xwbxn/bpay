@@ -103,8 +103,8 @@ const Profile = ({ navigation, route }) => {
 
     const mySettingItems: ISettingItem[] = [
         {
-            title: '我的积分',
-            text: `${balance}`,
+            title: 'DTC余额',
+            text: `${balance} DTC`,
             onPress: () => navigation.push('transaction')
         },
         {
@@ -179,7 +179,7 @@ const Profile = ({ navigation, route }) => {
             </View>
         }
         return null
-    }, [profile])
+    }, [profile, theme])
     const defaultAvatar = require('../../assets/avatars/default.png')
     const mySetting = (<View style={styles.container}>
         {profile.authenticated ?

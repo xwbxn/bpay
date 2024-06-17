@@ -55,9 +55,9 @@ function Transations() {
     }, [transacations])
 
     return <>
-        <BpayHeader showback title='积分记录'></BpayHeader>
+        <BpayHeader showback title='我的DTC'></BpayHeader>
         <View style={styles.container}>
-            <Text style={styles.balance}>当前余额: {parseFloat(balance).toFixed(2)}</Text>
+            <Text style={styles.balance}>当前余额: {parseFloat(balance).toFixed(2)} DTC</Text>
         </View>
         <ListItem.Accordion isExpanded content={<ListItem.Content><ListItem.Title>交易记录</ListItem.Title></ListItem.Content>}>
             {transationList}
