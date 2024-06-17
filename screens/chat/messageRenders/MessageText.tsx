@@ -2,7 +2,7 @@ import { Pressable } from 'react-native'
 import React from 'react'
 import { MessageText as GiftedMessageText } from 'react-native-gifted-chat'
 
-export default function MessageText(opts) {
+const MessageText = (opts) => {
 
     return (
         <Pressable onLongPress={opts.onLongPress}>
@@ -11,3 +11,4 @@ export default function MessageText(opts) {
     )
 }
 
+export default MessageText

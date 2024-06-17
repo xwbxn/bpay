@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Alert, TouchableOpacity, View } from 'react-native';
 import Recaptcha, { RecaptchaRef } from 'react-native-recaptcha-that-works';
 
@@ -12,6 +12,7 @@ import { useProfile } from '../../store/profileContext';
 export default function Login({ navigation, route }) {
 
     const { theme } = useTheme()
+    const backgroundColor = useMemo(() => theme.colors.background, [theme])
     const { setLoading } = useGlobalState()
     const { login, profile } = useProfile()
 
@@ -20,16 +21,16 @@ export default function Login({ navigation, route }) {
     const [showPassword, setShowPassword] = useState(false)
     const recaptcha = useRef<RecaptchaRef>(null);
 
-    const onLoginPress = async () => {
+    const onLoginPress = useCallback(async () => {
         if (!username || !password) {
             Alert.alert("请填写用户名和密码")
             return
         }
         recaptcha.current.open()
         // doLogin()
-    }
+    }, [])
 
-    const doLogin = async (code) => {
+    const doLogin = useCallback(async (code) => {
         try {
             setLoading(true)
             await login(username, password, code)
@@ -47,27 +48,30 @@ export default function Login({ navigation, route }) {
         } finally {
             setLoading(false)
         }
-    }
+    }, [login])
 
-    const onExpire = () => {
+    const onExpire = useCallback(() => {
         console.warn('expired!');
-    }
+    }, [])
 
     let avatar = null
     if (profile.avatar) {
-        avatar = <Avatar source={{ uri: profile.avatar }} size={50} rounded
+        avatar = useMemo(() => <Avatar source={{ uri: profile.avatar }} size={50} rounded
             onPress={() => setUsername(normalizeUserId(profile.matrixId) || '')}
             containerStyle={{ backgroundColor: theme.colors.primary }}
-        ></Avatar>
+        ></Avatar>, [profile, theme])
     } else if (profile.name) {
-        avatar = <Avatar title={profile.name[0].toUpperCase()} size={50} rounded
+        avatar = useMemo(() => <Avatar title={profile.name[0].toUpperCase()} size={50} rounded
             onPress={() => setUsername(normalizeUserId(profile.matrixId) || '')}
             containerStyle={{ backgroundColor: theme.colors.primary }}
-        ></Avatar>
+        ></Avatar>, [profile, theme])
     }
 
+    const showPassIcon = useMemo(() => <Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
+        onPress={() => setShowPassword(!showPassword)}></Icon>, [showPassword])
+
     return <>
-        <BpayHeader title='用户登录' leftComponent={<Icon name='arrow-back' color={theme.colors.background}
+        <BpayHeader title='用户登录' leftComponent={<Icon name='arrow-back' color={backgroundColor}
             onPress={() => navigation.canGoBack() ? navigation.goBack() : navigation.replace('Home')}></Icon>} />
         <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
             <View style={{
@@ -85,8 +89,7 @@ export default function Login({ navigation, route }) {
                 <Input placeholder='密码'
                     errorStyle={{ height: 0 }}
                     inputContainerStyle={{ paddingHorizontal: 16, borderWidth: 0, borderBottomWidth: 0, borderRadius: 10, height: 50 }}
-                    rightIcon={<Icon size={20} name={showPassword ? 'eye' : 'eye-closed'} type='octicon'
-                        onPress={() => setShowPassword(!showPassword)}></Icon>}
+                    rightIcon={showPassIcon}
                     secureTextEntry={!showPassword} onChangeText={setPassword} value={password}></Input>
                 <Recaptcha
                     ref={recaptcha}

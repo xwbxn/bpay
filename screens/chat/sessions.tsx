@@ -111,6 +111,8 @@ const Session = ({ navigation }) => {
         client.setRoomTag(item.roomId, hiddenTagName, {})
     }
 
+    const themeColorPrimary = useMemo(() => theme.colors.primary, [theme])
+
     const renderItem = ({ item }: { item: Room }) => {
         const isDirectRoom = client.isDirectRoom(item.roomId)
         const directMember = isDirectRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
@@ -132,13 +134,13 @@ const Session = ({ navigation }) => {
                         containerStyle={[client.isRoomOnTop(item.roomId) && { backgroundColor: '#f5f5f5' }, { padding: 10 }]}>
                         {(avatar_url)
                             ? <Avatar size={50} rounded source={{ uri: avatar_url }}
-                                containerStyle={{ backgroundColor: theme.colors.primary }}>
+                                containerStyle={{ backgroundColor: themeColorPrimary }}>
                                 {item.getUnreadNotificationCount() > 0
                                     && <Badge value={item.getUnreadNotificationCount()} status="error"
                                         containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
                             </Avatar> :
                             <Avatar size={50} rounded title={isDirectRoom ? title[0] : '群'}
-                                containerStyle={{ backgroundColor: theme.colors.primary }}>
+                                containerStyle={{ backgroundColor: themeColorPrimary }}>
                                 {item.getUnreadNotificationCount() > 0
                                     && <Badge value={item.getUnreadNotificationCount()} status="error"
                                         containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}

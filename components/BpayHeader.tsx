@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
@@ -25,13 +25,16 @@ export default function BpayHeader(opts: IBpayHeaderProps) {
         onBack = null,
         centerContainerStyle = null } = opts
     const { theme } = useTheme()
-    const styles = StyleSheet.create({
+    const styles = useMemo(() => StyleSheet.create({
         headTitle: {
             color: theme.colors.background,
             fontWeight: 'bold',
             marginHorizontal: 8
+        },
+        iconStyle: {
+            color: theme.colors.background
         }
-    })
+    }), [theme])
     const navigation = useNavigation()
     const { profile } = useProfile()
 
@@ -39,7 +42,7 @@ export default function BpayHeader(opts: IBpayHeaderProps) {
         ? <Avatar rounded source={{ uri: profile.avatar }} size={24}
             //@ts-ignore
             onPress={() => navigation.navigate('Profile')}></Avatar>
-        : <Icon iconStyle={{ color: theme.colors.background }}
+        : <Icon iconStyle={styles.iconStyle}
             //@ts-ignore
             name="user" type="font-awesome" onPress={() => navigation.navigate('Profile')}></Icon>
 
@@ -51,10 +54,10 @@ export default function BpayHeader(opts: IBpayHeaderProps) {
             leftComponent={leftComponent ?
                 leftComponent :
                 (showback ?
-                    <Icon name='arrow-back' color={theme.colors.background} onPress={() => onBack ? onBack() : navigation.goBack()}></Icon> :
+                    <Icon name='arrow-back' color={styles.iconStyle.color} onPress={() => onBack ? onBack() : navigation.goBack()}></Icon> :
                     defaultLeft)}
             centerComponent={centerComponent ? centerComponent : <Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>{title}</Text>}
             rightComponent={rightComponent ? rightComponent : null}
-        ></Header >
+        ></Header>
     )
 }

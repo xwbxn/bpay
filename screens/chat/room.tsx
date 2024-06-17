@@ -80,7 +80,6 @@ export function Room({ route, navigation }) {
 
   const { setLoading } = useGlobalState()
 
-
   useEffect(() => {
     if (!room) {
       client.getStateEvent(roomId, EventType.RoomMember, client.getUserId()).then(evt => {
@@ -351,7 +350,7 @@ export function Room({ route, navigation }) {
   }, [disabled, theme])
 
   // 触摸消息
-  const onMessagePress = (context, message) => {
+  const onMessagePress = useCallback((context, message) => {
     const evt: MatrixEvent = message.event
     if (!evt || evt.getType() !== EventType.RoomMessage) {
       return
@@ -364,7 +363,7 @@ export function Room({ route, navigation }) {
         mimeType: evt.getContent().info.mimetype
       })
     }
-  }
+  }, [client])
 
   // 撤回
   const onRedAction = (currentMessage) => {
@@ -403,7 +402,7 @@ export function Room({ route, navigation }) {
   }
 
   // 长按工具条
-  const onMessageLongPress = (event, message) => {
+  const onMessageLongPress = useCallback((event, message) => {
     const offsetX = windowSize.width / 2
     const offsetY = windowSize.height / 2
     const overlayPadding = 10
@@ -428,10 +427,10 @@ export function Room({ route, navigation }) {
       top,
       position: message.event.getSender() === client.getUserId() ? 'right' : 'left'
     })
-  }
+  }, [])
 
   // 长按操作
-  const onContextPress = async (code) => {
+  const onContextPress = useCallback(async (code) => {
     if (!currentMessage) {
       return
     }
@@ -461,7 +460,7 @@ export function Room({ route, navigation }) {
       default:
         break;
     }
-  }
+  }, [])
 
   // @提醒列表
   const onInputTextChanged = (text) => {
