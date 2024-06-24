@@ -1,4 +1,4 @@
-import { Button, Overlay } from '@rneui/themed';
+import { Button, Icon, Overlay } from '@rneui/themed';
 import { Image } from 'expo-image';
 import PropTypes from 'prop-types';
 import React, { useState } from 'react';
@@ -52,6 +52,12 @@ const ImageRender = (opts) => {
         height = height / ratio
     }
 
+    const renderHeader = () => (
+        <View>
+            <Icon  name='arrow-back' color={'#fff'}></Icon>
+        </View>
+    )
+
     const renderFooter = () => (
         <View style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 14, width: size.width }}>
             {!!thumbnail_url && url !== thumbnail_url && !showOriginImage && <Button type='outline'
@@ -90,6 +96,7 @@ const ImageRender = (opts) => {
                 onSave={saveToCamera}
                 renderImage={renderImage}
                 renderFooter={renderFooter}
+                renderHeader={renderHeader}
                 menuContext={{ saveToLocal: '保存到相册', cancel: '取消' }}
             ></ImageViewer>
         </Overlay>

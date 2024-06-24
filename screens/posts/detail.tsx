@@ -103,7 +103,7 @@ export default function PostDetail({ route, navigation }) {
 
     return post && <>
         <View style={{ flex: 1 }}>
-            <PostHeader></PostHeader>
+            <PostHeader showback></PostHeader>
             <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
                 <ScrollView>
                     <View style={{ padding: 16 }}>

@@ -2,11 +2,11 @@ import * as Clipboard from 'expo-clipboard';
 import * as crypto from 'expo-crypto';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import { ImageResult, manipulateAsync } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import * as Sharing from 'expo-sharing';
 import * as vt from 'expo-video-thumbnails';
-import { ImageResult, manipulateAsync } from 'expo-image-manipulator';
 import _ from 'lodash';
 
 import {
@@ -14,37 +14,36 @@ import {
   MsgType, RoomEvent
 } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
 import * as mime from 'react-native-mime-types';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import {
-  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, ListItem, Overlay, Text, useTheme
+  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, Overlay, Text, useTheme
 } from '@rneui/themed';
 
+import { useFocusEffect } from '@react-navigation/native';
+import { DocumentPickerAsset } from 'expo-document-picker';
+import { Image } from 'react-native';
+import URI from 'urijs';
 import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState } from '../../store/globalContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import { normalizeUserId } from '../../utils';
+import { globalStyle } from '../../utils/styles';
+import CameraPicker from './components/Camera';
+import { IListItem, ListView } from './components/ListView';
 import { eventMessage } from './eventMessage';
-import { MessageImage } from './messageRenders/MessageImage';
-import { MessageVideo } from './messageRenders/MessageVideo';
-import { renderCustomView } from './messageRenders/renderCustomView';
-import { CameraType } from 'expo-image-picker';
-import URI from 'urijs';
-import { Image } from 'react-native';
-import { DocumentPickerAsset } from 'expo-document-picker';
 import Bubble from './messageRenders/Bubble';
+import Message from './messageRenders/Message';
+import { MessageImage } from './messageRenders/MessageImage';
+import MessageRef from './messageRenders/MessageRef';
 import MessageText from './messageRenders/MessageText';
 import MessageTools from './messageRenders/MessageTools';
-import Message from './messageRenders/Message';
-import CameraPicker from './components/Camera';
-import { globalStyle } from '../../utils/styles';
-import { IListItem, ListView } from './components/ListView';
-import { normalizeUserId } from '../../utils';
-import MessageRef from './messageRenders/MessageRef';
-import { useFocusEffect } from '@react-navigation/native';
+import { MessageVideo } from './messageRenders/MessageVideo';
+import { renderCustomView } from './messageRenders/renderCustomView';
 
 export function Room({ route, navigation }) {
 
@@ -78,9 +77,12 @@ export function Room({ route, navigation }) {
 
   const [showCamera, setShowCamera] = useState(false)
 
-  const { setLoading } = useGlobalState()
+  const { setLoading, setShowBottomTabBar } = useGlobalState()
+
+  // GiftedChat.whyDidYouRender = true
 
   useEffect(() => {
+    setShowBottomTabBar(false)
     if (!room) {
       client.getStateEvent(roomId, EventType.RoomMember, client.getUserId()).then(evt => {
         setRoom(client.getRoom(roomId))
@@ -350,7 +352,7 @@ export function Room({ route, navigation }) {
   }, [disabled, theme])
 
   // 触摸消息
-  const onMessagePress = useCallback((context, message) => {
+  const onMessagePress = (context, message) => {
     const evt: MatrixEvent = message.event
     if (!evt || evt.getType() !== EventType.RoomMessage) {
       return
@@ -363,7 +365,7 @@ export function Room({ route, navigation }) {
         mimeType: evt.getContent().info.mimetype
       })
     }
-  }, [client])
+  }
 
   // 撤回
   const onRedAction = (currentMessage) => {
@@ -402,7 +404,7 @@ export function Room({ route, navigation }) {
   }
 
   // 长按工具条
-  const onMessageLongPress = useCallback((event, message) => {
+  const onMessageLongPress = (event, message) => {
     const offsetX = windowSize.width / 2
     const offsetY = windowSize.height / 2
     const overlayPadding = 10
@@ -427,10 +429,10 @@ export function Room({ route, navigation }) {
       top,
       position: message.event.getSender() === client.getUserId() ? 'right' : 'left'
     })
-  }, [])
+  }
 
   // 长按操作
-  const onContextPress = useCallback(async (code) => {
+  const onContextPress = async (code) => {
     if (!currentMessage) {
       return
     }
@@ -460,7 +462,7 @@ export function Room({ route, navigation }) {
       default:
         break;
     }
-  }, [])
+  }
 
   // @提醒列表
   const onInputTextChanged = (text) => {
@@ -573,9 +575,9 @@ export function Room({ route, navigation }) {
   }, [room, mentionSheetState])
 
   return (<>
-    <BpayHeader showback title={room?.name} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>
     <CameraPicker isVisible={showCamera} onClose={() => setShowCamera(false)} onOk={sendCamera}></CameraPicker>
     <View style={styles.container}>
+      <BpayHeader showback title={room?.name} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>
       {messageTools}
       <Dialog
         isVisible={showTopic}
@@ -822,7 +824,7 @@ export function Room({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { backgroundColor: '#f9f9f9', flex: 1 },
+  content: { backgroundColor: '#f9f9f9', flex: 1, paddingBottom:20 },
   toolBarOverlay: {
     backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
     shadowOffset: { width: 0, height: 0 },

@@ -16,24 +16,25 @@ import Toast from 'react-native-root-toast';
 
 import { Avatar, Badge, Button, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
 
+import { Image } from 'expo-image';
 import BpayHeader from '../../components/BpayHeader';
+import { useProfile } from '../../store/profileContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
 import { globalStyle } from '../../utils/styles';
 import Qrcode from './components/Qrcode';
 import { roomPreview } from './eventMessage';
-import { useProfile } from '../../store/profileContext';
-import { Image } from 'expo-image';
 
 const Session = ({ navigation }) => {
 
     const [inviteBadge, setInviteBadge] = useState(0)
     const { theme } = useTheme()
     const { client } = useMatrixClient()
-    const [rooms, setRooms] = useState([])
+    const [rooms, setRooms] = useState<Room[]>([])
     const [openQrCode, setOpenQrCode] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
     const { profile } = useProfile()
 
+    // 申请通知权限
     async function allowsNotificationsAsync() {
         const settings = await Notifications.getPermissionsAsync();
         const permission = (
@@ -52,29 +53,37 @@ const Session = ({ navigation }) => {
         }
     }
 
+    // 申请通知权限
     useEffect(() => {
         if (profile.authenticated) {
             allowsNotificationsAsync()
         }
     }, [profile.authenticated])
 
+    // 刷新聊天会话列表
     const refreshRooms = useCallback(_.debounce(() => {
         setRooms(client.getSessions().filter(r => !r.tags[hiddenTagName]))
+        
+        // 获取未读消息角标，目前只取了单聊
         setInviteBadge(client.getRooms()
             .filter(i => client.isDirectRoom(i.roomId))
             .reduce((count, room) => count + (room.getMyMembership() === 'invite' ? 1 : 0), 0))
     }, 150), [client])
 
+    // 订阅各类事件以刷新聊天列表
     useEffect(() => {
+        // const room = client.getRoom('!kbtYGlvshKcDhdnaYR:chat.b-pay.life')
+        // room.getMembers().map(m => console.log(m.name, m.membership))
+
         refreshRooms()
-        client.on(RoomEvent.Timeline, refreshRooms)
-        client.on(RoomEvent.TimelineReset, refreshRooms)
-        client.on(RoomEvent.Receipt, refreshRooms)
-        client.on(ClientEvent.Room, refreshRooms)
-        client.on(ClientEvent.DeleteRoom, refreshRooms)
-        client.on(RoomEvent.MyMembership, refreshRooms)
-        client.on(RoomEvent.Tags, refreshRooms)
-        client.on(RoomEvent.Name, refreshRooms)
+        client.on(RoomEvent.Timeline, refreshRooms) // 新消息
+        client.on(RoomEvent.TimelineReset, refreshRooms) // 消息被清空
+        client.on(RoomEvent.Receipt, refreshRooms) // 信息回执
+        client.on(ClientEvent.Room, refreshRooms) // 创建聊天
+        client.on(ClientEvent.DeleteRoom, refreshRooms) // 删除聊天
+        client.on(RoomEvent.MyMembership, refreshRooms) // 好友事件
+        client.on(RoomEvent.Tags, refreshRooms) // 群主题事件
+        client.on(RoomEvent.Name, refreshRooms) // 聊天名称事件
 
         return () => {
             client.off(RoomEvent.Timeline, refreshRooms)
@@ -113,7 +122,7 @@ const Session = ({ navigation }) => {
 
     const themeColorPrimary = useMemo(() => theme.colors.primary, [theme])
 
-    const renderItem = ({ item }: { item: Room }) => {
+    const renderItem = useCallback(({ item }: { item: Room }) => {
         const isDirectRoom = client.isDirectRoom(item.roomId)
         const directMember = isDirectRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
         let title = item.name
@@ -165,7 +174,7 @@ const Session = ({ navigation }) => {
                     }}></MenuOption>
                 </MenuOptions>
             </Menu>)
-    }
+    },[theme])
 
     const menuStyles = StyleSheet.create({
         optionWrapper: {

@@ -26,6 +26,10 @@ export default function Register({ navigation, route }) {
 
 
     const onRegister = () => {
+        if (!isValid(username)) {
+            Alert.alert('提示', '用户名只能是字母、数字和下划线')
+            return
+        }
         if (username.length < 5) {
             Alert.alert('用户名错误', '用户名至少5个字符')
             return
@@ -63,7 +67,7 @@ export default function Register({ navigation, route }) {
             navigation.popToTop()
             navigation.replace('Home')
         } catch (err) {
-            Alert.alert('注册失败', JSON.stringify(err))
+            Alert.alert('注册失败', err.message)
         } finally {
             setLoading(false)
         }
@@ -134,4 +138,8 @@ export default function Register({ navigation, route }) {
             </ScrollView>
         </View>
     </>
+}
+
+function isValid(str) {
+    return /^\w+$/.test(str);
 }

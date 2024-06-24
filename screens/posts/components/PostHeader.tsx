@@ -8,7 +8,7 @@ import BpayHeader from '../../../components/BpayHeader'
 
 
 export default function PostHeader(opts) {
-    const { leftComponent = null } = opts
+    const { leftComponent = null, showback = false } = opts
     const { theme } = useTheme()
     const styles = StyleSheet.create({
         headTitle: {
@@ -17,13 +17,12 @@ export default function PostHeader(opts) {
             marginHorizontal: 8
         }
     })
-    const navigation = useNavigation()
 
     return (
         <BpayHeader
-            leftComponent={leftComponent}
+            leftComponent={leftComponent} showback={showback}
             centerComponent={<View style={{ flex: 1, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                <TouchableOpacity><Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>首页</Text></TouchableOpacity>
+                <TouchableOpacity><Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>广场</Text></TouchableOpacity>
                 <TouchableOpacity><Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>视频</Text></TouchableOpacity>
                 <TouchableOpacity><Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>一对一</Text></TouchableOpacity>
             </View>}

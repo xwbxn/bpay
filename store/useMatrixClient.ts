@@ -73,6 +73,7 @@ export class BChatClient extends MatrixClient {
                         && r.getMember(r.guessDMUserId()).membership === 'leave'
                         && r.getMember(r.guessDMUserId()).events.member.getPrevContent().membership === 'join')) // 对方退出单聊
                 : !!r.getMember(this.getUserId()))
+            .filter(r => r.getMember(this.getUserId()).membership !== 'knock') // 不显示申请还未通过的
             .sort((a, b) => {
                 if (this.isRoomOnTop(a.roomId) && !this.isRoomOnTop(b.roomId)) {
                     return -1
