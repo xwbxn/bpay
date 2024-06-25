@@ -13,7 +13,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { appEmitter } from '../utils/event';
 import { SqliteStore } from './sqliteStore';
-import { useGlobalState } from './globalContext';
 import { useProfile } from './profileContext';
 
 const BASE_URL = process.env.EXPO_PUBLIC_CHAT_URL
@@ -334,10 +333,6 @@ export class BChatClient extends MatrixClient {
 
 
 const sendRoomNotify = async (room, membership) => {
-    const { profile } = useProfile()
-    if (!profile.disableNotify) {
-        return
-    }
     // 通知栏消息
     if (membership === 'invite'
         // && AppState.currentState.match(/background|inactive/)
@@ -354,10 +349,6 @@ const sendRoomNotify = async (room, membership) => {
 
 let _notificationId: string
 const sendTimelineNotify = _.debounce(async (event: MatrixEvent, room: Room) => {
-    const { profile } = useProfile()
-    if (!profile.disableNotify) {
-        return
-    }
     // 通知栏消息
     if (event.getSender() !== _client.getUserId()
         // && AppState.currentState.match(/background|inactive/)

@@ -13,7 +13,7 @@ import { useMatrixClient } from '../../../store/useMatrixClient';
 import { IListItem } from '../components/ListView';
 import { IMemberItem, MemberList } from './components/MemberList';
 import { IPropEditorProps, PropEditor } from '../../../components/PropEditor';
-import { Direction, EventType, Filter, JoinRule, MatrixEvent, MsgType, RoomEvent, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
+import { ConditionKind, Direction, EventType, Filter, JoinRule, MatrixEvent, MsgType, PushRuleKind, RoomEvent, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
 import { ISettingItem, SettingList } from '../../../components/SettingList';
 import ListItemPicker from '../components/ListItemPicker';
 import { IRoomSetting } from '../groups';
@@ -41,6 +41,8 @@ export const RoomSetting = ({ navigation, route }) => {
     const [knockingPicker, setKnockingPicker] = useState(false)
     const [roomOnTop, setRoomOnTop] = useState(client.isRoomOnTop(id))
 
+    const [pushRule, setPushRule] = useState(client.pushRules.global.room.some(r => r.rule_id === id))
+
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false })
 
     useEffect(() => {
@@ -60,7 +62,14 @@ export const RoomSetting = ({ navigation, route }) => {
 
         async function refreshMembers() {
             setRoomMembers(room.getJoinedMembers()
-                .sort((a, b) => b.powerLevel - a.powerLevel)
+                .sort((a, b) => {
+                    if (b.powerLevel !== a.powerLevel) {
+                        return b.powerLevel - a.powerLevel
+                    } else {
+                        // 按入群时间排序
+                        return a.events.member.event.origin_server_ts - b.events.member.event.origin_server_ts
+                    }
+                })
                 .map(i => {
                     return {
                         id: i.userId,
@@ -271,7 +280,7 @@ export const RoomSetting = ({ navigation, route }) => {
             }
         ])
     }
-
+    console.log(client.pushRules.global.room)
     const friendSettingItems: ISettingItem[] = [
         {
             title: '查找聊天记录'
@@ -282,7 +291,16 @@ export const RoomSetting = ({ navigation, route }) => {
         },
         {
             title: '消息免打扰',
-            right: () => <Switch style={{ height: 20 }}></Switch>,
+            right: () => <Switch style={{ height: 20 }} value={pushRule} onValueChange={(value) => {
+                if (value) {
+                    client.addPushRule('global', PushRuleKind.RoomSpecific, id, {
+                        actions: []
+                    })
+                } else {
+                    client.deletePushRule('global', PushRuleKind.RoomSpecific, id)
+                }
+                setPushRule(value)
+            }}></Switch>,
             hideChevron: true,
             breakTop: true
         },

@@ -9,6 +9,7 @@ import { useMatrixClient } from '../../store/useMatrixClient';
 import { normalizeUserId } from '../../utils';
 import { CardView } from '../../components/CardView';
 import { ISettingItem, SettingList } from '../../components/SettingList';
+import { ConditionKind, PushRuleKind } from 'matrix-js-sdk';
 
 export const MemberProfile = ({ navigation, route }) => {
 
@@ -110,10 +111,6 @@ export const MemberProfile = ({ navigation, route }) => {
         {
             title: '设置备注',
             text: '备注',
-        },
-        {
-            title: '消息免打扰',
-            right: () => <Switch style={{ height: 20 }}></Switch>,
         },
         {
             title: '置顶聊天',

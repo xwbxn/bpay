@@ -15,6 +15,7 @@ import { IPropEditorProps, PropEditor } from '../../components/PropEditor';
 import { ISettingItem, SettingList } from '../../components/SettingList';
 import Toast from 'react-native-root-toast';
 import { getMyBalance } from '../../service/wordpress';
+import { PushRuleKind } from 'matrix-js-sdk';
 
 const Profile = ({ navigation, route }) => {
 
@@ -25,6 +26,7 @@ const Profile = ({ navigation, route }) => {
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
     const { profile, logout, setProfile } = useProfile()
     const [balance, setBalance] = useState('0')
+    const [ruleMaster, setRuleMaster] = useState(!client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master').enabled)
 
     useEffect(() => {
         getMyBalance().then(res => {
@@ -101,6 +103,7 @@ const Profile = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     }), [theme])
 
+    console.log(client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master'))
     const mySettingItems: ISettingItem[] = [
         {
             title: 'DTC余额',
@@ -131,11 +134,10 @@ const Profile = ({ navigation, route }) => {
             title: '我的收藏',
         },
         {
-            title: '消息免打扰',
-            right: () => <Switch value={profile.disableNotify} onValueChange={(value) => {
-                setProfile({
-                    disableNotify: value
-                })
+            title: '消息提醒',
+            right: () => <Switch value={ruleMaster} onValueChange={(value) => {
+                client.setPushRuleEnabled('global', PushRuleKind.Override, '.m.rule.master', value)
+                setRuleMaster(value)
             }} style={{ height: 20 }}></Switch>,
         },
         {

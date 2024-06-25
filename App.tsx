@@ -6,6 +6,7 @@ import 'dayjs/locale/zh-cn';
 import { loadAsync } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import React, { useEffect, useState } from 'react';
 import { AppRegistry } from 'react-native';
 import Spinner from 'react-native-loading-spinner-overlay';
@@ -71,6 +72,24 @@ export default function App() {
   const { loading } = useGlobalState()
   const { profile, hasHydrated, loginWithToken } = useProfile()
 
+  async function onFetchUpdateAsync() {
+    try {
+      const update = await Updates.checkForUpdateAsync();
+      console.log('update', update.isAvailable)
+
+      if (update.isAvailable) {
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      }
+    } catch (error) {
+      alert(`Error fetching latest Expo update: ${error}`);
+    }
+  }
+
+  useEffect(() => {
+    onFetchUpdateAsync()
+  }, [])
+
   // 使用已保存的凭证登陆后台
   useEffect(() => {
     if (hasHydrated && profile.authenticated && profile.matrixAuth) {
@@ -112,38 +131,38 @@ export default function App() {
   SplashScreen.hideAsync()
   return <><RootSiblingParent>
     <Spinner visible={loading}></Spinner>
-      <ThemeProvider theme={theme}>
-        <MenuProvider>
-          <NavigationContainer>
-            <Stack.Navigator initialRouteName={profile.authenticated ? 'Home' : 'Welcome'}
-              screenOptions={{
-                headerShown: false,
-                headerTitleAlign: 'center',
-                headerStyle: { backgroundColor: theme.lightColors.primary },
-                headerTintColor: theme.lightColors.background,
-                headerTitleStyle: { fontWeight: 'bold' }
-              }}>
-              <Stack.Screen name="Home" component={HomeScreen} />
-              <Stack.Screen name="PostDetail" component={PostDetail} />
-              <Stack.Screen name="Login" component={Login} />
-              <Stack.Screen name="Profile" component={Profile} />
-              <Stack.Screen name="transaction" component={Transations} />
-              <Stack.Screen name='AdvancedSetting' component={AdvProfile} />
-              <Stack.Screen name='DeleteProfile' component={DeleteProfile} />
-              <Stack.Screen name="Qrcode" component={Qrcode} />
-              <Stack.Screen name="Register" component={Register} />
-              <Stack.Screen name="Welcome" component={Welcome} />
-              <Stack.Screen name='UpdatePassword' component={UpdatePassword} />
-              <Stack.Screen name='LostPassword' component={LostPassword} />
-              <Stack.Screen name='Camera' component={CameraPicker} />
-              <Stack.Screen name='DebugInfo' component={DebugInfo} />
-              <Stack.Screen name='Membership' component={Membership} />
-              <Stack.Screen name='Checkout' component={Checkout} />
-              <Stack.Screen name='Orders' component={Orders} />
-            </Stack.Navigator>
-          </NavigationContainer>
-          <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
-        </MenuProvider>
-      </ThemeProvider>
+    <ThemeProvider theme={theme}>
+      <MenuProvider>
+        <NavigationContainer>
+          <Stack.Navigator initialRouteName={profile.authenticated ? 'Home' : 'Welcome'}
+            screenOptions={{
+              headerShown: false,
+              headerTitleAlign: 'center',
+              headerStyle: { backgroundColor: theme.lightColors.primary },
+              headerTintColor: theme.lightColors.background,
+              headerTitleStyle: { fontWeight: 'bold' }
+            }}>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="PostDetail" component={PostDetail} />
+            <Stack.Screen name="Login" component={Login} />
+            <Stack.Screen name="Profile" component={Profile} />
+            <Stack.Screen name="transaction" component={Transations} />
+            <Stack.Screen name='AdvancedSetting' component={AdvProfile} />
+            <Stack.Screen name='DeleteProfile' component={DeleteProfile} />
+            <Stack.Screen name="Qrcode" component={Qrcode} />
+            <Stack.Screen name="Register" component={Register} />
+            <Stack.Screen name="Welcome" component={Welcome} />
+            <Stack.Screen name='UpdatePassword' component={UpdatePassword} />
+            <Stack.Screen name='LostPassword' component={LostPassword} />
+            <Stack.Screen name='Camera' component={CameraPicker} />
+            <Stack.Screen name='DebugInfo' component={DebugInfo} />
+            <Stack.Screen name='Membership' component={Membership} />
+            <Stack.Screen name='Checkout' component={Checkout} />
+            <Stack.Screen name='Orders' component={Orders} />
+          </Stack.Navigator>
+        </NavigationContainer>
+        <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
+      </MenuProvider>
+    </ThemeProvider>
   </RootSiblingParent></>
 }
