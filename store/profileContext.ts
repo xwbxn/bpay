@@ -53,7 +53,7 @@ export const useProfile = create<IProfileState>()(
                 console.log('loginRes.message', loginRes.message)
                 const bpayUser = loginRes.message
                 await AsyncStorage.setItem("TOKEN", token)
-                const matrixAuth = await client.loginWithPassword(`@${username}:chat.b-pay.life`, loginRes.message.matrix_password)
+                const matrixAuth = await client.loginWithPassword(`@${username.toLowerCase()}:chat.b-pay.life`, loginRes.message.matrix_password)
                 const chatProfile = await client.getProfileInfo(matrixAuth.user_id)
                 const profile: IProfile = {
                     id: bpayUser.ID,

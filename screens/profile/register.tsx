@@ -27,11 +27,15 @@ export default function Register({ navigation, route }) {
 
     const onRegister = () => {
         if (!isValid(username)) {
-            Alert.alert('提示', '用户名只能是字母、数字和下划线')
+            Alert.alert('提示', '用户名只能是小写字母、数字和下划线')
             return
         }
         if (username.length < 5) {
             Alert.alert('用户名错误', '用户名至少5个字符')
+            return
+        }
+        if (username.length > 16) {
+            Alert.alert('用户名错误', '用户名不能超过16个字符')
             return
         }
         if (email.length == 0) {
@@ -141,5 +145,5 @@ export default function Register({ navigation, route }) {
 }
 
 function isValid(str) {
-    return /^\w+$/.test(str);
+    return /^[a-z0-9_]+$/.test(str);
 }

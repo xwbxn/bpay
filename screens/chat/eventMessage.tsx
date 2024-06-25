@@ -32,9 +32,12 @@ const eventMap = {
         const membership = event.getContent().membership
         const prevMembership = event.getPrevContent().membership
         if (membership === 'join' && prevMembership === 'join') {
+            // 修改头像
             if (event.getContent().avatar_url !== event.getPrevContent().avatar_url) {
-                return { text: `[${event.sender.name} 修改了头像]`, system: true }
+                return null
+                // return { text: `[${event.sender.name} 修改了头像]`, system: true }
             }
+            // 修改昵称
             if (event.getContent().displayname !== event.getPrevContent().displayname) {
                 return { text: `[${event.getPrevContent().displayname} 将昵称修改为 ${event.getContent().displayname}]`, system: true }
             }
