@@ -9,7 +9,7 @@ import BpayHeader from '../../components/BpayHeader';
 import { useMatrixClient } from '../../store/useMatrixClient';
 import { IListItem, ListView } from './components/ListView';
 
-export default function SearchMessage({ navigation }) {
+export default function SearchMessage({ navigation, route }) {
 
     const [searchVal, setSearchVal] = useState('')
     const { client } = useMatrixClient()
