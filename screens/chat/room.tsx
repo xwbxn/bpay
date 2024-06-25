@@ -99,6 +99,10 @@ export function Room({ route, navigation }) {
   // event转换为msg格式
   const evtToMsg = (event: MatrixEvent) => {
     const message = eventMessage(event, room, client)
+    // 空消息不显示
+    if (message === null) {
+      return { _id: null }
+    }
     const sender = event.sender
     const powerLevel = room.getMember(sender.userId)?.powerLevel || 0
     let msg: IChatMessage = {
@@ -577,7 +581,7 @@ export function Room({ route, navigation }) {
   return (<>
     <CameraPicker isVisible={showCamera} onClose={() => setShowCamera(false)} onOk={sendCamera}></CameraPicker>
     <View style={styles.container}>
-      <BpayHeader showback title={room?.name} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>
+      <BpayHeader showback title={isDirectRoom ? room?.name : `${room?.name}(${room?.getJoinedMemberCount()})`} rightComponent={headerRight} onBack={() => navigation.replace('Sessions')}></BpayHeader>
       {messageTools}
       <Dialog
         isVisible={showTopic}
@@ -824,7 +828,7 @@ export function Room({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { backgroundColor: '#f9f9f9', flex: 1, paddingBottom:20 },
+  content: { backgroundColor: '#f9f9f9', flex: 1, paddingBottom: 20 },
   toolBarOverlay: {
     backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
     shadowOffset: { width: 0, height: 0 },
