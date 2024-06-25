@@ -653,7 +653,7 @@ export function Room({ route, navigation }) {
           messagesContainerStyle={{ paddingBottom: 10 }}
           parsePatterns={!!search ? () => [{ pattern: new RegExp(search.keyword), style: { color: theme.colors.primary, fontWeight: 'bold' } }] : undefined}
           // @ts-ignore
-          primaryStyle={{ paddingTop: 6, paddingBottom: 6, backgroundColor: '#e0e0e0' }}
+          primaryStyle={{ paddingTop: 6, paddingBottom: 6, backgroundColor: '#e0e0e0', paddingLeft: 10, paddingRight: 10, paddingBottom: 6 }}
           textInputStyle={{ backgroundColor: '#ffffff', borderRadius: 10, paddingLeft: 10, lineHeight: 24 }}
           loadEarlier
           user={{
@@ -859,7 +859,7 @@ export function Room({ route, navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { backgroundColor: '#f9f9f9', flex: 1, paddingBottom: 20 },
+  content: { backgroundColor: '#f9f9f9', flex: 1 },
   toolBarOverlay: {
     backgroundColor: 'transparent', shadowColor: 'rgba(0, 0, 0, 0)',
     shadowOffset: { width: 0, height: 0 },

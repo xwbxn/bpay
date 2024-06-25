@@ -27,7 +27,7 @@ export default function Register({ navigation, route }) {
 
     const onRegister = () => {
         if (!isValid(username)) {
-            Alert.alert('提示', '用户名只能是小写字母、数字和下划线')
+            Alert.alert('提示', '用户名只能是小写字母、数字或下划线')
             return
         }
         if (username.length < 5) {
