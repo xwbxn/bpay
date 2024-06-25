@@ -16,7 +16,8 @@ export interface IProfile {
     authenticated?: boolean,
     token?: string,
     matrixAuth?: LoginResponse,
-    membership_level?: { id: string, name: string, enddate: string }
+    membership_level?: { id: string, name: string, enddate: string },
+    disableNotify?: boolean
 }
 export interface IProfileState {
     profile: Partial<IProfile>,
@@ -39,7 +40,8 @@ export const useProfile = create<IProfileState>()(
                 name: '',
                 matrixId: '',
                 avatar: '',
-                roles: []
+                roles: [],
+                disableNotify: false
             },
             hasHydrated: false,
             login: async (username: string, password: string, code: string) => {

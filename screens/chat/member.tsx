@@ -19,6 +19,7 @@ export const MemberProfile = ({ navigation, route }) => {
 
     const [profile, setProfile] = useState<{ userId: string, avatar_url: string, displayname: string, targetRoomId?: string, isFriend: boolean }>()
     const [reason, setReason] = useState<string>()
+    const [roomOnTop, setRoomOnTop] = useState(false)
 
     useEffect(() => {
         const directRoom = client.findDirectRoom(userId)
@@ -31,6 +32,7 @@ export const MemberProfile = ({ navigation, route }) => {
                 targetRoomId: friend.roomId,
                 isFriend: true
             })
+            setRoomOnTop(client.isRoomOnTop(friend.roomId))
         } else {
             client.getProfileInfo(userId).then(res => {
                 setProfile({
@@ -97,6 +99,12 @@ export const MemberProfile = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     })
 
+    // 设置置顶
+    const onTopChange = (value) => {
+        setRoomOnTop(value)
+        client.setRoomOnTop(profile.targetRoomId, value)
+    }
+
 
     const friendSettingItems: ISettingItem[] = [
         {
@@ -109,7 +117,7 @@ export const MemberProfile = ({ navigation, route }) => {
         },
         {
             title: '置顶聊天',
-            right: () => <Switch style={{ height: 20 }}></Switch>,
+            right: () => <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>,
         },
         {
             title: '发消息',

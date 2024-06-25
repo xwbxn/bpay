@@ -72,9 +72,6 @@ const Session = ({ navigation }) => {
 
     // 订阅各类事件以刷新聊天列表
     useEffect(() => {
-        // const room = client.getRoom('!kbtYGlvshKcDhdnaYR:chat.b-pay.life')
-        // room.getMembers().map(m => console.log(m.name, m.membership))
-
         refreshRooms()
         client.on(RoomEvent.Timeline, refreshRooms) // 新消息
         client.on(RoomEvent.TimelineReset, refreshRooms) // 消息被清空
@@ -106,6 +103,7 @@ const Session = ({ navigation }) => {
         navigation.push('GroupChat')
     }
 
+    // 进入聊天界面
     const onPressRoom = (item) => {
         navigation.push('Room', {
             id: item.roomId

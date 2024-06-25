@@ -14,14 +14,14 @@ import {
   MsgType, RoomEvent
 } from 'matrix-js-sdk';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions, ScrollView } from 'react-native';
 import { GiftedChat, IMessage, Send, SendProps } from 'react-native-gifted-chat';
 import * as mime from 'react-native-mime-types';
 import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import {
-  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, Overlay, Text, useTheme
+  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, Overlay, SearchBar, Text, useTheme
 } from '@rneui/themed';
 
 import { useFocusEffect } from '@react-navigation/native';
@@ -68,15 +68,14 @@ export function Room({ route, navigation }) {
   const [disabled, setDisabled] = useState(false)
   const [knockBadge, setKnockBadge] = useState(0)
   const [inputText, setInputText] = useState('')
+  const [mentionSearchVal, setMentionSearchVal] = useState('')
   const [mentionSheetState, setMentionSheetState] = useState({ visible: false, search: '', enableSelect: false, selectedValues: [] })
 
   const windowSize = useWindowDimensions()
   const [tooltipState, setTooltipState] = useState({ visible: false, left: 0, top: 0, options: [], position: 'left' })
 
   const [reply, setReply] = useState<MatrixEvent>()
-
   const [showCamera, setShowCamera] = useState(false)
-
   const { setLoading, setShowBottomTabBar } = useGlobalState()
 
   // GiftedChat.whyDidYouRender = true
@@ -166,30 +165,43 @@ export function Room({ route, navigation }) {
     // 处理邀请场景
     if (room.getMyMembership() == 'invite') {
       const memberEvt = room.getMember(client.getUserId()).events.member
-      const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room?.name}]`
-      Alert.alert("提示", tip, [
-        {
-          text: '拒绝', onPress(value?) {
-            setLoading(true)
-            client.leave(room.roomId).then(() => {
-              return client.forget(room.roomId)
-            }).then(() => {
-              navigation.goBack()
-            }).finally(() => {
-              setLoading(false)
-            })
-          },
-        }, {
-          text: '同意', onPress(value?) {
-            setLoading(true)
-            client.joinRoom(room.roomId).then(() => {
-              setRefreshKey(crypto.randomUUID())
-            }).finally(() => {
-              setLoading(false)
-            })
-          },
-        }
-      ])
+
+      // 申请同意后直接入群
+      if (memberEvt.getPrevContent().membership === 'knock') {
+        setLoading(true)
+        client.joinRoom(room.roomId).then(() => {
+          setRefreshKey(crypto.randomUUID())
+        }).finally(() => {
+          setLoading(false)
+        })
+      }
+      else {
+        // 处理邀请通知
+        const tip = `${room.getMember(memberEvt.getSender()).name} 邀请您加入 [${room?.name}]`
+        Alert.alert("提示", tip, [
+          {
+            text: '拒绝', onPress(value?) {
+              setLoading(true)
+              client.leave(room.roomId).then(() => {
+                return client.forget(room.roomId)
+              }).then(() => {
+                navigation.goBack()
+              }).finally(() => {
+                setLoading(false)
+              })
+            },
+          }, {
+            text: '同意', onPress(value?) {
+              setLoading(true)
+              client.joinRoom(room.roomId).then(() => {
+                setRefreshKey(crypto.randomUUID())
+              }).finally(() => {
+                setLoading(false)
+              })
+            },
+          }
+        ])
+      }
     }
 
     room.on(RoomEvent.Timeline, refreshMessage)
@@ -481,6 +493,7 @@ export function Room({ route, navigation }) {
   const onMention = (member) => {
     setInputText(text => text + member.title + ' ')
     setMentionSheetState({ search: '', selectedValues: [], enableSelect: false, visible: false })
+    setMentionSearchVal('')
   }
 
   // @提醒列表多选
@@ -488,6 +501,7 @@ export function Room({ route, navigation }) {
     const mentionsText = mentionSheetState.selectedValues.map(i => room.getMember(i).name).join(' @')
     setInputText(text => text + mentionsText + ' ')
     setMentionSheetState({ search: '', selectedValues: [], enableSelect: false, visible: false })
+    setMentionSearchVal('')
   }
 
   // 长按头像 @ 提醒
@@ -565,7 +579,8 @@ export function Room({ route, navigation }) {
         avatar: i.getAvatarUrl(client.baseUrl, 30, 30, 'scale', true, true)
       }))
 
-    return <BottomSheet isVisible={mentionSheetState.visible} onBackdropPress={() => setMentionSheetState({ ...mentionSheetState, visible: false })} >
+    return <BottomSheet isVisible={mentionSheetState.visible}
+      onBackdropPress={() => setMentionSheetState({ ...mentionSheetState, visible: false })}>
       <Header
         leftComponent={<Button onPress={() => setMentionSheetState({ ...mentionSheetState, visible: false })} size="sm" type='clear' title={'返回'} titleStyle={{ color: theme.colors.background }}></Button>}
         rightComponent={mentionSheetState.enableSelect ?
@@ -574,9 +589,25 @@ export function Room({ route, navigation }) {
         centerComponent={<Text style={{ color: '#fff', fontSize: globalStyle.titleFontStyle.fontSize }}>选择提醒的人</Text>}
         centerContainerStyle={{ marginTop: 4 }}
         containerStyle={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }}></Header>
-      <ListView items={members} size={30} multiSelect {...mentionSheetState} onPressItem={(item) => !mentionSheetState.enableSelect && onMention(item)}></ListView>
+      <SearchBar containerStyle={{
+        flex: 1, borderWidth: 0,
+        borderColor: theme.colors.background,
+        backgroundColor: theme.colors.background,
+        paddingHorizontal: 12
+      }}
+        inputContainerStyle={{ backgroundColor: theme.colors.grey5 }}
+        round
+        value={mentionSearchVal}
+        onChangeText={setMentionSearchVal}
+        placeholder='搜索'
+      ></SearchBar>
+      <ScrollView style={{ height: size.height * 0.6, backgroundColor: theme.colors.background }}>
+        <ListView items={mentionSearchVal !== ''
+          ? members.filter(m => m.id.toString().includes(mentionSearchVal) || m.title.includes(mentionSearchVal))
+          : members} size={30} multiSelect {...mentionSheetState} onPressItem={(item) => !mentionSheetState.enableSelect && onMention(item)}></ListView>
+      </ScrollView>
     </BottomSheet>;
-  }, [room, mentionSheetState])
+  }, [room, mentionSheetState, size, theme, mentionSearchVal])
 
   return (<>
     <CameraPicker isVisible={showCamera} onClose={() => setShowCamera(false)} onOk={sendCamera}></CameraPicker>

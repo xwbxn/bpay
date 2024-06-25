@@ -246,6 +246,9 @@ const roomPreviewMap = {
             if (membership === 'invite' && event.target.userId !== client.getUserId()) {
                 return `[${event.sender.name} 邀请 ${event.getContent().displayname} 加入群聊]`
             }
+            if (membership === 'knock') {
+                return null
+            }
         }
         return `[不支持的消息类型${event.getType()}]`
     },

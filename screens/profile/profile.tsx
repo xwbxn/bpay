@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
-import { Avatar, Badge, Icon, Text, useTheme } from '@rneui/themed';
+import { Avatar, Badge, Icon, Text, useTheme, Switch } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState } from '../../store/globalContext';
@@ -129,6 +129,14 @@ const Profile = ({ navigation, route }) => {
         },
         {
             title: '我的收藏',
+        },
+        {
+            title: '消息免打扰',
+            right: () => <Switch value={profile.disableNotify} onValueChange={(value) => {
+                setProfile({
+                    disableNotify: value
+                })
+            }} style={{ height: 20 }}></Switch>,
         },
         {
             title: '清理缓存',
