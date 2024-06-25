@@ -75,7 +75,6 @@ export default function App() {
   useEffect(() => {
     if (hasHydrated && profile.authenticated && profile.matrixAuth) {
       loginWithToken(profile.matrixAuth.access_token)
-      console.debug('------------- starting client --------------')
     }
   }, [hasHydrated])
 
