@@ -406,7 +406,16 @@ export const RoomSetting = ({ navigation, route }) => {
         },
         {
             title: '消息免打扰',
-            right: () => <Switch style={{ height: 20 }}></Switch>,
+            right: () => <Switch style={{ height: 20 }} value={pushRule} onValueChange={(value) => {
+                if (value) {
+                    client.addPushRule('global', PushRuleKind.RoomSpecific, id, {
+                        actions: []
+                    })
+                } else {
+                    client.deletePushRule('global', PushRuleKind.RoomSpecific, id)
+                }
+                setPushRule(value)
+            }}></Switch>,
             breakTop: true
         },
         {
