@@ -168,7 +168,7 @@ const Profile = ({ navigation, route }) => {
                     const update = await Updates.checkForUpdateAsync();
                     console.log('update', update.isAvailable)
 
-                    Alert.alert('检查到新版本', update.manifest.id, [
+                    Alert.alert('提示', '有新的版本更新', [
                         { text: '取消', onPress: () => { } },
                         {
                             text: '更新', onPress: async () => {
