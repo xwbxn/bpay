@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import * as Updates from 'expo-updates';
 
 import { Avatar, Badge, Icon, Text, useTheme, Switch } from '@rneui/themed';
 
@@ -159,6 +160,28 @@ const Profile = ({ navigation, route }) => {
         {
             title: '高级设置',
             onPress: () => navigation.push('AdvancedSetting'),
+        },
+        {
+            title: '检查更新',
+            onPress: async () => {
+                try {
+                    const update = await Updates.checkForUpdateAsync();
+                    console.log('update', update.isAvailable)
+
+                    Alert.alert('检查到新版本', update.manifest.id, [
+                        { text: '取消', onPress: () => { } },
+                        {
+                            text: '更新', onPress: async () => {
+                                await Updates.fetchUpdateAsync()
+                                await Updates.reloadAsync();
+                                alert('更新成功')
+                            }
+                        },
+                    ])
+                } catch (error) {
+                    alert(`检查更新出错: ${error}`);
+                }
+            },
         },
         {
             title: '修改密码',

@@ -80,6 +80,7 @@ export default function App() {
       if (update.isAvailable) {
         await Updates.fetchUpdateAsync();
         await Updates.reloadAsync();
+        alert(`检测到更新，已重新加载应用`);
       }
     } catch (error) {
       alert(`Error fetching latest Expo update: ${error}`);

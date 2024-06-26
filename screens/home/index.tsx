@@ -46,7 +46,6 @@ export default function HomeScreen({ navigation, route }) {
     }, []);
 
     useEffect(() => {
-        console.log('client', client.getAccessToken())
         ShareMenu.getInitialShare(handleShare);
         const listener = ShareMenu.addNewShareListener(handleShare);
         return () => {
@@ -67,7 +66,7 @@ export default function HomeScreen({ navigation, route }) {
                 const tabPage = topStack.state?.routes[topStack.state.index]
                 if (tabPage?.name === 'Chatting') {
                     const chattingPage = tabPage.state?.routes[tabPage.state.index]
-                    profile.roles?.includes('contributor')// && setShowBottomTabBar(chattingPage?.name !== 'Room')
+                    profile.roles?.includes('contributor') && setShowBottomTabBar(chattingPage?.name !== 'Room')
                 }
             }
         });
