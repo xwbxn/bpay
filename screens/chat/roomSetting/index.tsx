@@ -283,7 +283,8 @@ export const RoomSetting = ({ navigation, route }) => {
     console.log(client.pushRules.global.room)
     const friendSettingItems: ISettingItem[] = [
         {
-            title: '查找聊天记录'
+            title: '查找聊天记录',
+            onPress: () => navigation.push('SearchMessage', { roomId: room.roomId }),
         },
         {
             title: '聊天文件',
@@ -398,6 +399,7 @@ export const RoomSetting = ({ navigation, route }) => {
         },
         {
             title: '查找聊天记录',
+            onPress: () => navigation.push('SearchMessage', { roomId: room.roomId }),
             breakTop: true
         },
         {

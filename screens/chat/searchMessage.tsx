@@ -17,6 +17,7 @@ export default function SearchMessage({ navigation, route }) {
     const [rooms, setRooms] = useState<IListItem[]>([])
     const [selectedRoom, setSelectedRoom] = useState<string>()
     const [messages, setMessages] = useState<IListItem[]>([])
+    const roomId = route.params?.roomId
 
     const doSearch = useCallback(_.debounce((searchVal) => {
         client.searchEvent(null, searchVal).then(rows => {
@@ -24,6 +25,10 @@ export default function SearchMessage({ navigation, route }) {
             setResult(rows);
             const _result: IListItem[] = [];
             for (const key in rows) {
+                //房间内查询找，过滤掉其他的
+                if (roomId && key !== roomId) {
+                    continue
+                }
                 if (Object.prototype.hasOwnProperty.call(rows, key)) {
                     const element = rows[key];
                     const room = client.getRoom(key);
