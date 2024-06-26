@@ -168,16 +168,20 @@ const Profile = ({ navigation, route }) => {
                     const update = await Updates.checkForUpdateAsync();
                     console.log('update', update.isAvailable)
 
-                    Alert.alert('提示', '有新的版本更新', [
-                        { text: '取消', onPress: () => { } },
-                        {
-                            text: '更新', onPress: async () => {
-                                await Updates.fetchUpdateAsync()
-                                await Updates.reloadAsync();
-                                alert('更新成功')
-                            }
-                        },
-                    ])
+                    if (update.isAvailable) {
+                        Alert.alert('提示', '有新的版本更新', [
+                            { text: '取消', onPress: () => { } },
+                            {
+                                text: '更新', onPress: async () => {
+                                    await Updates.fetchUpdateAsync()
+                                    await Updates.reloadAsync();
+                                    alert('更新成功')
+                                }
+                            },
+                        ])
+                    } else {
+                        alert('已经是最新版本')
+                    }
                 } catch (error) {
                     alert(`检查更新出错: ${error}`);
                 }
