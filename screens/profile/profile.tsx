@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import * as Updates from 'expo-updates';
 
-import { Avatar, Badge, Icon, Text, useTheme, Switch } from '@rneui/themed';
+import { Avatar, Badge, Icon, Text, useTheme, Switch, Chip } from '@rneui/themed';
 
 import BpayHeader from '../../components/BpayHeader';
 import { useGlobalState } from '../../store/globalContext';
@@ -28,10 +28,17 @@ const Profile = ({ navigation, route }) => {
     const { profile, logout, setProfile } = useProfile()
     const [balance, setBalance] = useState('0')
     const [silence, setSilence] = useState(client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master').enabled)
-    console.log('first', client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master').enabled)
+    const [newVersion, setNewVersion] = useState(false)
+
+
     useEffect(() => {
         getMyBalance().then(res => {
             setBalance(res.message.balance)
+        })
+        Updates.checkForUpdateAsync().then(res => {
+            if (res.isAvailable) {
+                setNewVersion(true)
+            }
         })
     }, [])
 
@@ -104,7 +111,6 @@ const Profile = ({ navigation, route }) => {
         listItemText: { fontSize: 20, color: theme.colors.grey2 }
     }), [theme])
 
-    console.log(client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master'))
     const mySettingItems: ISettingItem[] = [
         {
             title: 'DTC余额',
@@ -166,7 +172,6 @@ const Profile = ({ navigation, route }) => {
             onPress: async () => {
                 try {
                     const update = await Updates.checkForUpdateAsync();
-                    console.log('update', update.isAvailable)
 
                     if (update.isAvailable) {
                         Alert.alert('提示', '有新的版本更新', [
@@ -186,6 +191,7 @@ const Profile = ({ navigation, route }) => {
                     alert(`检查更新出错: ${error}`);
                 }
             },
+            right: () => <Chip size='sm' color={newVersion ? 'error' : 'success'}>{newVersion ? '有新版本' : '已是最新'}</Chip>
         },
         {
             title: '修改密码',

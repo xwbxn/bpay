@@ -212,13 +212,13 @@ export const Contacts = ({ navigation, route }) => {
             setSearchMembers([])
         } else {
             setLoading(true)
-            client.getProfileInfo(fullId).then(res => {
-                setSearchMembers([{
-                    id: fullId,
-                    title: res?.displayname || fullId,
-                    subtitle: fullId,
-                    avatar: client.mxcUrlToHttp(res?.avatar_url)
-                }])
+            client.searchUserDirectory({ term: searchVal, limit: 10 }).then(res => {
+                setSearchMembers(res.results.map(m => ({
+                    id: m.user_id,
+                    title: m.display_name || m.user_id,
+                    subtitle: m.user_id,
+                    avatar: client.mxcUrlToHttp(m.avatar_url)
+                })))
             }).catch(e => {
                 if (e.errcode === 'M_NOT_FOUND') {
                     Alert.alert('提示', '用户不存在')
