@@ -1,9 +1,10 @@
 import { Avatar, Icon, ListItem, useTheme } from '@rneui/themed'
 import React, { ReactElement } from 'react'
-import { View, StyleSheet, Text, ImageStyle } from 'react-native'
+import { View, StyleSheet, Text, ImageStyle, Pressable, TouchableWithoutFeedback, TouchableOpacity } from 'react-native'
 import { globalStyle } from '../utils/styles'
 import * as Clipboard from 'expo-clipboard';
 import Toast from 'react-native-root-toast';
+import { Image } from 'expo-image';
 
 
 interface IMemberCardProps {
@@ -33,10 +34,12 @@ export const CardView = (opts: IMemberCardProps) => {
     return <View style={{ ...styles.content, backgroundColor: theme.colors.background }}>
         <ListItem onPress={() => onPress && onPress()}>
             {avatar
-                ? <Avatar avatarStyle={avatarStyle} size={60} rounded source={typeof (avatar) === 'number' ? avatar : { uri: avatar }} onPress={() => { onAvatarPress && onAvatarPress() }}
-                    containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                : <Avatar avatarStyle={avatarStyle} size={60} rounded title={title && title[0].toUpperCase()} onPress={() => { onAvatarPress && onAvatarPress() }}
-                    containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
+                ? <Pressable onPress={() => { onAvatarPress && onAvatarPress() }}>
+                    <Image source={typeof (avatar) === 'number' ? avatar : { uri: avatar }} style={{ height: 60, width: 60, borderRadius: 5 }}></Image>
+                </Pressable>
+                : <TouchableOpacity onPress={() => onAvatarPress && onAvatarPress()} style={{ height: 60, width: 60, borderRadius: 5, backgroundColor: theme.colors.primary, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: theme.colors.background, fontSize: 60 * 0.6, fontWeight: 'bold' }}>{title && title[0].toUpperCase()}</Text>
+                </TouchableOpacity>}
             {subTittle ? <ListItem.Content style={{ height: 50, justifyContent: 'space-between' }}>
                 {typeof (title) === 'object' ? title :
                     <ListItem.Title style={globalStyle.headTitleFontStyle}>{title}</ListItem.Title>}

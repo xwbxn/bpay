@@ -9,7 +9,6 @@ import { useMatrixClient } from './useMatrixClient';
 
 export interface IProfile {
     id: number,
-    matrixId: string,
     name: string,
     avatar: string,
     roles: string[],
@@ -38,7 +37,6 @@ export const useProfile = create<IProfileState>()(
             profile: {
                 id: 0,
                 name: '',
-                matrixId: '',
                 avatar: '',
                 roles: [],
                 disableNotify: false
@@ -55,11 +53,10 @@ export const useProfile = create<IProfileState>()(
                 console.log('loginRes.message', loginRes.message)
                 const bpayUser = loginRes.message
                 await AsyncStorage.setItem("TOKEN", token)
-                const matrixAuth = await client.loginWithPassword(`@${username.toLowerCase()}:chat.b-pay.life`, loginRes.message.matrix_password)
+                const matrixAuth = await client.loginWithPassword(`@${loginRes.message.matrix_id}:chat.b-pay.life`, loginRes.message.matrix_password)
                 const chatProfile = await client.getProfileInfo(matrixAuth.user_id)
                 const profile: IProfile = {
                     id: bpayUser.ID,
-                    matrixId: matrixAuth.user_id,
                     name: chatProfile.displayname,
                     avatar: chatProfile.avatar_url,
                     roles: bpayUser.roles,
@@ -101,11 +98,10 @@ export const useProfile = create<IProfileState>()(
                 }
                 const { client, setStore } = useMatrixClient()
                 await AsyncStorage.setItem("TOKEN", token)
-                const matrixAuth = await client.loginWithPassword(`@${username}:chat.b-pay.life`, regUser.message.matrix_password)
+                const matrixAuth = await client.loginWithPassword(`@${regUser.message.matrix_id}:chat.b-pay.life`, regUser.message.matrix_password)
                 const chatProfile = await client.getProfileInfo(matrixAuth.user_id)
                 const profile: IProfile = {
                     id: regUser.ID,
-                    matrixId: matrixAuth.user_id,
                     name: chatProfile.displayname,
                     avatar: chatProfile.avatar_url,
                     roles: regUser.roles,

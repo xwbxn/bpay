@@ -27,8 +27,8 @@ const Profile = ({ navigation, route }) => {
     const [editProps, setEditProps] = useState<IPropEditorProps>({ isVisible: false, props: {} })
     const { profile, logout, setProfile } = useProfile()
     const [balance, setBalance] = useState('0')
-    const [ruleMaster, setRuleMaster] = useState(!client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master').enabled)
-
+    const [silence, setSilence] = useState(client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master').enabled)
+    console.log('first', client.pushRules.global.override.find(r => r.rule_id === '.m.rule.master').enabled)
     useEffect(() => {
         getMyBalance().then(res => {
             setBalance(res.message.balance)
@@ -136,9 +136,9 @@ const Profile = ({ navigation, route }) => {
         },
         {
             title: '消息提醒',
-            right: () => <Switch value={ruleMaster} onValueChange={(value) => {
-                client.setPushRuleEnabled('global', PushRuleKind.Override, '.m.rule.master', value)
-                setRuleMaster(value)
+            right: () => <Switch value={!silence} onValueChange={(value) => {
+                client.setPushRuleEnabled('global', PushRuleKind.Override, '.m.rule.master', !value)
+                setSilence(!value)
             }} style={{ height: 20 }}></Switch>,
         },
         {

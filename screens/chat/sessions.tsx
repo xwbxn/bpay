@@ -1,28 +1,30 @@
 import 'moment/locale/zh-cn';
 
 import { BarcodeScanningResult } from 'expo-camera/next';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
-import RNQRGenerator from 'rn-qr-generator';
-
 import _ from 'lodash';
 import { ClientEvent, Room, RoomEvent } from 'matrix-js-sdk';
-import moment from 'moment';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { Menu, MenuOption, MenuOptions, MenuTrigger } from 'react-native-popup-menu';
 import Toast from 'react-native-root-toast';
+import RNQRGenerator from 'rn-qr-generator';
 
-import { Avatar, Badge, Button, Divider, Icon, ListItem, Overlay, Text, useTheme } from '@rneui/themed';
+import {
+    Avatar, Badge, Button, Divider, Icon, ListItem, Overlay, Text, useTheme
+} from '@rneui/themed';
 
-import { Image } from 'expo-image';
 import BpayHeader from '../../components/BpayHeader';
 import { useProfile } from '../../store/profileContext';
 import { hiddenTagName, useMatrixClient } from '../../store/useMatrixClient';
+import { normalizeTime } from '../../utils';
 import { globalStyle } from '../../utils/styles';
 import Qrcode from './components/Qrcode';
 import { roomPreview } from './eventMessage';
+import { color } from '@rneui/base';
 
 const Session = ({ navigation }) => {
 
@@ -63,7 +65,7 @@ const Session = ({ navigation }) => {
     // 刷新聊天会话列表
     const refreshRooms = useCallback(_.debounce(() => {
         setRooms(client.getSessions().filter(r => !r.tags[hiddenTagName]))
-        
+
         // 获取未读消息角标，目前只取了单聊
         setInviteBadge(client.getRooms()
             .filter(i => client.isDirectRoom(i.roomId))
@@ -120,17 +122,64 @@ const Session = ({ navigation }) => {
 
     const themeColorPrimary = useMemo(() => theme.colors.primary, [theme])
 
-    const renderItem = useCallback(({ item }: { item: Room }) => {
+    const renderAvatar = useCallback((item: Room) => {
         const isDirectRoom = client.isDirectRoom(item.roomId)
         const directMember = isDirectRoom ? item.getMembers().find(i => i.userId !== client.getUserId()) : null
         let title = item.name
-        const preview = roomPreview(item, client)
-        let subTitle = preview.text
-        let updateAt = preview.ts
         let avatar_url = isDirectRoom
             ? directMember?.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
             : item?.getAvatarUrl(client.baseUrl, 50, 50, 'scale')
+        if (isDirectRoom && avatar_url) {
+            return <View>
+                <Image source={{ uri: avatar_url }} style={{ height: 50, width: 50, borderRadius: 5 }}>
+                </Image>
+                {item.getUnreadNotificationCount() > 0
+                    && <Badge value={item.getUnreadNotificationCount()} status="error"
+                        containerStyle={{ position: 'absolute', top: -5, left: -5 }}></Badge>}
+            </View>
+        }
+        if (!isDirectRoom) {
+            const members = item.getJoinedMembers().slice(0, 9)
+            const avatarSize = members.length < 5 ? 20 : 13
+            const avatars = members.map((m, index) => {
+                const url = m.getAvatarUrl(client.baseUrl, 50, 50, 'scale', true, true)
+                if (url) {
+                    return <Image key={index} source={{ uri: url }} style={{ height: avatarSize, width: avatarSize, margin: 1 }}></Image>
+                } else {
+                    return <View key={index} style={{
+                        justifyContent: 'center', alignItems: 'center', margin: 1,
+                        backgroundColor: themeColorPrimary, height: avatarSize, width: avatarSize
+                    }}>
+                        <Text style={{ color: theme.colors.background, fontWeight: 'bold', fontSize: avatarSize * 3 / 5 }}>{(m.user?.displayName[0] || m.userId[1]).toUpperCase()}</Text>
+                    </View>
+                }
+            })
+            return <View style={{
+                flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: '#f3f3f3',
+                padding: 2, width: 50, height: 50, borderRadius: 5
+            }}>
+                {avatars.map((avatar) => avatar)}
+                {item.getUnreadNotificationCount() > 0
+                    && <Badge value={item.getUnreadNotificationCount()} status="error"
+                        containerStyle={{ position: 'absolute', top: -5, left: -5 }}></Badge>}
+            </View>
+        }
+        return <View style={{
+            justifyContent: 'center', alignItems: 'center',
+            backgroundColor: themeColorPrimary, borderRadius: 5, height: 50, width: 50
+        }}>
+            <Text style={{ color: theme.colors.background, fontWeight: 'bold', fontSize: 30 }}>{title[0].toUpperCase()}</Text>
+            {item.getUnreadNotificationCount() > 0
+                && <Badge value={item.getUnreadNotificationCount()} status="error"
+                    containerStyle={{ position: 'absolute', top: -5, left: -5 }}></Badge>}
+        </View>
+    }, [client, theme])
 
+    const renderItem = useCallback(({ item }: { item: Room }) => {
+        const preview = roomPreview(item, client)
+        let subTitle = preview.text
+        let updateAt = preview.ts
         if (item.getMyMembership() === 'leave') {
             return <></>
         }
@@ -139,24 +188,12 @@ const Session = ({ navigation }) => {
                 <MenuTrigger triggerOnLongPress onAlternativeAction={() => onPressRoom(item)}>
                     <ListItem topDivider bottomDivider
                         containerStyle={[client.isRoomOnTop(item.roomId) && { backgroundColor: '#f5f5f5' }, { padding: 10 }]}>
-                        {(avatar_url)
-                            ? <Avatar size={50} rounded source={{ uri: avatar_url }}
-                                containerStyle={{ backgroundColor: themeColorPrimary }}>
-                                {item.getUnreadNotificationCount() > 0
-                                    && <Badge value={item.getUnreadNotificationCount()} status="error"
-                                        containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
-                            </Avatar> :
-                            <Avatar size={50} rounded title={isDirectRoom ? title[0] : '群'}
-                                containerStyle={{ backgroundColor: themeColorPrimary }}>
-                                {item.getUnreadNotificationCount() > 0
-                                    && <Badge value={item.getUnreadNotificationCount()} status="error"
-                                        containerStyle={{ position: 'absolute', top: 0, left: 0 }}></Badge>}
-                            </Avatar>}
+                        {renderAvatar(item)}
                         <ListItem.Content>
-                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight: '600' }}>{title}</ListItem.Title>
+                            <ListItem.Title lineBreakMode='clip' numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize, fontWeight: '600' }}>{item.name}</ListItem.Title>
                             <ListItem.Subtitle lineBreakMode='clip' numberOfLines={1} style={{ color: theme.colors.grey2 }}>{subTitle}</ListItem.Subtitle>
                         </ListItem.Content>
-                        <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{moment(updateAt).fromNow()}</ListItem.Subtitle>
+                        <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{normalizeTime(updateAt)}</ListItem.Subtitle>
                     </ListItem>
                 </MenuTrigger>
                 <MenuOptions customStyles={{ optionsContainer: { marginLeft: 100, marginTop: 20 } }}>
@@ -172,7 +209,7 @@ const Session = ({ navigation }) => {
                     }}></MenuOption>
                 </MenuOptions>
             </Menu>)
-    },[theme])
+    }, [theme])
 
     const menuStyles = StyleSheet.create({
         optionWrapper: {
@@ -294,5 +331,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f5f5f5' },
     content: { backgroundColor: '#ffffff', flex: 1 },
 })
+
+// Session.whyDidYouRender = true
 
 export default Session

@@ -21,7 +21,7 @@ import Toast from 'react-native-root-toast';
 
 import { MaterialIcons } from '@expo/vector-icons';
 import {
-  Avatar, Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, Overlay, SearchBar, Text, useTheme
+  Badge, BottomSheet, Button, Dialog, Divider, Header, Icon, Overlay, SearchBar, Text, useTheme
 } from '@rneui/themed';
 
 import { useFocusEffect } from '@react-navigation/native';
@@ -96,7 +96,7 @@ export function Room({ route, navigation }) {
   }
 
   // event转换为msg格式
-  const evtToMsg = (event: MatrixEvent) => {
+  const evtToMsg = useCallback((event: MatrixEvent) => {
     const message = eventMessage(event, room, client)
     // 空消息不显示
     if (message === null) {
@@ -111,16 +111,28 @@ export function Room({ route, navigation }) {
       user: {
         _id: event.getSender(),
         name: sender?.name || event.getSender(),
-        avatar: powerLevel >= 50 && !isDirectRoom ? (styles) => {
+        avatar: (styles) => {
           const uri = sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined
-          return <Avatar size={36} rounded containerStyle={{ backgroundColor: theme.colors.primary }}
-            source={uri ? { uri: uri } : null} title={!uri ? sender?.name[0]?.toUpperCase() : null}>
-            <Badge textStyle={{ fontSize: 8 }}
-              badgeStyle={{ backgroundColor: powerLevel === 100 ? 'gold' : 'silver' }}
-              containerStyle={{ position: 'absolute', top: -6, left: 24 }}
-              value="V"></Badge>
-          </Avatar >
-        } : sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined,
+          if (uri) {
+            return <View><Image source={{ uri: uri }} style={{ height: 36, width: 36, borderRadius: 5 }}></Image>
+              {powerLevel >= 50 && !isDirectRoom && <Badge textStyle={{ fontSize: 8 }}
+                badgeStyle={{ backgroundColor: powerLevel === 100 ? 'gold' : 'silver' }}
+                containerStyle={{ position: 'absolute', top: -6, left: 24 }}
+                value="V"></Badge>}
+            </View>
+          } else {
+            return <View style={{
+              justifyContent: 'center', alignItems: 'center',
+              backgroundColor: theme.colors.primary, height: 36, width: 36, borderRadius: 5
+            }}>
+              <Text style={{ color: theme.colors.background, fontWeight: 'bold', fontSize: 16 }}>{sender.user?.displayName[0] || normalizeUserId(sender?.name)[0]?.toUpperCase()}</Text>
+              {powerLevel >= 50 && !isDirectRoom && <Badge textStyle={{ fontSize: 8 }}
+                badgeStyle={{ backgroundColor: powerLevel === 100 ? 'gold' : 'silver' }}
+                containerStyle={{ position: 'absolute', top: -6, left: 24 }}
+                value="V"></Badge>}
+            </View>
+          }
+        }
       },
       sent: event.status === null,
       pending: event.status !== null,
@@ -129,7 +141,7 @@ export function Room({ route, navigation }) {
       ...message
     }
     return msg
-  }
+  }, [theme])
 
   const refreshMessage = useCallback(_.debounce(() => {
     setRefreshKey(crypto.randomUUID())

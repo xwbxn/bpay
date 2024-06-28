@@ -39,7 +39,8 @@ const eventMap = {
             }
             // 修改昵称
             if (event.getContent().displayname !== event.getPrevContent().displayname) {
-                return { text: `[${event.getPrevContent().displayname} 将昵称修改为 ${event.getContent().displayname}]`, system: true }
+                return null
+                // return { text: `[${event.getPrevContent().displayname} 将昵称修改为 ${event.getContent().displayname}]`, system: true }
             }
         }
         if (client.isDirectRoom(room.roomId)) {
@@ -69,13 +70,16 @@ const eventMap = {
                 return { text: `[${event.sender.name} 离开了群聊]`, system: true }
             }
             if (membership === 'knock') {
-                return { text: `[${event.sender.name} 申请加入群聊]`, system: true }
+                return null
+                // return { text: `[${event.sender.name} 申请加入群聊]`, system: true }
             }
             if (membership === 'invite' && prevMembership === 'knock') {
-                return { text: `[${event.sender.name} 同意 ${event.target.name} 加入群聊]`, system: true }
+                return null
+                // return { text: `[${event.sender.name} 同意 ${event.target.name} 加入群聊]`, system: true }
             }
             if (membership === 'invite' && prevMembership !== 'knock') {
-                return { text: `[${event.sender.name} 邀请 ${event.target.name} 加入群聊]`, system: true }
+                return null
+                // return { text: `[${event.sender.name} 邀请 ${event.target.name} 加入群聊]`, system: true }
             }
         }
         return { text: `[不支持的消息类型${event.getType()}]`, system: true }
@@ -87,6 +91,7 @@ const eventMap = {
         }
         return { text: `[不支持的消息类型${event.getContent().msgtype}]`, system: false }
     },
+    [EventType.RoomAvatar]: (event: MatrixEvent, room: Room, client: BChatClient) => { return null },
     [EventType.RoomPowerLevels]: (event: MatrixEvent, room: Room, client: BChatClient) => {
         const current = event.getContent().users
         const prev = event.getPrevContent().users

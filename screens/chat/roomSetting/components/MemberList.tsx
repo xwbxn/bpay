@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutChangeEvent, StyleProp, TouchableOpacity, View, ViewStyle, } from 'react-native';
-
+import { LayoutChangeEvent, Pressable, StyleProp, TouchableOpacity, View, ViewStyle, } from 'react-native';
+import { Image } from 'expo-image';
 import { Avatar, Icon, Text, useTheme } from '@rneui/themed';
 
 export interface IMemberItem {
@@ -57,25 +57,27 @@ export const MemberList = ({
             {filtedItems.map((i, index) => {
                 return <MemberItem key={index} width={width / 5}>
                     {i.avatar
-                        ? <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={itemWidth} containerStyle={{ backgroundColor: theme.colors.primary }} source={{ uri: i.avatar }}></Avatar>
-                        : <Avatar onPress={() => { onItemPress && onItemPress(i) }} rounded size={itemWidth} containerStyle={{ backgroundColor: theme.colors.primary }} title={i.name[0]}></Avatar>}
-                    <Text style={{ color: theme.colors.grey3 }}>{i.name}</Text>
+                        ? <Pressable onPress={() => onItemPress && onItemPress(i)}><Image source={{ uri: i.avatar }} style={{ width: itemWidth, height: itemWidth, borderRadius: 5 }}></Image></Pressable>
+                        : <TouchableOpacity style={{ justifyContent: 'center', alignItems: 'center', borderRadius: 5, backgroundColor: theme.colors.primary, width: itemWidth, height: itemWidth }} onPress={() => { onItemPress && onItemPress(i) }}>
+                            <Text style={{ color: theme.colors.background, fontSize: itemWidth * 2 / 3, }}>{i.name[0]}</Text>
+                        </TouchableOpacity>}
+                    <Text style={{ color: theme.colors.grey3 }} numberOfLines={1} lineBreakMode='clip'>{i.name}</Text>
                 </MemberItem>
             })}
             {onAppend && <MemberItem width={width / 5}>
                 <Icon size={itemWidth - 4} onPress={() => { onAppend && onAppend() }} name={'plus'} type='antdesign'
                     color={theme.colors.primary}
-                    containerStyle={{ borderWidth: 2, borderColor: theme.colors.primary, borderRadius: (itemWidth) / 2, borderStyle: 'dotted' }}></Icon>
+                    containerStyle={{ borderWidth: 2, borderColor: theme.colors.primary, borderRadius: 5, borderStyle: 'dotted' }}></Icon>
             </MemberItem>}
             {onDelete && <MemberItem width={width / 5}>
                 <Icon size={itemWidth - 4} onPress={() => { onDelete && onDelete() }} name='minus' type='antdesign'
                     color={theme.colors.primary}
-                    containerStyle={{ borderWidth: 2, borderColor: theme.colors.primary, borderRadius: (itemWidth) / 2, borderStyle: 'dotted' }}></Icon>
+                    containerStyle={{ borderWidth: 2, borderColor: theme.colors.primary, borderRadius: 5, borderStyle: 'dotted' }}></Icon>
             </MemberItem>}
             {onSetting && <MemberItem width={width / 5}>
                 <Avatar size={itemWidth - 4} onPress={() => { onSetting && onSetting() }} title="···"
                     titleStyle={{ color: theme.colors.primary }}
-                    containerStyle={{ borderWidth: 2, borderColor: theme.colors.primary, borderRadius: (itemWidth) / 2, borderStyle: 'dotted' }}></Avatar>
+                    containerStyle={{ borderWidth: 2, borderColor: theme.colors.primary, borderRadius: 5, borderStyle: 'dotted' }}></Avatar>
             </MemberItem>}
         </View>
         {items.length > 14 && <View style={{ alignItems: 'center' }}>

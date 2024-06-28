@@ -101,10 +101,10 @@ export const MemberProfile = ({ navigation, route }) => {
     })
 
     // 设置置顶
-    const onTopChange = (value) => {
-        setRoomOnTop(value)
-        client.setRoomOnTop(profile.targetRoomId, value)
-    }
+    // const onTopChange = (value) => {
+    //     setRoomOnTop(value)
+    //     client.setRoomOnTop(profile.targetRoomId, value)
+    // }
 
 
     const friendSettingItems: ISettingItem[] = [
@@ -112,10 +112,10 @@ export const MemberProfile = ({ navigation, route }) => {
             title: '设置备注',
             text: '备注',
         },
-        {
-            title: '置顶聊天',
-            right: () => <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>,
-        },
+        // {
+        //     title: '置顶聊天',
+        //     right: () => <Switch value={roomOnTop} onValueChange={onTopChange} style={{ height: 20 }}></Switch>,
+        // },
         {
             title: '发消息',
             onPress: startChat,

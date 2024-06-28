@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleProp, StyleSheet, Text, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
 import { Avatar, Header, Icon, useTheme } from '@rneui/themed';
@@ -45,15 +45,15 @@ export default function BpayHeader(opts: IBpayHeaderProps) {
 
     return (
         <Header
-            leftContainerStyle={{ marginLeft: 6 }}
-            rightContainerStyle={{ marginRight: 6 }}
+            leftContainerStyle={{ marginLeft: 6, marginTop: 4, maxWidth: 60 }}
+            rightContainerStyle={{ marginRight: 6, maxWidth: 60 }}
             centerContainerStyle={centerContainerStyle}
             leftComponent={leftComponent ?
                 leftComponent :
                 (showback ?
                     <Icon name='arrow-back' color={theme.colors.background} onPress={() => onBack ? onBack() : navigation.goBack()}></Icon> :
                     defaultLeft)}
-            centerComponent={centerComponent ? centerComponent : <Text style={[styles.headTitle, globalStyle.headTitleFontStyle]}>{title}</Text>}
+            centerComponent={centerComponent ? centerComponent : <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text style={[styles.headTitle, { fontSize: 16 }]}>{title}</Text></View>}
             rightComponent={rightComponent ? rightComponent : null}
         ></Header >
     )

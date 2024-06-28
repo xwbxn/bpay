@@ -481,7 +481,7 @@ export const RoomSetting = ({ navigation, route }) => {
     </View>
 
     return <>
-        <BpayHeader title='聊天设置' showback></BpayHeader>
+        <BpayHeader title={`聊天设置(${room.getJoinedMemberCount()})`} showback></BpayHeader>
         <PropEditor editProps={editProps}></PropEditor>
         <ScrollView>
             {isDirectRoom ? friendSettingJsx : roomSettingJsx}

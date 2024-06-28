@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import ParsedText from 'react-native-parsed-text';
-
-import { Avatar, ListItem, useTheme } from '@rneui/themed';
+import { View } from 'react-native';
+import { Text, ListItem, useTheme } from '@rneui/themed';
 
 import { globalStyle } from '../../../utils/styles';
+import { Image } from 'expo-image';
 
 export interface IListItem {
     id: string | number
@@ -103,10 +104,10 @@ export const ListView = ({
                         checkedColor={!allowRemove && initValues.includes(m.id) ? theme.colors.grey4 : theme.colors.primary}
                         onPress={() => onCheckItem(m)}></ListItem.CheckBox>}
                     {m.avatar
-                        ? <Avatar size={size} rounded source={{ uri: m.avatar }}
-                            containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>
-                        : <Avatar size={size} rounded title={m.title[0].toUpperCase()}
-                            containerStyle={{ backgroundColor: theme.colors.primary }}></Avatar>}
+                        ? <Image source={{ uri: m.avatar }} style={{ width: size, height: size, borderRadius: 5 }}></Image>
+                        : <View style={{ backgroundColor: theme.colors.primary, height: size, width: size, borderRadius: 5, justifyContent: 'center', alignItems: 'center' }}>
+                            <Text style={{ color: theme.colors.background, fontSize: size * 0.6, fontWeight: 'bold' }}>{m.title[0].toUpperCase()}</Text>
+                        </View>}
                     <ListItem.Content>
                         <ListItem.Title numberOfLines={1} style={{ fontSize: globalStyle.titleFontStyle.fontSize }}>{m.title}</ListItem.Title>
                         <ListItem.Subtitle >

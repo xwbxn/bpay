@@ -69,7 +69,7 @@ SplashScreen.preventAutoHideAsync();
 export default function App() {
 
   const [appIsReady, setAppIsReady] = useState(false)
-  const { loading } = useGlobalState()
+  const { loading, setLoading } = useGlobalState()
   const { profile, hasHydrated, loginWithToken } = useProfile()
 
   async function onFetchUpdateAsync() {
@@ -78,18 +78,17 @@ export default function App() {
       console.log('update', update.isAvailable)
 
       if (update.isAvailable) {
+        setLoading(true)
         await Updates.fetchUpdateAsync();
         alert(`检测到更新，即将重新加载应用`);
+        setLoading(false)
         await Updates.reloadAsync();
       }
     } catch (error) {
+      setLoading(false)
       alert(`Error fetching latest Expo update: ${error}`);
     }
   }
-
-  useEffect(() => {
-    onFetchUpdateAsync()
-  }, [])
 
   // 使用已保存的凭证登陆后台
   useEffect(() => {
@@ -105,6 +104,7 @@ export default function App() {
         'fontello': require('./assets/fonts/font/fontello.ttf'),
       })
 
+      await onFetchUpdateAsync()
       await SplashScreen.hideAsync();
 
       ReactNativeForegroundService.start({
