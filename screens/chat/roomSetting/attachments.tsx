@@ -9,9 +9,10 @@ import { EventType, IEvent, Room } from 'matrix-js-sdk'
 import BpayHeader from '../../../components/BpayHeader'
 import { Button, Icon, Input, ListItem, useTheme } from '@rneui/themed'
 import Toast from 'react-native-root-toast';
+import { useProfile } from '../../../store/profileContext';
 
 const FILETYPE = ['doc', 'docx', 'zip', 'gz', 'ppt', 'pptx', 'xls', 'xlsx', 'apk', 'rar', 'txt', 'pdf',]
-const EXCLUDE_TYPE = ['png', 'jpg', 'jpeg', 'bmp', 'gif']
+const EXCLUDE_TYPE = ['jpeg', 'jpg', 'jpeg', 'bmp', 'gif']
 
 export default function RoomDocuments({ navigation, route }) {
 
@@ -21,22 +22,26 @@ export default function RoomDocuments({ navigation, route }) {
     const [room] = useState<Room>(client.getRoom(id))
     const [searchVal, setSearchVal] = useState('')
     const downloadTasks = useRef<string[]>([])
-    const [documents, setDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean }[]>([])
+    const [documents, setDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean, mimeType: string}[]>([])
     const [filterdDocuments, setfilterdDocuments] = useState<{ name: string, sender: string, url: string, downloaded: boolean }[]>([])
+    const [mediaAlias, setMediaAlias] = useState<{ [id: string]: string }>({})
 
     const loadMore = async () => {
         let token = client.getSyncStateData().nextSyncToken
         while (token) {
             const res: any = await client.getMediaMessages(id, token, 50, 'b', { types: [EventType.RoomMessage], contains_url: true })
             const data = res.chunk.map((e: IEvent) => ({
+                eventId: e.event_id,
                 name: e.content.body,
                 sender: room.getMember(e.sender).name,
+                senderId: room.getMember(e.sender).userId,
                 url: e.content.url,
                 ts: e.origin_server_ts,
-                mimeType: e.content.info.mimetype,
+                mimeType: e.content.info.mimetype || 'application/stream',
                 percent: ''
             }))
             for (const item of data) {
+                console.log('item.mineType', item.mimeType)
                 item.downloaded = (await FileSystem.getInfoAsync(getLocalName({ name: item.name }))).exists
             }
             setDocuments(prev => prev.concat(data))
@@ -55,13 +60,20 @@ export default function RoomDocuments({ navigation, route }) {
 
     useEffect(() => {
         setfilterdDocuments(documents
-            .filter(i => !EXCLUDE_TYPE.includes(i.name.toLowerCase().split('.')[1]))
+            .filter(i => !EXCLUDE_TYPE.includes(i.mimeType.split('/')[1]))
             .filter(i => searchVal !== '' ? i.name.toLowerCase().includes(searchVal.toLowerCase()) : true))
     }, [documents, searchVal])
 
     useEffect(() => {
         if (!room) {
             return
+        }
+        client.setRoomAccountData(room.roomId, 'm.media.alias', {
+            '$4P0Xlf4p1_thldnNaZxAIWlpUwslcr2sfmzl-T0e-TU': '我的名字'
+        })
+        const alias = room.getAccountData('m.media.alias')
+        if (alias) {
+            setMediaAlias(alias.getContent())
         }
         loadMore()
     }, [room])
@@ -92,19 +104,20 @@ export default function RoomDocuments({ navigation, route }) {
         return <>
             <ListItem bottomDivider>
                 <ListItem.Content>
-                    <ListItem.Title style={{ fontSize: 18 }}>{item.name}</ListItem.Title>
+                    <ListItem.Title style={{ fontSize: 18 }}>{mediaAlias[item.eventId] || item.name}</ListItem.Title>
                     <ListItem.Subtitle style={{ color: theme.colors.grey2 }}>{item.sender} {moment(item.ts).format("YYYY-MM-DD")}</ListItem.Subtitle>
                 </ListItem.Content>
                 {item.downloaded
-                    ? <Button title={'打开'} type='clear' onPress={async () => {
+                    ? <Button title={'打开'} size='sm' type='clear' onPress={async () => {
                         Sharing.shareAsync(getLocalName(item), {
                             dialogTitle: '选择应用',
                             mimeType: item.mimeType
                         })
                     }}></Button>
                     : item.percent === ''
-                        ? <Button title={'下载'} type='clear' onPress={() => { download(item) }}></Button>
+                        ? <Button size='sm' title={'下载'} type='clear' onPress={() => { download(item) }}></Button>
                         : <Text>{item.percent}</Text>}
+                {(client.canDo(room.roomId, 'm.room.name') || item.senderId === client.getUserId()) && <Button type='clear' size='sm'>重命名</Button>}
             </ListItem>
         </>
     }, [documents])

@@ -33,11 +33,11 @@ const PostFlatList = (props: IProps) => {
                             <ListItem.Subtitle style={{ color: theme.colors.grey3 }}>{category} {item._embedded.author[0].name} | {moment(item.date).format("YYYY-MM-DD")}</ListItem.Subtitle>
                         </ListItem.Content>
                         <Image style={{ width: 80, aspectRatio: 1.1, borderRadius: 0 }}
-                            source={{ uri: item._embedded['wp:featuredmedia'][0].media_details.sizes.thumbnail.source_url }}></Image>
+                            source={{ uri: item._embedded['wp:featuredmedia'][0].media_details?.sizes.thumbnail.source_url }}></Image>
                     </ListItem>
                 </TouchableOpacity>)
-        } catch {
-            console.log('JSON.strinify(item', JSON.stringify(item))
+        } catch(ex) {
+            console.error(ex)
             return <></>
         }
     }, [])

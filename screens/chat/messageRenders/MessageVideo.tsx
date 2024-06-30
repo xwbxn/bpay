@@ -1,4 +1,4 @@
-import { Avatar } from '@rneui/themed';
+import { Avatar, Icon } from '@rneui/themed';
 import { Image } from 'expo-image';
 import * as FileSystem from 'expo-file-system';
 import * as Progress from 'react-native-progress';
@@ -82,11 +82,12 @@ export default function MessageVideoRender({ containerStyle, imageProps = {}, im
         }}>
           {progress > 0
             ? <Progress.Circle size={50} progress={progress}></Progress.Circle>
-            : <Avatar icon={{ name: 'play', type: 'octicon', color: '#a0a0a0', size: 50 }} size={50}></Avatar>}
+            : <Icon type='octicon' name='play' color={'#a0a0a0'} size={50}></Icon>}
         </View>
-        <Image {...imageProps} style={[styles.image, imageStyle, { opacity: 0.8, width, height }]}
-          placeholder='加载中'
-          source={{ uri: thumbnail_url }} />
+        {thumbnail_url &&
+          <Image {...imageProps} style={[styles.image, imageStyle, { opacity: 0.8, width, height }]}
+            placeholder='加载中'
+            source={{ uri: thumbnail_url }} />}
       </View>
     </TouchableOpacity >
   </View >);

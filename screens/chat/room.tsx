@@ -97,20 +97,21 @@ export function Room({ route, navigation }) {
 
   // event转换为msg格式
   const evtToMsg = useCallback((event: MatrixEvent) => {
-    const message = eventMessage(event, room, client)
+    const _event = event.toSnapshot() // 渲染过程中有可能发生变化，因此使用snapshot
+    const message = eventMessage(_event, room, client)
     // 空消息不显示
     if (message === null) {
       return { _id: null }
     }
-    const sender = event.sender
+    const sender = _event.sender
     const powerLevel = room.getMember(sender.userId)?.powerLevel || 0
     let msg: IChatMessage = {
-      _id: event.getId(),
+      _id: _event.getId(),
       text: 'm.message',
-      createdAt: event.localTimestamp,
+      createdAt: _event.localTimestamp,
       user: {
-        _id: event.getSender(),
-        name: sender?.name || event.getSender(),
+        _id: _event.getSender(),
+        name: sender?.name || _event.getSender(),
         avatar: (styles) => {
           const uri = sender?.getAvatarUrl(client.baseUrl, 50, 50, 'crop', true, true) || undefined
           if (uri) {
@@ -134,10 +135,10 @@ export function Room({ route, navigation }) {
           }
         }
       },
-      sent: event.status === null,
-      pending: event.status !== null,
-      event: event,
-      highlight: event.getContent()['m.mentions']?.user_ids?.includes(client.getUserId()),
+      sent: _event.status === null,
+      pending: _event.status !== null,
+      event: _event,
+      highlight: _event.getContent()['m.mentions']?.user_ids?.includes(client.getUserId()),
       ...message
     }
     return msg

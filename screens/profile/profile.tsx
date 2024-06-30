@@ -17,6 +17,7 @@ import { ISettingItem, SettingList } from '../../components/SettingList';
 import Toast from 'react-native-root-toast';
 import { getMyBalance } from '../../service/wordpress';
 import { PushRuleKind } from 'matrix-js-sdk';
+import { ScrollView } from 'react-native';
 
 const Profile = ({ navigation, route }) => {
 
@@ -240,7 +241,9 @@ const Profile = ({ navigation, route }) => {
     return <>
         <BpayHeader showback title='用户信息'></BpayHeader>
         <PropEditor editProps={editProps}></PropEditor>
-        {mySetting}
+        <ScrollView>
+            {mySetting}
+        </ScrollView>
     </>
 }
 

@@ -52,14 +52,8 @@ const ImageRender = (opts) => {
         height = height / ratio
     }
 
-    const renderHeader = () => (
-        <View>
-            <Icon  name='arrow-back' color={'#fff'}></Icon>
-        </View>
-    )
-
     const renderFooter = () => (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 14, width: size.width }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 20, width: size.width }}>
             {!!thumbnail_url && url !== thumbnail_url && !showOriginImage && <Button type='outline'
                 buttonStyle={{ borderColor: '#fff' }}
                 onPress={() => setShowOriginImage(true)}
@@ -96,7 +90,7 @@ const ImageRender = (opts) => {
                 onSave={saveToCamera}
                 renderImage={renderImage}
                 renderFooter={renderFooter}
-                renderHeader={renderHeader}
+                onClick={() => setFullscreen(false)}
                 menuContext={{ saveToLocal: '保存到相册', cancel: '取消' }}
             ></ImageViewer>
         </Overlay>
@@ -104,8 +98,8 @@ const ImageRender = (opts) => {
 
     return <TouchableOpacity onPress={() => setFullscreen(true)} onLongPress={onLongPress}>
         <View style={{ alignItems: 'center' }}>
-            <Image source={{ uri: thumbnail_url || url }} style={[styles.image, { height, width }]}>
-            </Image>
+            {(thumbnail_url || url) && <Image source={{ uri: thumbnail_url || url }} style={[styles.image, { height, width }]}>
+            </Image>}
         </View>
     </TouchableOpacity>
 }

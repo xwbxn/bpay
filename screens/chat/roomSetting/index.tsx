@@ -8,16 +8,16 @@ import {
     Icon, Switch, useTheme
 } from '@rneui/themed';
 
+import { Direction, EventType, Filter, JoinRule, MatrixEvent, MsgType, PushRuleKind, RoomEvent, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
+import BpayHeader from '../../../components/BpayHeader';
+import { IPropEditorProps, PropEditor } from '../../../components/PropEditor';
+import { ISettingItem, SettingList } from '../../../components/SettingList';
 import { useGlobalState } from '../../../store/globalContext';
 import { useMatrixClient } from '../../../store/useMatrixClient';
-import { IListItem } from '../components/ListView';
-import { IMemberItem, MemberList } from './components/MemberList';
-import { IPropEditorProps, PropEditor } from '../../../components/PropEditor';
-import { ConditionKind, Direction, EventType, Filter, JoinRule, MatrixEvent, MsgType, PushRuleKind, RoomEvent, RoomMember, RoomStateEvent, Visibility } from 'matrix-js-sdk';
-import { ISettingItem, SettingList } from '../../../components/SettingList';
 import ListItemPicker from '../components/ListItemPicker';
+import { IListItem } from '../components/ListView';
 import { IRoomSetting } from '../groups';
-import BpayHeader from '../../../components/BpayHeader';
+import { IMemberItem, MemberList } from './components/MemberList';
 
 export const RoomSetting = ({ navigation, route }) => {
 
