@@ -4,7 +4,6 @@ import { StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Avatar, Header, Icon, useTheme } from '@rneui/themed';
 
-import { globalStyle } from '../utils/styles';
 import { useProfile } from '../store/profileContext'
 
 interface IBpayHeaderProps {

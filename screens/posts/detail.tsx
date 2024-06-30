@@ -2,10 +2,11 @@ import { ResizeMode } from 'expo-av';
 import * as Sharing from 'expo-sharing';
 import VideoPlayer from 'expo-video-player';
 import moment from 'moment';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import RenderHtml, {
-    CustomBlockRenderer, HTMLContentModel, HTMLElementModel
+    CustomBlockRenderer, HTMLContentModel, HTMLElementModel,
+    defaultHTMLElementModels
 } from 'react-native-render-html';
 
 import { Avatar, Button, Icon, ListItem, Text, useTheme } from '@rneui/themed';
@@ -20,6 +21,9 @@ const customElementModels = {
         contentModel: HTMLContentModel.block,
         tagName: "video",
         isOpaque: true,
+        mixedUAStyles: {
+            width: 800
+        }
     }),
     audio: HTMLElementModel.fromCustomModel({
         contentModel: HTMLContentModel.block,
@@ -32,7 +36,7 @@ const AudioRenderer: CustomBlockRenderer = ({
     tnode,
     style,
 }) => {
-    const width = useWindowDimensions().width;
+    const { width } = useWindowDimensions();
     return (
         <VideoPlayer
             videoProps={{
@@ -53,7 +57,7 @@ const VideoRenderer: CustomBlockRenderer = ({
     tnode,
     style,
 }) => {
-    const width = useWindowDimensions().width;
+    const { width } = useWindowDimensions();
     return (
         <VideoPlayer
             videoProps={{
@@ -101,6 +105,33 @@ export default function PostDetail({ route, navigation }) {
         }
     };
 
+    const tagStyles = useMemo(() => {
+        return {
+            image: {
+                width: 800
+            }
+        }
+    }, [screenSize])
+
+    const renderHtml = useCallback(() => {
+        return <RenderHtml ignoredDomTags={['button', 'center']}
+            debug
+            baseStyle={{ paddingHorizontal: 16 }}
+            defaultTextProps={{ style: [globalStyle.postContentFontStyle] }}
+            enableExperimentalMarginCollapsing={true}
+            enableExperimentalBRCollapsing={true}
+            enableExperimentalGhostLinesPrevention={true}
+            customHTMLElementModels={customElementModels}
+            enableCSSInlineProcessing={false}
+            tagsStyles={tagStyles}
+            renderers={{ video: VideoRenderer, audio: AudioRenderer }}
+            renderersProps={renderersProps}
+            contentWidth={screenSize.width - 32}
+            source={{ html: post?.content.rendered }}></RenderHtml>
+    }, [post, screenSize, tagStyles])
+
+    defaultHTMLElementModels.figure
+
     return post && <>
         <View style={{ flex: 1 }}>
             <PostHeader showback></PostHeader>
@@ -119,22 +150,10 @@ export default function PostDetail({ route, navigation }) {
                         </ListItem.Content>
                         <Button icon={<Icon name='share' size={18} color={theme.colors.primary} ></Icon>} buttonStyle={{ padding: 2 }}
                             title='分享' size='sm' type='outline' onPress={onShare}></Button>
-
                     </ListItem>
-                    <RenderHtml ignoredDomTags={['button']}
-                        // debug
-                        baseStyle={{ paddingHorizontal: 16 }}
-                        defaultTextProps={{ style: [globalStyle.postContentFontStyle] }}
-                        enableExperimentalMarginCollapsing={true}
-                        enableExperimentalBRCollapsing={true}
-                        enableExperimentalGhostLinesPrevention={true}
-                        customHTMLElementModels={customElementModels}
-                        renderers={{ video: VideoRenderer, audio: AudioRenderer }}
-                        renderersProps={renderersProps}
-                        contentWidth={screenSize.width - 32}
-                        source={{ html: post?.content.rendered }}></RenderHtml>
+                    {renderHtml()}
                 </ScrollView>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-evenly' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginBottom: 20}}>
                     <Button onPress={onShare} type='clear' titleStyle={{ color: theme.colors.black }} size='sm' title={'分享'} icon={<Icon name='share' size={18}></Icon>}></Button>
                     <Button type='clear' titleStyle={{ color: theme.colors.black }} size='sm' title={'5'} icon={<Icon name='comment' size={18}></Icon>}></Button>
                     <Button type='clear' titleStyle={{ color: theme.colors.black }} size='sm' title={'2'} icon={<Icon name='favorite' size={18}></Icon>}></Button>

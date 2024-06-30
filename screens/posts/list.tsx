@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import { Avatar, Icon, Tab, TabView, useTheme } from '@rneui/themed';
+import { Tab, TabView, useTheme } from '@rneui/themed';
 
 import { useGlobalState } from '../../store/globalContext';
 import { useProfile } from '../../store/profileContext';

@@ -39,6 +39,7 @@ import Welcome from './screens/profile/welcome';
 import Splash from './Splash';
 import { useGlobalState } from './store/globalContext';
 import { useProfile } from './store/profileContext';
+import SquireList from './screens/posts/square';
 
 //dayjs
 dayjs.locale('zh-cn') // 使用本地化语言
@@ -160,6 +161,7 @@ export default function App() {
             <Stack.Screen name='Membership' component={Membership} />
             <Stack.Screen name='Checkout' component={Checkout} />
             <Stack.Screen name='Orders' component={Orders} />
+            <Stack.Screen name='Squire' component={SquireList} />
           </Stack.Navigator>
         </NavigationContainer>
         <StatusBar backgroundColor={theme.lightColors.primary} style="light" />
