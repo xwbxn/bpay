@@ -88,3 +88,13 @@ export function createWalletOrder(data: { line_items: { product_id: number, quan
         data
     })
 }
+
+export function uploadMedia(filename, data) {
+    return request.post(`/wp-json/wp/v2/media`, {
+        headers: {
+            "Content-Disposition": `attachment; filename="${filename}"`,
+            "Content-type": 'multipart/form-data'
+        },
+        body: data
+    })
+}
