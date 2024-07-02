@@ -57,7 +57,7 @@ const MicroBlog = (opts: IMicroBlogProps) => {
         }
         if (images.length === 2) {
             return <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                {images.map(img => <Image source={{ uri: img.uri }}
+                {images.map((img, index) => <Image key={index} source={{ uri: img.uri }}
                     style={{ borderRadius: 5, height: DEFAULT_HEIGHT, width: '50%' }}
                     contentFit='cover'></Image>)}
             </View>
@@ -67,7 +67,7 @@ const MicroBlog = (opts: IMicroBlogProps) => {
                 <Image source={{ uri: images[0].uri }}
                     style={{ borderRadius: 5, height: DEFAULT_HEIGHT + 2, width: '50%', marginRight: 1 }}
                     contentFit='cover'></Image>
-                {images.slice(1).map((img) => <Image source={{ uri: img.uri }}
+                {images.slice(1).map((img, index) => <Image key={index} source={{ uri: img.uri }}
                     style={{ borderRadius: 5, height: DEFAULT_HEIGHT / 2, width: '50%', marginBottom: 2 }}
                     contentFit='cover'></Image>)}
             </View>

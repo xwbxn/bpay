@@ -29,13 +29,16 @@ export default function SquireList({ route, navigation }) {
     const inset = useSafeAreaInsets()
     const [data, setdata] = useState([])
     const [page, setPage] = useState(1)
+
     const refreshData = () => {
+        console.log('refresh')
         getMBlogs({
             page: 1,
             per_page: 10
         }).then(res => {
             const blogs = res.map(item => {
                 return {
+                    id: item.id,
                     author: {
                         id: item._embedded.author[0].id,
                         name: item._embedded.author[0].name,
@@ -77,6 +80,7 @@ export default function SquireList({ route, navigation }) {
     const onPublish = async () => {
         // 1. create post & get post id
         try {
+            setShowBottomSheet(false)
             setLoading(true)
             const { id } = await createMBlog({
                 status: 'draft',
@@ -98,8 +102,8 @@ export default function SquireList({ route, navigation }) {
             Toast.show('发布成功', { position: Toast.positions.CENTER })
             setContent('')
             setImages([])
-            setShowBottomSheet(false)
         } catch (error) {
+            setShowBottomSheet(true)
             console.log('error', error)
         } finally {
             setLoading(false)
@@ -218,6 +222,9 @@ export default function SquireList({ route, navigation }) {
             {/* container */}
             <View style={{ flex: 1 }}>
                 <FlatList renderItem={renderItem}
+                refreshing={false}
+                onRefresh={() => refreshData()}
+                keyExtractor={(item) => item.id}
                     data={data}>
                 </FlatList>
             </View>
