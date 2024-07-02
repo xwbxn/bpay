@@ -105,3 +105,15 @@ export function createMBlog(data) {
         data
     })
 }
+
+export function updateMBlog(id, data) {
+    return request.patch(`/wp-json/wp/v2/mblog/${id}`, {
+        data
+    })
+}
+
+export function getMBlogs(params?) {
+    return request.get('/wp-json/wp/v2/mblog?context=embed&status=publish&_embed=true', {
+        params
+    })
+}

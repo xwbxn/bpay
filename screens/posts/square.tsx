@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, View, useWindowDimensions, FlatList, TouchableOpacity } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { StyleSheet, View, useWindowDimensions, FlatList, TouchableOpacity, Alert } from 'react-native';
 
 
 import { Badge, BottomSheet, Button, Header, Icon, Input, useTheme } from '@rneui/themed';
@@ -9,11 +8,13 @@ import { Badge, BottomSheet, Button, Header, Icon, Input, useTheme } from '@rneu
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import BpayHeader from '../../components/BpayHeader';
-import { createMBlog, uploadMedia } from '../../service/wordpress';
+import { createMBlog, getMBlogs, updateMBlog, uploadMedia } from '../../service/wordpress';
 import { useProfile } from '../../store/profileContext';
-import MicroBlog, { IMicroBlogProps } from './components/microBlog';
+import MicroBlog, { IMicroBlogProps } from './components/MicroBlog';
 import { useGlobalState } from '../../store/globalContext';
-
+// import ImagePicker from '../../components/ImagePicker';
+import * as ImagePicker from 'expo-image-picker'
+import Toast from 'react-native-root-toast';
 
 export default function SquireList({ route, navigation }) {
 
@@ -21,16 +22,40 @@ export default function SquireList({ route, navigation }) {
     const { profile } = useProfile()
     const [content, setContent] = useState('')
     const [isPreview, setIsPreview] = useState(false)
-    const [images, setFiles] = useState([])
+    const [images, setImages] = useState([])
     const [showBottomSheet, setShowBottomSheet] = useState(false)
     const { height, width } = useWindowDimensions()
     const { setLoading } = useGlobalState()
     const inset = useSafeAreaInsets()
-
-
-    const onPostPress = (item) => {
-        navigation.push('PostDetail', { id: item.id, link: item.link })
+    const [data, setdata] = useState([])
+    const [page, setPage] = useState(1)
+    const refreshData = () => {
+        getMBlogs({
+            page: 1,
+            per_page: 10
+        }).then(res => {
+            const blogs = res.map(item => {
+                return {
+                    author: {
+                        id: item._embedded.author[0].id,
+                        name: item._embedded.author[0].name,
+                        avatar: item._embedded.author[0].avatar_urls['48']
+                    },
+                    content: item.excerpt.rendered.replace('<p>', '').replace('</p>', '').trimEnd(),
+                    images: item.images.filter(i => i !== "").map(i => (JSON.parse(i))),
+                    publishTime: item.date,
+                    // hotComment: { name: '红茶', content: '谁说不是呢，这真实一个问题' }
+                }
+            })
+            setPage(1)
+            setdata(blogs)
+        })
     }
+
+    useEffect(() => {
+        refreshData()
+    }, [])
+
 
     const onNewTopic = () => {
         setShowBottomSheet(true)
@@ -45,45 +70,45 @@ export default function SquireList({ route, navigation }) {
             selectionLimit: 9
         })
         if (!picker.canceled) {
-            picker.assets.forEach(async (a) => {
-                setFiles([...images, a])
-            })
+            setImages([...images, ...picker.assets])
         }
     }
-
-
 
     const onPublish = async () => {
         // 1. create post & get post id
         try {
             setLoading(true)
-            const res = await createMBlog({
+            const { id } = await createMBlog({
                 status: 'draft',
                 content: content,
-                images: [
-                    'https://bbs.hupu.com'
-                ]
             })
-            console.log('res', res)
+            const uploaded = []
+            for (const img of images) {
+                const form = new FormData()
+                // @ts-ignore
+                form.append('file', { uri: img.uri, type: 'multipart/form-data', name: img.fileName })
+                form.append('post', id)
+                const { source_url } = await uploadMedia(img.fileName, form)
+                uploaded.push({ uri: source_url, height: img.height, width: img.width })
+            }
+            await updateMBlog(id, {
+                status: 'publish',
+                images: uploaded.map(i => JSON.stringify(i))
+            })
+            Toast.show('发布成功', { position: Toast.positions.CENTER })
+            setContent('')
+            setImages([])
+            setShowBottomSheet(false)
         } catch (error) {
             console.log('error', error)
         } finally {
             setLoading(false)
         }
-        // 2. upload images with post id
-        // 3. back to post viewer
-
-        const form = new FormData()
-        // @ts-ignore
-        // form.append('file', { uri: a.uri, type: 'multipart/form-data', name: a.fileName })
-        // uploadMedia(a.fileName, form).then(res => {
-        //     console.log('res', res)
-        // })
     }
 
     const onRemoveImage = async (item) => {
         images.splice(images.findIndex(f => f.assetId === item.assetId), 1)
-        setFiles([...images])
+        setImages([...images])
     }
 
     const onPreview = async () => {
@@ -103,7 +128,7 @@ export default function SquireList({ route, navigation }) {
                         </View>
                     }>
                 </Header>
-                {!isPreview && <View style={{ backgroundColor: theme.colors.background, paddingVertical: 16 }}><Input multiline
+                {!isPreview && <View style={{ backgroundColor: theme.colors.background, paddingBottom: 16 }}><Input multiline
                     value={content}
                     onChangeText={setContent}
                     textAlignVertical='top'
@@ -116,7 +141,9 @@ export default function SquireList({ route, navigation }) {
                             style={[styles.imageButton, { width: (width - 40) / 3, height: (width - 40) / 3 }]}>
                             <Image source={{ uri: f.uri }}
                                 style={{ width: "100%", height: "100%" }}></Image>
-                            <Badge onPress={() => onRemoveImage(f)} value={'X'} badgeStyle={{ backgroundColor: '#555' }} containerStyle={{ position: 'absolute', top: 5, right: 5 }}></Badge>
+                            <Badge onPress={() => onRemoveImage(f)} value={'X'}
+                                badgeStyle={{ backgroundColor: '#555' }}
+                                containerStyle={{ position: 'absolute', top: 5, right: 5 }}></Badge>
                         </View>))}
                         <TouchableOpacity onPress={onAddImage} style={[styles.imageButton, { width: (width - 40) / 3, height: (width - 40) / 3 }]}>
                             <Icon size={width / 6} color={theme.colors.grey4} name='plus' type='antdesign'></Icon>
@@ -138,52 +165,52 @@ export default function SquireList({ route, navigation }) {
         ></MicroBlog>
     }
 
-    const data: IMicroBlogProps[] = [
-        {
-            author: {
-                id: '1',
-                name: '历史风暴',
-                avatar: 'http://e.hiphotos.baidu.com/image/pic/item/4e4a20a4462309f7e41f5cfe760e0cf3d6cad6ee.jpg'
-            },
-            content: '表弟是某211大学毕业，学的文科管理专业，毕业以后问我求职找工作的事，我给他推荐了一些还不错的工作，没想到他眼高手低根本看不上，后面他甚至拉黑了我的微信，真的是不识好人心，话说现在的年轻人都这么不能吃苦了吗',
-            images: [{
-                uri: 'https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg',
-            },
-            {
-                uri: 'http://e.hiphotos.baidu.com/image/pic/item/4bed2e738bd4b31c1badd5a685d6277f9e2ff81e.jpg',
-            },
-            {
-                uri: 'https://upload-images.jianshu.io/upload_images/5809200-caf66b935fd00e18.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
-            },
-            {
-                uri: 'https://upload-images.jianshu.io/upload_images/5809200-c12521fbde6c705b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
-            }],
-            publishTime: new Date(),
-            hotComment: { name: '红茶', content: '谁说不是呢，这真实一个问题' }
-        },
-        {
-            author: {
-                id: '1',
-                name: '历史风暴',
-                avatar: 'http://e.hiphotos.baidu.com/image/pic/item/4e4a20a4462309f7e41f5cfe760e0cf3d6cad6ee.jpg'
-            },
-            content: '表弟是某211大学毕业，学的文科管理专业，毕业以后问我求职找工作的事，我给他推荐了一些还不错的工作，没想到他眼高手低根本看不上，后面他甚至拉黑了我的微信，真的是不识好人心，话说现在的年轻人都这么不能吃苦了吗',
-            images: [{
-                uri: 'https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg',
-            },
-            {
-                uri: 'http://e.hiphotos.baidu.com/image/pic/item/4bed2e738bd4b31c1badd5a685d6277f9e2ff81e.jpg',
-            },
-            {
-                uri: 'https://upload-images.jianshu.io/upload_images/5809200-caf66b935fd00e18.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
-            },
-            {
-                uri: 'https://upload-images.jianshu.io/upload_images/5809200-c12521fbde6c705b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
-            }],
-            publishTime: new Date(),
-            hotComment: { name: '红茶', content: '谁说不是呢，这真实一个问题' }
-        }
-    ]
+    // const data: IMicroBlogProps[] = [
+    //     {
+    //         author: {
+    //             id: '1',
+    //             name: '历史风暴',
+    //             avatar: 'http://e.hiphotos.baidu.com/image/pic/item/4e4a20a4462309f7e41f5cfe760e0cf3d6cad6ee.jpg'
+    //         },
+    //         content: '表弟是某211大学毕业，学的文科管理专业，毕业以后问我求职找工作的事，我给他推荐了一些还不错的工作，没想到他眼高手低根本看不上，后面他甚至拉黑了我的微信，真的是不识好人心，话说现在的年轻人都这么不能吃苦了吗',
+    //         images: [{
+    //             uri: 'https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg',
+    //         },
+    //         {
+    //             uri: 'http://e.hiphotos.baidu.com/image/pic/item/4bed2e738bd4b31c1badd5a685d6277f9e2ff81e.jpg',
+    //         },
+    //         {
+    //             uri: 'https://upload-images.jianshu.io/upload_images/5809200-caf66b935fd00e18.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
+    //         },
+    //         {
+    //             uri: 'https://upload-images.jianshu.io/upload_images/5809200-c12521fbde6c705b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
+    //         }],
+    //         publishTime: new Date(),
+    //         hotComment: { name: '红茶', content: '谁说不是呢，这真实一个问题' }
+    //     },
+    //     {
+    //         author: {
+    //             id: '1',
+    //             name: '历史风暴',
+    //             avatar: 'http://e.hiphotos.baidu.com/image/pic/item/4e4a20a4462309f7e41f5cfe760e0cf3d6cad6ee.jpg'
+    //         },
+    //         content: '表弟是某211大学毕业，学的文科管理专业，毕业以后问我求职找工作的事，我给他推荐了一些还不错的工作，没想到他眼高手低根本看不上，后面他甚至拉黑了我的微信，真的是不识好人心，话说现在的年轻人都这么不能吃苦了吗',
+    //         images: [{
+    //             uri: 'https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg',
+    //         },
+    //         {
+    //             uri: 'http://e.hiphotos.baidu.com/image/pic/item/4bed2e738bd4b31c1badd5a685d6277f9e2ff81e.jpg',
+    //         },
+    //         {
+    //             uri: 'https://upload-images.jianshu.io/upload_images/5809200-caf66b935fd00e18.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
+    //         },
+    //         {
+    //             uri: 'https://upload-images.jianshu.io/upload_images/5809200-c12521fbde6c705b.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240',
+    //         }],
+    //         publishTime: new Date(),
+    //         hotComment: { name: '红茶', content: '谁说不是呢，这真实一个问题' }
+    //     }
+    // ]
 
     return <>
         <View style={{ flex: 1 }}>
@@ -202,7 +229,8 @@ export default function SquireList({ route, navigation }) {
 const styles = StyleSheet.create({
     contentBox: {
         paddingTop: 20,
-        minHeight: 80
+        minHeight: 80,
+        lineHeight: 28
     },
     imageButton: {
         backgroundColor: '#dddddd',
