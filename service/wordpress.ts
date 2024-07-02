@@ -98,3 +98,10 @@ export function uploadMedia(filename, data) {
         body: data
     })
 }
+
+
+export function createMBlog(data) {
+    return request.post('/wp-json/wp/v2/mblog', {
+        data
+    })
+}

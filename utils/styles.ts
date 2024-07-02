@@ -15,7 +15,7 @@ export const globalStyle = StyleSheet.create({
         fontWeight: 'bold'
     },
     postContentFontStyle: {
-        fontSize: 17,
-        lineHeight: 26
+        fontSize: 16,
+        lineHeight: 28
     }
 })
