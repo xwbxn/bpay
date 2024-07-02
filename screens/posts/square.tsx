@@ -1,17 +1,129 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 
-import { Badge, BottomSheet, Button, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
+import { Badge, BottomSheet, Button, Chip, Header, Icon, Input, Text, useTheme } from '@rneui/themed';
 
-import PostFlatList from './components/PostFlatList';
+import { normalizeText } from "@freakycoder/react-native-helpers";
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import BpayHeader from '../../components/BpayHeader';
 import { uploadMedia } from '../../service/wordpress';
-import { FileSystemUploadType, uploadAsync } from 'expo-file-system';
 import { useProfile } from '../../store/profileContext';
+import moment from 'moment';
+
+interface IMicroBlogProps {
+    author: {
+        id: string,
+        name: string,
+        avatar?: string,
+    },
+    content: string,
+    images: {
+        uri: string,
+        width?: number,
+        height?: number,
+    }[],
+    create_time: number | Date,
+    comment_count?: number,
+    favor_count?: number,
+    star_count?: number
+}
+
+const RenderMicroBlog = (opts: IMicroBlogProps) => {
+    const {
+        author,
+        content,
+        images,
+        create_time
+    } = opts
+
+    const { theme } = useTheme()
+
+    const renderImages = (images) => {
+        if (images.length === 1) {
+            const img = images[0]
+            return <View>
+                <Image source={{ uri: img.uri }}
+                    style={{ borderRadius: 5, height: 220, width: '50%' }}
+                    contentPosition='top left'
+                    contentFit='cover'></Image>
+            </View>
+        }
+    }
+
+    const styles = useMemo(() => {
+        return StyleSheet.create({
+            contaier: {
+                backgroundColor: theme.colors.background
+            },
+            header: {
+                flexDirection: 'row'
+            },
+            headerLeft: {
+
+            },
+            headerCenter: {
+                flex: 1,
+                paddingLeft: 8,
+                justifyContent: 'center'
+            },
+            headerCenterTitle: {
+                fontSize: normalizeText(12),
+                fontWeight: 'bold',
+            },
+            headerCenterTime: {
+                fontSize: normalizeText(10),
+                color: theme.colors.grey0
+            },
+            headerRight: {
+                justifyContent: 'center',
+                paddingRight: 8
+            },
+            contentBox: {
+                paddingVertical: 16
+            },
+            content: {
+                fontSize: normalizeText(12),
+                lineHeight: normalizeText(20)
+            },
+            imageList: {
+
+            },
+            hotComment: {
+
+            },
+            footer: {
+
+            }
+        })
+    }, [theme])
+
+    return <>
+        <View style={styles.contaier}>
+            <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                    <Image source={{ uri: author.avatar }} style={{ width: normalizeText(30), height: normalizeText(30), borderRadius: 5 }} contentFit='cover'></Image>
+                </View>
+                <View style={styles.headerCenter}>
+                    <Text style={styles.headerCenterTitle}>{author.name}</Text>
+                    <Text style={styles.headerCenterTime}>{moment(create_time).fromNow()}</Text>
+                </View>
+                <View style={styles.headerRight}>
+                    <Chip title={'关注'} size='sm'></Chip>
+                </View>
+            </View>
+            <View style={styles.contentBox}><Text style={styles.content}>{content}</Text></View>
+            <View style={styles.imageList}>
+                {renderImages(images)}
+            </View>
+            <View style={styles.hotComment}></View>
+            <View style={styles.footer}></View>
+        </View>
+    </>
+}
 
 
 export default function SquireList({ route, navigation }) {
@@ -116,12 +228,20 @@ export default function SquireList({ route, navigation }) {
             <BpayHeader showback title='广场' rightComponent={<Icon onPress={onNewTopic} name='plus-circle' type='feather' color={theme.colors.background}></Icon>}></BpayHeader>
             {/* container */}
             <View style={{ flex: 1, padding: 16 }}>
-                <View>
-                    <Text>{content}</Text>
-                    {files.map(item => {
-                        return <View style={{width: item.}}> <Image source={{ uri: item.uri }}></Image></View>
-                    })}
-                </View>
+                <RenderMicroBlog author={
+                    {
+                        id: '1',
+                        name: '历史风暴',
+                        avatar: 'http://e.hiphotos.baidu.com/image/pic/item/4e4a20a4462309f7e41f5cfe760e0cf3d6cad6ee.jpg'
+                    }}
+                    content={content}
+                    images={[{
+                        uri: 'http://e.hiphotos.baidu.com/image/pic/item/4bed2e738bd4b31c1badd5a685d6277f9e2ff81e.jpg',
+                        height: 600,
+                        width: 400,
+                    }]}
+                    create_time={new Date()}
+                />
             </View>
             {newPostSheet()}
         </View>

@@ -15,6 +15,7 @@
     "expo-module": "expo-module"
   },
   "dependencies": {
+    "@freakycoder/react-native-helpers": "^2.3.0",
     "@react-native-async-storage/async-storage": "1.21.0",
     "@react-native-community/slider": "4.4.2",
     "@react-navigation/bottom-tabs": "^6.5.11",

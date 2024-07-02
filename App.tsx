@@ -114,9 +114,7 @@ export default function App() {
         message: `正在运行`
       })
 
-      setTimeout(() => {
-        setAppIsReady(true)
-      }, 3000);
+      setAppIsReady(true)
     }
     prepare()
 
